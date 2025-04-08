@@ -65,6 +65,7 @@ class LoginWindow(QMainWindow):
         password_layout.addLayout(link_layout)
 
         self.login_button = QPushButton("Login", self)
+        self.login_button.setObjectName("loginButton")
         self.login_button.setFixedWidth(150)
 
         form_container.setMaximumWidth(600)

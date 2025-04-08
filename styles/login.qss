@@ -17,7 +17,7 @@ QLabel#LogoLabel {
     background: transparent; 
 }
 
-QPushButton {
+QPushButton#loginButton {
     min-width: 100px;         
     min-height: 40px;         
     font-size: 20px;
@@ -27,7 +27,7 @@ QPushButton {
     border: 2px solid #007a99;
 }
 
-QPushButton:hover {
+QPushButton#loginButton:hover {
     background-color: #45a049;
 }
 
@@ -88,9 +88,55 @@ QLabel#SubwelcomeLabel {
     line-height: normal;
 }
 
-QPushButton#create{
+QPushButton#create {
+    min-width: 100px;         
+    min-height: 40px;         
     font-size: 15px;
-    padding: 3px, 6px, 3px, 6px;
-    font-weight: 700;
+    background-color: #009FB7;
+    color: white;
+    border-radius: 20px;       
+    border: 2px solid #007a99;
+}
+
+QPushButton#create:hover {
+    background-color: #45a049;
+}
+
+
+/* Home Page */
+
+#Header {
+    background-color: #009FB7; 
+}
+
+#UsernameLabel {
+    color: #FFF;
+    text-align: center;
     font-family: Lato;
+    font-size: 24px;
+    font-style: normal;
+    line-height: normal;        
+}
+
+#Navbarlogo {
+    background: transparent;
+}
+
+QPushButton {
+    min-width: 100px;   
+    font-family: Lato;      
+    min-height: 40px;         
+    font-size: 20px;
+    background: transparent;
+    color: #000;
+}
+
+#ClinicNameLabel {
+    color: #000;
+    text-align: center;
+    font-family: Lato;
+    font-size: 24px;
+    font-style: normal;
+    font-weight: 800;
+    line-height: normal;
 }
