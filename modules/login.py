@@ -1,10 +1,12 @@
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QLabel, QLineEdit, QPushButton,
-    QVBoxLayout, QHBoxLayout, QWidget
+    QVBoxLayout, QHBoxLayout, QWidget, QMessageBox
 )
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
-from signup import SignUpWindow  
+from modules.database import Database  # Import the Database class
+from modules.signup import SignUpWindow  
+from modules.home import HomePage
 
 class LoginWindow(QMainWindow):
     def __init__(self):
@@ -42,7 +44,7 @@ class LoginWindow(QMainWindow):
         self.subwelcome_label.setAlignment(Qt.AlignLeft)
 
         self.username_input = QLineEdit(self)
-        self.username_input.setPlaceholderText("Username / ID")
+        self.username_input.setPlaceholderText("Email")
         self.username_input.setFixedWidth(400)
 
         self.password_input = QLineEdit(self)
@@ -67,6 +69,7 @@ class LoginWindow(QMainWindow):
         self.login_button = QPushButton("Login", self)
         self.login_button.setObjectName("loginButton")
         self.login_button.setFixedWidth(150)
+        self.login_button.clicked.connect(self.login_user)  # Connect to the login_user method
 
         form_container.setMaximumWidth(600)
 
@@ -111,8 +114,35 @@ class LoginWindow(QMainWindow):
         self.signup_window.showMaximized() 
         self.close() 
 
+    def login_user(self):
+        """Handle user login."""
+        email = self.username_input.text().strip()
+        password = self.password_input.text().strip()
 
-app = QApplication([])
-window = LoginWindow()
-window.showMaximized()
-app.exec()
+        if not (email and password):
+            QMessageBox.warning(self, "Input Error", "Email and password are required!")
+            return
+
+        # Connect to the database and authenticate the user
+        db = Database()
+        try:
+            user = db.authenticate_user(email, password)
+            if user:
+                QMessageBox.information(self, "Success", f"Welcome {user['name']}!")
+                
+                # Redirect to HomePage
+                self.home_page = HomePage()
+                self.home_page.showMaximized()  # Ensure the HomePage is maximized
+                self.close()  # Close the LoginWindow
+            else:
+                QMessageBox.warning(self, "Login Failed", "Invalid email or password.")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to login: {e}")
+        finally:
+            db.close_connection()
+
+    def go_to_signup(self):
+        print("Switching to signup page...")
+        self.signup_window = SignUpWindow()  
+        self.signup_window.showMaximized() 
+        self.close() 
