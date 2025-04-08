@@ -1,0 +1,96 @@
+QMainWindow {
+    background-color: #ffffff; 
+}
+
+QLineEdit {
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+}
+
+QLineEdit:hover {
+    border: 1px solid #007a99;
+}
+
+QLabel#LogoLabel {
+    background: transparent; 
+}
+
+QPushButton {
+    min-width: 100px;         
+    min-height: 40px;         
+    font-size: 20px;
+    background-color: #009FB7;
+    color: white;
+    border-radius: 20px;       
+    border: 2px solid #007a99;
+}
+
+QPushButton:hover {
+    background-color: #45a049;
+}
+
+
+QLabel#WelcomeLabel {
+    color: #009FB7;
+    font-family: "League Gothic";
+    font-size: 78px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: normal;
+}
+
+QLabel#SubwelcomeLabel {
+    color: #000;
+    font-family: Lato;
+    font-size: 20px;
+    font-style: italic;
+    line-height: normal;
+}
+
+#forgotPasswordButton {
+    color: #3498db;         
+    font-size: 12px;   
+    font-family: Lato;    
+    border: none;            
+    background: transparent;
+    text-align: right;       
+}
+
+#forgotPasswordButton:hover {
+    color: #2980b9;          
+    text-decoration: underline; 
+}
+
+#signupButton {
+    color: #3498db;
+    font-size: 12px;
+    border: none;
+    background: transparent;
+}
+
+#signupButton:hover {
+    color: #2980b9;
+    text-decoration: underline;
+}
+
+
+/* Sign up */
+
+#TitleLabel {
+    color: #009FB7;
+    text-align: center;
+    font-family: "League Gothic";
+    font-size: 70px;
+    font-style: normal;
+    font-weight: 300;
+    line-height: normal;
+}
+
+QPushButton#create{
+    font-size: 15px;
+    padding: 3px, 6px, 3px, 6px;
+    font-weight: 700;
+    font-family: Lato;
+}
