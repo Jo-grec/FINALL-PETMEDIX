@@ -106,7 +106,7 @@ QPushButton#create:hover {
 /* Home Page */
 
 #Header {
-    background-color: #009FB7; 
+    background-color: #012547; 
 }
 
 #UsernameLabel {
@@ -120,6 +120,11 @@ QPushButton#create:hover {
 
 #Navbarlogo {
     background: transparent;
+    margin-left: 20px;
+}
+
+#NavBar {
+    background-color: #F4F4F8;
 }
 
 QPushButton {
@@ -140,4 +145,182 @@ QPushButton {
     font-weight: 800;
     line-height: normal;
 }
+
+#SearchBar {
+    border-radius: 20px;  /* Adjust the number for more or less roundness */
+    padding: 10px;  /* Optional: padding inside the search bar */
+    margin-bottom: 30px;  /* Add space below the search bar */
+    margin-top: 20px;
+}
+
+
+#Box1, #Box2, #Box3 {
+    border-radius: 50px;
+}
+
+#NumberLabel, #NumberLabel2, #NumberLabel3 {
+    color: white;
+    font-size: 60px;
+    font-weight: bold;
+    padding-left: 15px; /* Space between the icon and number */
+    vertical-align: middle; /* Vertically align the text in the center */
+}
+
+#RecentReportsLabel {
+    margin-top: 30px;
+    padding: 5px;
+    color: #fff;
+    font-family: Poppins;
+    font-size: 24px;
+    font-style: normal;
+    font-weight: 800;
+    line-height: normal;
+}
+
+#ClientList {
+    background-color: #012547;  /* Set your desired background color */
+    color: #FFF;
+    font-family: Poppins;
+    font-size: 24px;
+    font-style: normal;
+    font-weight: 800;
+    line-height: normal;
+    padding: 10px;
+}
+
+#PreviousButton, #NextButton {
+    color: #FFF;
+    text-align: center;
+    font-family: Poppins;
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
+    padding: 3px;
+    width: 100px;  /* Explicit width */
+    height: 40px;  /* Explicit height */
+}
+
+#PreviousButton:hover{
+    background-color: #000;  /* Keep the same color on hover */
+    color: #FFF;  /* Keep text color the same on hover */
+}
+
+#PreviousButton{
+    margin-left: 25px;
+}
+
+#ClientInformationLabel, #PetsLabel{
+    color: #012547;
+    font-family: Poppins;
+    font-size: 24px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
+    padding-left: 10px;
+    padding-top: 0px;
+}
+
+#NameLabel, #GenderLabel, #AddressLabel, #ContactLabel, #EmailLabel {
+    color: #000;
+    font-family: Poppins;
+    font-size: 15px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
+    margin-left: 30px;
+}
+
+#PetPicture {
+    border-radius: 40px;
+    margin-left: 30px;
+    margin-right: 30px;
+}
+
+#PetNameLabel, #PetGenderLabel, #PetTypeLabel, #PetBreedLabel, #PetColorLabel, #PetColorLabel, #PetBirthLabel, #PetAgeLabel {
+    color: #000;
+    font-family: Poppins;
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
+}
+
+#UpdateInfoButton, #CheckScheduleButton, #SeeRecordsButton {
+    color: #fff;
+    font-family: Lato;
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
+    border-radius: 20px;
+    padding: 0px;
+}
+
+/*Reports Tab*/
+
+#SeeRecords {
+    background-color: #012547;  /* Set your desired background color */
+    color: #FFF;
+    font-family: Poppins;
+    font-size: 24px;
+    font-style: normal;
+    font-weight: 800;
+    line-height: normal;
+    padding: 10px;
+}
+
+#PetMedical {
+    color: #012547;
+    font-family: Poppins;
+    font-size: 24px;
+    font-style: normal;
+    font-weight: 800;
+    line-height: normal;
+    padding: 10px;
+}
+
+#PetMedicalRecord {
+    color: #009FB7;
+    font-family: Lato;
+    font-size: 24px;
+    font-style: normal;
+    font-weight: 800;
+    line-height: 30px;
+    padding: 10px;
+}
+
+#VeterinaryClinic, #PetInformation, #OwnerInformation, #Notes{
+    color: #000;
+    font-family: Lato;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
+    padding-left: 5px;
+}
+
+/*Reports/Appointment Tab*/
+
+#ReportLabel, #Appointment, #Billings{
+    color: #FFF;
+    font-family: Poppins;
+    font-size: 24px;
+    font-style: normal;
+    font-weight: 800;
+    line-height: normal;
+    margin-right: 15px;
+    margin-left: 20px;
+    height: 30px;
+}
+
+#AddReportButton, #SavePDFButton, #AddAppointmentButton, #SavePDFButton, #AddReceiptButton{
+    color: #000;
+    font-family: Lato;
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
+}
+
 

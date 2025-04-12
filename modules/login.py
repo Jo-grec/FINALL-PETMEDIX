@@ -21,8 +21,8 @@ class LoginWindow(QMainWindow):
         self.setCentralWidget(self.main_widget)
 
         main_layout = QHBoxLayout()
-        main_layout.setContentsMargins(50, 0, 50, 0)
-        main_layout.setSpacing(30)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
         self.logo_label = QLabel(self)
         self.logo_label.setObjectName("logologin")
