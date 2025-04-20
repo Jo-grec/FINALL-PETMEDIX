@@ -168,7 +168,7 @@ QPushButton {
 
 #RecentReportsLabel {
     margin-top: 30px;
-    padding: 5px;
+    padding: 10px;
     color: #fff;
     font-family: Poppins;
     font-size: 24px;
@@ -176,6 +176,8 @@ QPushButton {
     font-weight: 800;
     line-height: normal;
 }
+
+/*Client Tab */
 
 #ClientList {
     background-color: #012547;  /* Set your desired background color */
@@ -197,8 +199,6 @@ QPushButton {
     font-weight: 700;
     line-height: normal;
     padding: 3px;
-    width: 100px;  /* Explicit width */
-    height: 40px;  /* Explicit height */
 }
 
 #PreviousButton:hover{
@@ -210,7 +210,7 @@ QPushButton {
     margin-left: 25px;
 }
 
-#ClientInformationLabel, #PetsLabel{
+#ClientInformationLabel, #PetsLabel, #EditClientInfoLabel, #EditPetInfoLabel {
     color: #012547;
     font-family: Poppins;
     font-size: 24px;
@@ -240,7 +240,7 @@ QPushButton {
 #PetNameLabel, #PetGenderLabel, #PetTypeLabel, #PetBreedLabel, #PetColorLabel, #PetColorLabel, #PetBirthLabel, #PetAgeLabel {
     color: #000;
     font-family: Poppins;
-    font-size: 13px;
+    font-size: 12px;
     font-style: normal;
     font-weight: 700;
     line-height: normal;
@@ -270,7 +270,7 @@ QPushButton {
     padding: 10px;
 }
 
-#PetMedical {
+#PetMedical, #AppointmentFormTitle{
     color: #012547;
     font-family: Poppins;
     font-size: 24px;
@@ -323,4 +323,13 @@ QPushButton {
     line-height: normal;
 }
 
-
+/* Settings */
+#SettingsLabel {
+    color: #012547;
+    text-align: center;
+    font-family: Poppins;
+    font-size: 24px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
+}

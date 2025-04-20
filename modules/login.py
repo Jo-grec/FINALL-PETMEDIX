@@ -6,7 +6,7 @@ from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
 from modules.database import Database  # Import the Database class
 from modules.signup import SignUpWindow  
-from modules.home import HomePage
+from modules.petmedix import PetMedix
 
 class LoginWindow(QMainWindow):
     def __init__(self):
@@ -131,7 +131,7 @@ class LoginWindow(QMainWindow):
                 QMessageBox.information(self, "Success", f"Welcome {user['name']}!")
                 
                 # Redirect to HomePage
-                self.home_page = HomePage()
+                self.home_page = PetMedix()
                 self.home_page.showMaximized()  # Ensure the HomePage is maximized
                 self.close()  # Close the LoginWindow
             else:
