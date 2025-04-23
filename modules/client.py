@@ -1,10 +1,11 @@
 from PySide6.QtWidgets import (
     QWidget, QLabel, QHBoxLayout, QVBoxLayout, QPushButton, QLineEdit,
     QTableWidget,
-    QStackedLayout, QComboBox
+    QStackedLayout, QComboBox, QTableWidgetItem, QSizePolicy
 )
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt, QSize
+from modules.database import Database  # Import the Database class
 
 def get_client_widget(main_window):
     content = QWidget()
@@ -33,6 +34,7 @@ def get_client_widget(main_window):
     table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     table.horizontalHeader().setVisible(False)
     table.setStyleSheet("background-color: white; color: black;")
+    table.setEditTriggers(QTableWidget.NoEditTriggers)
     table_info_layout.addWidget(table)
 
     # --- Client Info Stack Widget and Layout ---
@@ -325,18 +327,122 @@ def get_client_widget(main_window):
     main_layout.addLayout(table_info_layout)
 
     button_layout = QHBoxLayout()
-    button_layout.setContentsMargins(40, 0, 0, 20)
-    button_layout.setSpacing(10)
+    button_layout.setContentsMargins(0, 0, 0, 20)  # Adjust margins
+    button_layout.setSpacing(10)  # Add spacing between buttons
 
-    prev_button = QPushButton("Previous", content)  # Set parent
-    next_button = QPushButton("Next", content)  # Set parent
+    # Create Previous, Next, and Add buttons
+    prev_button = QPushButton("<", content)
+    next_button = QPushButton(">", content)
+    add_button = QPushButton("+", content)
 
-    for btn in [prev_button, next_button]:
-        btn.setStyleSheet("background-color: #012547; color: white; border-radius:20px; font-size: 14px")
-        btn.setFixedSize(120, 40)
-        button_layout.addWidget(btn)
+    # Force adjust the size of the buttons
+    for btn in [prev_button, next_button, add_button]:
+        btn.setFixedSize(80, 40)  # Set fixed size
+        btn.setMinimumSize(80, 40)  # Set minimum size
+        btn.setMaximumSize(80, 40)  # Set maximum size
+        btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)  # Ensure fixed size policy
+        btn.setStyleSheet("background-color: #012547; color: white; border-radius:10px; font-size: 14px")
 
-    button_layout.setAlignment(Qt.AlignLeft)
+    # Add buttons to the layout
+    button_layout.addWidget(prev_button)
+    button_layout.addWidget(next_button)
+    button_layout.addWidget(add_button)
+
+    # Add stretch to align buttons to the left
+    button_layout.addStretch()
+
+    # Add the layout to the main layout
     main_layout.addLayout(button_layout)
+
+    # Force layout update
+    content.update()
+
+   # --- Save Button Functionality ---
+    def save_client_data():
+        inputs = edit_fields_widget.findChildren(QLineEdit)
+        if len(inputs) >= 4:
+            name = inputs[0].text().strip()
+            address = inputs[1].text().strip()
+            contact_number = inputs[2].text().strip()
+            email = inputs[3].text().strip()
+
+            # Validate inputs
+            if not name or not address or not contact_number or not email:
+                print("❌ All fields are required.")
+                return
+
+            if "@" not in email or "." not in email:
+                print("❌ Invalid email address.")
+                return
+
+            db = Database()
+            if db.save_client(name, address, contact_number, email):
+                print("✅ Client saved successfully.")
+                update_client_table()  # Refresh the table with the new data
+                update_client_info(email)  # Update the client info display
+                client_info_stack.setCurrentIndex(0)  # Go back to the view mode
+            db.close_connection()
+
+    save_button.clicked.connect(save_client_data)
+    cancel_button.clicked.connect(lambda: client_info_stack.setCurrentIndex(0))
+
+    # --- Function to Update the Client Table ---
+    def update_client_table():
+        db = Database()
+        db.cursor.execute("SELECT name FROM clients")
+        clients = db.cursor.fetchall()
+        db.close_connection()
+
+        table.setRowCount(len(clients))
+        for row, client in enumerate(clients):
+            table.setItem(row, 0, QTableWidgetItem(client[0]))
+
+    # --- Function to Update Client Info ---
+    def update_client_info(email):
+        """Update the client info labels with data from the database."""
+        db = Database()
+        client_data = db.get_client_info(email)
+        db.close_connection()
+
+        if client_data:
+            name, address, contact_number, email = client_data
+
+            # Update the labels
+            name_label = client_info_view.findChild(QLabel, "NameLabel")
+            address_label = client_info_view.findChild(QLabel, "AddressLabel")
+            contact_label = client_info_view.findChild(QLabel, "ContactLabel")
+            email_label = client_info_view.findChild(QLabel, "EmailLabel")
+
+            if name_label:
+                name_label.setText(f"Name: {name}")
+            if address_label:
+                address_label.setText(f"Address: {address}")
+            if contact_label:
+                contact_label.setText(f"Contact Number: {contact_number}")
+            if email_label:
+                email_label.setText(f"Email Address: {email}")
+
+    # --- Handle Client Selection ---
+    def on_client_selected(row, column):
+        """Handle client selection from the table."""
+        selected_item = table.item(row, 0)
+        if selected_item:
+            client_name = selected_item.text()
+
+            # Fetch the email of the selected client
+            db = Database()
+            db.cursor.execute("SELECT email FROM clients WHERE name = ?", (client_name,))
+            result = db.cursor.fetchone()
+            db.close_connection()
+
+            if result:
+                email = result[0]
+                update_client_info(email)
+
+    # Connect the table's cell click signal to the function
+    table.cellClicked.connect(on_client_selected)
+
+    # Initial table population
+    update_client_table()
 
     return content

@@ -72,7 +72,7 @@ class SignUpWindow(QWidget):
         first_name = self.first_name_input.text().strip()
         last_name = self.last_name_input.text().strip()
         email = self.email_input.text().strip()
-        role = self.role_input.text().strip()
+        role = self.role_input.currentText().strip()
         password = self.password_input.text().strip()
 
         if not (first_name and last_name and email and password) or role == "Select Role":
@@ -83,8 +83,9 @@ class SignUpWindow(QWidget):
             QMessageBox.warning(self, "Invalid Email", "Email must end with @petmedix.med")
             return
 
-        if not re.fullmatch(r"[A-Za-z0-9]+", password):
-            QMessageBox.warning(self, "Invalid Password", "Password must be alphanumeric (letters and numbers only).")
+        if not re.fullmatch(r"[A-Za-z0-9]{6,20}", password):
+            QMessageBox.warning(self, "Invalid Password",
+                "Password must be alphanumeric and 6-20 characters long.")
             return
 
         full_name = f"{first_name} {last_name}"
