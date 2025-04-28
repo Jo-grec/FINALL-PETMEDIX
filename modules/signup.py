@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QGridLayout, QHBoxLayout, QMessageBox, QComboBox
 from PySide6.QtCore import Qt, QTimer
 from modules.database import Database  # Import the Database class
+from modules.utils import create_styled_message_box
 import re
 
 class SignUpWindow(QWidget):
@@ -76,7 +77,12 @@ class SignUpWindow(QWidget):
         password = self.password_input.text().strip()
 
         if not (first_name and last_name and email and password) or role == "Select Role":
-            QMessageBox.warning(self, "Input Error", "All fields are required!")
+            message_box = create_styled_message_box(
+                QMessageBox.Warning, 
+                "Input Error", 
+                "All fields are required!"
+            )
+            message_box.exec()
             return
 
         if not email.endswith("@petmedix.med"):
@@ -97,15 +103,19 @@ class SignUpWindow(QWidget):
                 QMessageBox.warning(self, "Account Exists", "An account with this email already exists.")
                 return
 
-            db.create_user(full_name, email, password, role)
-            QMessageBox.information(self, "Success", "Account created successfully!")
+            # Create user and retrieve the generated USER_ID
+            user_id = db.create_user(full_name, email, password, role)
+            if user_id:
+                QMessageBox.information(self, "Success", f"Account created successfully! Your username is: {user_id}")
 
-            redirect_label = QLabel("Redirecting to login page...", self)
-            redirect_label.setAlignment(Qt.AlignCenter)
-            redirect_label.setStyleSheet("font-size: 16px; color: green;")
-            self.layout().addWidget(redirect_label)
+                redirect_label = QLabel("Redirecting to login page...", self)
+                redirect_label.setAlignment(Qt.AlignCenter)
+                redirect_label.setStyleSheet("font-size: 16px; color: green;")
+                self.layout().addWidget(redirect_label)
 
-            QTimer.singleShot(2000, self.redirect_to_login)
+                QTimer.singleShot(2000, self.redirect_to_login)
+            else:
+                QMessageBox.critical(self, "Error", "Failed to generate a username. Please try again.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to create account: {e}")
         finally:

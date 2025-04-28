@@ -1,8 +1,8 @@
-from PySide6.QtWidgets import QWidget, QTextEdit, QLabel, QHeaderView, QHBoxLayout, QVBoxLayout, QPushButton, QFrame, QLineEdit, QTableWidget, QTableWidgetItem, QAbstractItemView, QScrollBar, QSizePolicy
+from PySide6.QtWidgets import QWidget, QTextEdit, QLabel, QHeaderView, QHBoxLayout, QVBoxLayout, QPushButton, QFrame, QLineEdit, QTableWidget, QTableWidgetItem, QAbstractItemView, QScrollBar, QHeaderView
 from PySide6.QtGui import QPixmap, QIcon
 from PySide6.QtCore import Qt, QTimer
 from modules.home import get_home_widget
-from modules.client import get_client_widget
+from modules.client import get_client_widget, filter_clients_table
 from modules.report import get_report_widget
 from modules.appointment import get_appointment_widget
 from modules.billing import update_billing_widget
@@ -186,6 +186,13 @@ class PetMedix(QWidget):
         self.add_search_bar()
         client_widget = get_client_widget(self)
         self.content_layout.addWidget(client_widget)
+
+        # Find the clients table in the client widget
+        clients_table = client_widget.findChild(QTableWidget)
+
+        # Connect the search bar to the filtering function
+        if clients_table:
+            self.search_bar.textChanged.connect(lambda text: filter_clients_table(text, clients_table))
         
     def show_pet_records(self):
         self.clear_content()  

@@ -3,7 +3,7 @@ import hashlib
 from datetime import datetime
 
 class Database:
-    def __init__(self, host="localhost", user="root", password="axeljohn123", database="petmedix"):
+    def __init__(self, host="localhost", user="root", password="joelmar123", database="petmedix"):
         try:
             self.conn = mariadb.connect(
                 host=host,
@@ -156,12 +156,12 @@ class Database:
         """Insert a user with a generated USER_ID."""
         if not self.cursor:
             print("❌ Database not connected.")
-            return
+            return None
 
         user_id = self.generate_user_id()
         if not user_id:
             print("❌ Could not generate USER_ID.")
-            return
+            return None
 
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
         try:
@@ -171,11 +171,13 @@ class Database:
             )
             self.conn.commit()
             print(f"✅ User created with USER_ID: {user_id}")
+            return user_id  # Return the generated USER_ID
         except mariadb.Error as e:
             print(f"❌ Error inserting user: {e}")
+            return None
             
-    def authenticate_user(self, email, password):
-        """Authenticate a user by email and password."""
+    def authenticate_user(self, identifier, password):
+        """Authenticate a user by email or user_id and password."""
         if not self.cursor:
             print("Database connection not established. Cannot authenticate user.")
             return None
@@ -183,8 +185,12 @@ class Database:
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
         try:
             self.cursor.execute(
-                "SELECT USER_ID, NAME, ROLE FROM users WHERE EMAIL = ? AND HASHED_PASSWORD = ?",
-                (email, hashed_password)
+                """
+                SELECT USER_ID, NAME, ROLE 
+                FROM users 
+                WHERE (EMAIL = ? OR USER_ID = ?) AND HASHED_PASSWORD = ?
+                """,
+                (identifier, identifier, hashed_password)
             )
             user = self.cursor.fetchone()
             if user:

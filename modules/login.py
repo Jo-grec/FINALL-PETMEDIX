@@ -7,6 +7,7 @@ from PySide6.QtCore import Qt
 from modules.database import Database  # Import the Database class
 from modules.signup import SignUpWindow  
 from modules.petmedix import PetMedix
+from modules.utils import create_styled_message_box
 
 class LoginWindow(QMainWindow):
     def __init__(self):
@@ -116,26 +117,31 @@ class LoginWindow(QMainWindow):
 
     def login_user(self):
         """Handle user login."""
-        email = self.username_input.text().strip()
+        identifier = self.username_input.text().strip()  # Can be email or USER_ID
         password = self.password_input.text().strip()
 
-        if not (email and password):
-            QMessageBox.warning(self, "Input Error", "Email and password are required!")
+        if not (identifier and password):
+            QMessageBox.warning(self, "Input Error", "Email/User ID and password are required!")
             return
 
         # Connect to the database and authenticate the user
         db = Database()
         try:
-            user = db.authenticate_user(email, password)
+            user = db.authenticate_user(identifier, password)
             if user:
-                QMessageBox.information(self, "Success", f"Welcome {user['name']}!")
+                message_box = create_styled_message_box(
+                    QMessageBox.Information, 
+                    "Success", 
+                    f"Welcome {user['name']}!"
+                )
+                message_box.exec()
                 
                 # Redirect to HomePage
                 self.home_page = PetMedix()
                 self.home_page.showMaximized()  # Ensure the HomePage is maximized
                 self.close()  # Close the LoginWindow
             else:
-                QMessageBox.warning(self, "Login Failed", "Invalid email or password.")
+                QMessageBox.warning(self, "Login Failed", "Invalid email/User ID or password.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to login: {e}")
         finally:

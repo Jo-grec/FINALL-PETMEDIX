@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QLabel, QHBoxLayout, QVBoxLayout, QPushButton, QFrame, QLineEdit, QTableWidget, QTableWidgetItem, QAbstractItemView, QScrollBar, QSizePolicy
+from PySide6.QtWidgets import QWidget, QLabel, QHBoxLayout, QVBoxLayout, QPushButton, QFrame, QHeaderView, QTableWidget, QTableWidgetItem, QAbstractItemView, QScrollBar, QSizePolicy
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
 from modules.database import Database  # Import the Database class
@@ -143,6 +143,7 @@ def get_home_widget():
         table_widget.setContentsMargins(0, 0, 0, 0)
         table_widget.setObjectName("ConsultationTable")        
         table_widget.setHorizontalHeaderLabels(["Consultation Date", "Pet", "Owner/Client", "Veterinarian/Staff in Charge"])
+        table_widget.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
         table_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
     
             
@@ -150,7 +151,7 @@ def get_home_widget():
         header.setStyleSheet("""
                 background-color: #012547;
                 font-family: Poppins;
-                color: black;
+                color: white;
                 font-weight: bold;
                 font-size: 16px;
                 font-style: normal;

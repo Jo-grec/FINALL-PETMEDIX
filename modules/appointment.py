@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTableWidget,
-    QDialog, QFormLayout, QLineEdit, QComboBox, QTextEdit, QDateEdit
+    QDialog, QFormLayout, QLineEdit, QComboBox, QTextEdit, QDateEdit,
+    QHeaderView
 )
 from PySide6.QtCore import Qt, QDate
 
@@ -304,6 +305,7 @@ def get_appointment_widget():
         table.setRowCount(15)
         table.setHorizontalHeaderLabels(headers)
         table.horizontalHeader().setStretchLastSection(True)
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)  # Make columns non-resizable
         table.setStyleSheet("""
             QTableWidget {
                 background-color: #FFF;

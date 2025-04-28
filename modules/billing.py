@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTableWidget, QTableWidgetItem,
     QDialog, QFormLayout, QLineEdit, QComboBox, QTextEdit, QDateEdit, QCheckBox, QGridLayout,
-    QScrollArea, QFrame, QGroupBox, QRadioButton, QSpacerItem, QSizePolicy
+    QScrollArea, QFrame, QGroupBox, QRadioButton, QSpacerItem, QHeaderView
 )
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QFont
@@ -441,6 +441,7 @@ def update_billing_widget():
             "Payment Status", "Action"
         ])
         billings_table.horizontalHeader().setStretchLastSection(True)
+        billings_table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)  # Make columns non-resizable
         billings_table.verticalHeader().setVisible(False)
 
         billings_table.setStyleSheet("""
