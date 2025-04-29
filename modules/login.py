@@ -2,10 +2,9 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QLabel, QLineEdit, QPushButton,
     QVBoxLayout, QHBoxLayout, QWidget, QMessageBox
 )
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap, QIcon
 from PySide6.QtCore import Qt
 from modules.database import Database  # Import the Database class
-from modules.signup import SignUpWindow  
 from modules.petmedix import PetMedix
 from modules.utils import create_styled_message_box
 
@@ -22,13 +21,14 @@ class LoginWindow(QMainWindow):
         self.setCentralWidget(self.main_widget)
 
         main_layout = QHBoxLayout()
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
+        main_layout.setContentsMargins(100, 0, 50, 0)
+        main_layout.setSpacing(10)
 
         self.logo_label = QLabel(self)
         self.logo_label.setObjectName("logologin")
-        pixmap = QPixmap("assets/logologin.png")
-        self.logo_label.setPixmap(pixmap)
+        pixmap = QPixmap("assets/loginlogo.png")
+        resized_pixmap = pixmap.scaled(350, 470, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.logo_label.setPixmap(resized_pixmap)
         self.logo_label.setAlignment(Qt.AlignCenter)
 
         form_container = QWidget()
@@ -44,28 +44,102 @@ class LoginWindow(QMainWindow):
         self.subwelcome_label.setObjectName("SubwelcomeLabel")
         self.subwelcome_label.setAlignment(Qt.AlignLeft)
 
+        # Username field with icon
+        username_container = QWidget()
+        username_container.setObjectName("Container")
+        username_layout = QHBoxLayout(username_container)
+        username_layout.setContentsMargins(15, 0, 15, 0)
+        username_layout.setSpacing(10)
+
+        # User icon
+        user_icon_pixmap = QPixmap("assets/authentication 1.png")
+        user_icon_label = QLabel()
+        user_icon_label.setFixedSize(24, 24)
+        if not user_icon_pixmap.isNull():
+            user_icon_label.setPixmap(user_icon_pixmap.scaled(24, 24, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        else:
+            user_icon_label.setText("👤")
+            user_icon_label.setStyleSheet("background: transparent;")
+
         self.username_input = QLineEdit(self)
         self.username_input.setPlaceholderText("Email")
-        self.username_input.setFixedWidth(400)
+        self.username_input.setFixedWidth(500)
 
+        # password field with icon and toggle visibility
+        password_container = QWidget()
+        password_container.setObjectName("Container")
+        password_layout = QHBoxLayout(password_container)
+        password_layout.setContentsMargins(15, 0, 15, 0)
+        password_layout.setSpacing(10)
+
+        password_icon_pixmap = QPixmap("assets/key 1.png")
+        eye_closed_pixmap = QPixmap("assets/visible 1.png")
+        eye_open_pixmap = QPixmap("assets/eye open.png")
+
+        # password icon
+        password_icon_label = QLabel()
+        password_icon_label.setFixedSize(24, 24)
+        if not  password_icon_pixmap.isNull():
+            password_icon_label.setPixmap( password_icon_pixmap.scaled(24, 24, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        else:
+            password_icon_label.setText("🔑")
+            password_icon_label.setStyleSheet("background: transparent;")
+        
         self.password_input = QLineEdit(self)
         self.password_input.setPlaceholderText("Password")
         self.password_input.setEchoMode(QLineEdit.Password)
-        self.password_input.setFixedWidth(400)
+        self.password_input.setFixedWidth(550)
+
+        #toggle visibility
+        eye_icon_label = QLabel()
+        eye_icon_label.setFixedSize(24, 24)
+        if not eye_closed_pixmap.isNull():
+            eye_icon_label.setPixmap(eye_closed_pixmap.scaled(24, 24, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        else:
+            eye_icon_label.setText("👁️")
+        eye_icon_label.setStyleSheet("background: transparent;")
+        eye_icon_label.setCursor(Qt.PointingHandCursor)
+
+        # Function to toggle password visibility
+        def toggle_password_visibility():
+            if self.password_input.echoMode() == QLineEdit.Password:
+                self.password_input.setEchoMode(QLineEdit.Normal)
+                if not eye_open_pixmap.isNull():
+                    eye_icon_label.setPixmap(eye_open_pixmap.scaled(24, 24, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                else:
+                    eye_icon_label.setText("👁️‍🗨️")
+            else:
+                self.password_input.setEchoMode(QLineEdit.Password)
+                if not eye_closed_pixmap.isNull():
+                    eye_icon_label.setPixmap(eye_closed_pixmap.scaled(24, 24, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                else:
+                    eye_icon_label.setText("👁️")
+
+        # Connect click event to toggle function
+        eye_icon_label.mousePressEvent = lambda event: toggle_password_visibility()
 
         self.goto_signup_button = QPushButton("Forgot Password?", self)
         self.goto_signup_button.setFlat(True)
         self.goto_signup_button.setObjectName("forgotPasswordButton")
-        self.goto_signup_button.setFixedWidth(50)
+        self.goto_signup_button.setFixedWidth(100)
         self.goto_signup_button.setCursor(Qt.PointingHandCursor)
 
-        password_layout = QVBoxLayout()
-        password_layout.addWidget(self.password_input)
+        forgot_password_layout = QHBoxLayout()
+        forgot_password_layout.addStretch()
+        forgot_password_layout.addWidget(self.goto_signup_button)
+        forgot_password_layout.setContentsMargins(0, 0, 20, 0)
+
+      
+        username_layout.addWidget(user_icon_label)
+        username_layout.addWidget(self.username_input, 1)
+
+        password_layout.addWidget(password_icon_label)
+        password_layout.addWidget(self.password_input, 1)
+        password_layout.addWidget(eye_icon_label)
 
         link_layout = QHBoxLayout()
         link_layout.addStretch() 
         link_layout.addWidget(self.goto_signup_button)
-        password_layout.addLayout(link_layout)
 
         self.login_button = QPushButton("Login", self)
         self.login_button.setObjectName("loginButton")
@@ -77,9 +151,11 @@ class LoginWindow(QMainWindow):
         form_layout.addWidget(self.welcome_label)
         form_layout.addWidget(self.subwelcome_label)
         form_layout.addSpacing(20)
-        form_layout.addWidget(self.username_input)
+        form_layout.addWidget(username_container)
         form_layout.addSpacing(20)
-        form_layout.addLayout(password_layout) 
+        form_layout.addWidget(password_container) 
+        form_layout.addSpacing(5)  
+        form_layout.addLayout(forgot_password_layout)  
         form_layout.addSpacing(20)
 
         button_layout = QHBoxLayout()
@@ -99,10 +175,12 @@ class LoginWindow(QMainWindow):
 
         signup_prompt_layout.addWidget(self.new_here_label)
         signup_prompt_layout.addWidget(self.signup_button)
+        signup_prompt_layout.setSpacing(0)
+        signup_prompt_layout.setContentsMargins(30, 0, 0, 0)
 
         form_layout.addLayout(signup_prompt_layout)
 
-        main_layout.addWidget(self.logo_label, stretch=1, alignment=Qt.AlignCenter)
+        main_layout.addWidget(self.logo_label, stretch= 1, alignment=Qt.AlignRight)
         main_layout.addWidget(form_container, stretch=2, alignment=Qt.AlignCenter)
 
         self.main_widget.setLayout(main_layout)
@@ -111,6 +189,7 @@ class LoginWindow(QMainWindow):
 
     def go_to_signup(self):
         print("Switching to signup page...")
+        from modules.signup import SignUpWindow
         self.signup_window = SignUpWindow()  
         self.signup_window.showMaximized() 
         self.close() 
@@ -136,12 +215,8 @@ class LoginWindow(QMainWindow):
                 )
                 message_box.exec()
                 
-                # Extract role and last name
-                role = user['role']
-                last_name = user['name'].split()[-1]  # Assuming the last word in the name is the last name
-                
                 # Redirect to HomePage
-                self.home_page = PetMedix(role, last_name)  # Pass role and last name
+                self.home_page = PetMedix()
                 self.home_page.showMaximized()  # Ensure the HomePage is maximized
                 self.close()  # Close the LoginWindow
             else:
@@ -151,8 +226,3 @@ class LoginWindow(QMainWindow):
         finally:
             db.close_connection()
 
-    def go_to_signup(self):
-        print("Switching to signup page...")
-        self.signup_window = SignUpWindow()  
-        self.signup_window.showMaximized() 
-        self.close() 

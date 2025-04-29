@@ -4,13 +4,28 @@ QMainWindow {
 
 QLineEdit {
     padding: 10px;
-    font-size: 16px;
-    border: 1px solid #ccc;
-    border-radius: 20px;
+    font-size: 25px;
+    border: none;
+    line-height: 60;
+    padding-left: 20px;
+    background-color: transparent;
+    border-radius: 25px;
 }
 
-QLineEdit:hover {
+ QWidget#Container {
+        border: 2px solid #B0B0B0;
+        border-radius: 25px;
+        padding: 5px;
+        background-color: white;
+        line-height: 90; 
+    }
+
+QWidget#Container:hover {
     border: 1px solid #007a99;
+    border-radius: 25px;
+    padding: 5px;
+    background-color: white;
+    line-height: 90;
 }
 
 QLabel#LogoLabel {
@@ -18,27 +33,29 @@ QLabel#LogoLabel {
 }
 
 QPushButton#loginButton {
-    min-width: 100px;         
-    min-height: 40px;         
+    min-width: 150px;         
+    min-height: 60px;         
     font-size: 20px;
-    background-color: #009FB7;
+    background-color: #4A90E2;
     color: white;
-    border-radius: 20px;       
-    border: 2px solid #007a99;
+    border-radius: 25px;       
+    border: none;
 }
 
 QPushButton#loginButton:hover {
-    background-color: #45a049;
+    background-color: #012547;
 }
 
 
 QLabel#WelcomeLabel {
-    color: #009FB7;
+    color: #4A90E2;
     font-family: "League Gothic";
-    font-size: 78px;
+    font-size: 130px;
     font-style: normal;
-    font-weight: 500;
-    line-height: normal;
+    font-weight: 400;
+    line-height: 50;
+    margin-bottom: -10px;
+    padding-bottom: -20px;
 }
 
 QLabel#SubwelcomeLabel {
@@ -46,7 +63,8 @@ QLabel#SubwelcomeLabel {
     font-family: Lato;
     font-size: 20px;
     font-style: italic;
-    line-height: normal;
+    line-height: 50;
+    font-weight: 200;
 }
 
 #forgotPasswordButton {
@@ -68,6 +86,7 @@ QLabel#SubwelcomeLabel {
     font-size: 12px;
     border: none;
     background: transparent;
+    margin-left: -10px;
 }
 
 #signupButton:hover {
@@ -78,46 +97,119 @@ QLabel#SubwelcomeLabel {
 
 /* Sign up */
 
+#signupHeader{
+    padding: none;
+    margin-top: none; 
+}
+
 #TitleLabel {
-    color: #009FB7;
+    color: #4A90E2;
     text-align: center;
     font-family: "League Gothic";
-    font-size: 70px;
+    font-size: 90px;
     font-style: normal;
     font-weight: 300;
-    line-height: normal;
+    background-color: transparent;
+    margin-bottom: -10px;
+    padding-bottom: -20px;
+}
+
+#LoginButton {
+    color: #3498db;
+    font-size: 20px;
+    border: none;
+    background: transparent;
+    margin-left: -40px;
+    padding: none;
+    margin-top: -30px;
+}
+
+#HaveaccountLabel{
+    font-size: 20px;
+    margin-top: -30px;
+}
+
+#LoginButton:hover {
+    color: #2980b9;
+    text-decoration: underline;
+}
+
+#FormInput {
+    border: 1px solid #B0B0B0;
+    border-radius: 25px;
+    padding: 10px;
+    background-color: white;
+    min-height: 40px; 
 }
 
 QPushButton#create {
-    min-width: 100px;         
-    min-height: 40px;         
-    font-size: 15px;
-    background-color: #009FB7;
+    min-width: 180px;         
+    min-height: 50px;         
+    font-size: 20px;
+    background-color:#4A90E2;
     color: white;
-    border-radius: 20px;       
-    border: 2px solid #007a99;
+    border-radius: 25px;       
+    border: none;
 }
 
 QPushButton#create:hover {
-    background-color: #45a049;
+    background-color: #012547;
 }
 
 QComboBox#RoleComboBox, QComboBox#RoleComboBox QLineEdit {
     padding: 10px;
     font-size: 16px;
-    border: 1px solid #ccc;
-    border-radius: 20px;
+    border: 1px solid  #B0B0B0;
+    border-radius: 25px;
     background: white;
     color: gray;
+    min-height: 40px;
 }
 
 QComboBox#RoleComboBox:hover, QComboBox#RoleComboBox QLineEdit:hover {
     border: 1px solid #007a99;
 }
 
+#RoleComboBox {
+    border: 1px solid #B0B0B0;
+    border-radius: 25px;
+    padding: 5px 30px 10px 10px; 
+    background-color: white;
+    min-height: 40px;
+    qproperty-iconSize: 0px;
+}
+
+/* Hide default arrow */
+#RoleComboBox::down-arrow {
+    image: none;
+}
+
+/* Replace drop-down with your image */
+#RoleComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: right center;
+    width: 30px;
+    background: transparent;
+    border: none;
+    image: url("assets/polygon 1.png");
+    padding-right: 10px;
+}
+
 QComboBox#RoleComboBox::drop-down {
     border: none;
     width: 30px;
+}
+
+#SignupPasswordContainer{
+    border: 1px solid #B0B0B0;
+    border-radius: 25px;
+    padding: 10px;
+    background-color: white;
+    min-height: 40px; 
+}
+
+#PasswordFormInput{
+    border: none;
 }
 
 /* Home Page */
@@ -208,14 +300,12 @@ QPushButton {
 }
 
 #PreviousButton, #NextButton {
-    color: #FFF;
-    text-align: center;
-    font-family: Poppins;
-    font-size: 13px;
+    color: #000;
+    font-family: Lato;
+    font-size: 10px;
     font-style: normal;
     font-weight: 700;
     line-height: normal;
-    padding: 3px;
 }
 
 #PreviousButton:hover{
