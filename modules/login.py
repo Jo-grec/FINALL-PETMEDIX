@@ -136,8 +136,12 @@ class LoginWindow(QMainWindow):
                 )
                 message_box.exec()
                 
+                # Extract role and last name
+                role = user['role']
+                last_name = user['name'].split()[-1]  # Assuming the last word in the name is the last name
+                
                 # Redirect to HomePage
-                self.home_page = PetMedix()
+                self.home_page = PetMedix(role, last_name)  # Pass role and last name
                 self.home_page.showMaximized()  # Ensure the HomePage is maximized
                 self.close()  # Close the LoginWindow
             else:

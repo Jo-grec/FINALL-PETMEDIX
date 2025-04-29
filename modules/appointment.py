@@ -1,9 +1,10 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTableWidget,
-    QDialog, QFormLayout, QLineEdit, QComboBox, QTextEdit, QDateEdit,
-    QHeaderView
+    QDialog, QMessageBox, QLineEdit, QComboBox, QTextEdit, QDateEdit,
+    QHeaderView, QTableWidgetItem
 )
 from PySide6.QtCore import Qt, QDate
+from modules.database import Database
 
 
 class AppointmentFormDialog(QDialog):
@@ -80,7 +81,7 @@ class AppointmentFormDialog(QDialog):
                 height: 15px;
             }
         """)
-        
+    
         status_container = QVBoxLayout()
         status_container.addWidget(status_label)
         status_container.addWidget(self.status_combo)
@@ -121,21 +122,31 @@ class AppointmentFormDialog(QDialog):
         # Row 2: Pet Name
         pet_name_label = QLabel("Pet Name")
         pet_name_label.setStyleSheet("font-size: 16px; font-weight: bold;")
-        self.pet_name_input = QLineEdit()
-        self.pet_name_input.setPlaceholderText("Pet Name")
-        self.pet_name_input.setMinimumHeight(40)
-        self.pet_name_input.setStyleSheet("""
-            QLineEdit {
+
+        self.pet_name_combo = QComboBox()
+        self.pet_name_combo.setMinimumHeight(40)
+        self.pet_name_combo.setStyleSheet("""
+            QComboBox {
                 padding: 8px;
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
                 border-radius: 5px;
                 font-size: 14px;
             }
+            QComboBox::drop-down {
+                width: 30px;
+                border: none;
+            }
+            QComboBox::down-arrow {
+                width: 15px;
+                height: 15px;
+            }
         """)
         
+        self.load_pet_names()
+
         form_scroll_layout.addWidget(pet_name_label)
-        form_scroll_layout.addWidget(self.pet_name_input)
+        form_scroll_layout.addWidget(self.pet_name_combo)
         
         # Row 3: Reason for Appointment
         reason_label = QLabel("Reason for Appointment")
@@ -159,21 +170,31 @@ class AppointmentFormDialog(QDialog):
         # Row 4: Veterinarian/Staff In Charge
         vet_label = QLabel("Veterinarian/Staff In Charge")
         vet_label.setStyleSheet("font-size: 16px; font-weight: bold;")
-        self.vet_input = QLineEdit()
-        self.vet_input.setPlaceholderText("Veterinarian/Staff In Charge")
-        self.vet_input.setMinimumHeight(40)
-        self.vet_input.setStyleSheet("""
-            QLineEdit {
+        self.vet_combo = QComboBox()
+        self.vet_combo.setMinimumHeight(40)
+        self.vet_combo.setStyleSheet("""
+            QComboBox {
                 padding: 8px;
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
                 border-radius: 5px;
                 font-size: 14px;
             }
+            QComboBox::drop-down {
+                width: 30px;
+                border: none;
+            }
+            QComboBox::down-arrow {
+                width: 15px;
+                height: 15px;
+            }
         """)
-        
+
+        # Populate the dropdown with veterinarian names
+        self.load_vet_names()
+
         form_scroll_layout.addWidget(vet_label)
-        form_scroll_layout.addWidget(self.vet_input)
+        form_scroll_layout.addWidget(self.vet_combo)
         
         layout.addWidget(form_widget)
         
@@ -198,6 +219,7 @@ class AppointmentFormDialog(QDialog):
         cancel_btn.clicked.connect(self.reject)
         
         save_btn = QPushButton("Save")
+        save_btn.setObjectName("SaveButton")  # Assign an object name
         save_btn.setFixedSize(120, 50)
         save_btn.setStyleSheet("""
             QPushButton {
@@ -218,8 +240,70 @@ class AppointmentFormDialog(QDialog):
         button_layout.setContentsMargins(0, 0, 50, 0)
         
         layout.addLayout(button_layout)
+        
+    def load_pet_names(self):
+        """Load pet names into the pet_name_combo grouped by owners."""
+        try:
+            db = Database()
+            cursor = db.cursor
 
-def get_appointment_widget():
+            cursor.execute("""
+                SELECT c.name AS client_name, p.name AS pet_name
+                FROM pets p
+                JOIN clients c ON p.client_id = c.client_id
+                ORDER BY c.name ASC, p.name ASC
+            """)
+            rows = cursor.fetchall()
+
+            if not rows:
+                self.pet_name_combo.addItem("No pets found")
+                return
+
+            current_owner = None
+            for client_name, pet_name in rows:
+                if client_name != current_owner:
+                    # Owner group label
+                    self.pet_name_combo.addItem(f"{client_name} - Owner")
+                    index = self.pet_name_combo.count() - 1
+                    self.pet_name_combo.model().item(index).setEnabled(False)
+                    current_owner = client_name
+
+                # Add pet name
+                self.pet_name_combo.addItem(f"  {pet_name}")
+
+            db.close_connection()
+        except Exception as e:
+            print("Failed to load pet names:", e)
+            self.pet_name_combo.addItem("Error loading pets")
+            
+    def load_vet_names(self):
+        """Load veterinarian names into the vet_combo."""
+        try:
+            db = Database()
+            cursor = db.cursor
+
+            # Fetch veterinarian names from the database
+            cursor.execute("""
+                SELECT name
+                FROM users
+                WHERE role = 'Veterinarian'
+                ORDER BY name ASC
+            """)
+            rows = cursor.fetchall()
+
+            if not rows:
+                self.vet_combo.addItem("No veterinarians found")
+                return
+
+            for row in rows:
+                self.vet_combo.addItem(row[0])  # Add each veterinarian name to the dropdown
+
+            db.close_connection()
+        except Exception as e:
+            print("Failed to load veterinarian names:", e)
+            self.vet_combo.addItem("Error loading veterinarians")
+
+def get_appointment_widget(user_role):
     content = QWidget()
     layout = QVBoxLayout(content)
     layout.setSpacing(0)
@@ -241,15 +325,22 @@ def get_appointment_widget():
     # Add Appointment Button
     add_appointment_button = QPushButton("Add Appointment")
     add_appointment_button.setObjectName("AddAppointmentButton")
-    add_appointment_button.setFixedSize(60, 40)
+    add_appointment_button.setFixedSize(120, 40)
     add_appointment_button.setStyleSheet(
         "background-color: #F4F4F8; border: none; border-radius: 20px; margin-bottom: 5px;"
     )
 
+    # Disable the button if the user is not a receptionist
+    if user_role.lower() != "receptionist":
+        add_appointment_button.setEnabled(False)
+        add_appointment_button.setStyleSheet(
+            "background-color: #d3d3d3; border: none; border-radius: 20px; margin-bottom: 5px; color: #888;"
+        )
+
     # Save PDF Button
     save_pdf_button = QPushButton("Save PDF")
     save_pdf_button.setObjectName("SavePDFButton")
-    save_pdf_button.setFixedSize(60, 40)
+    save_pdf_button.setFixedSize(120, 40)
     save_pdf_button.setStyleSheet(
         "background-color: #F4F4F8; border: none; border-radius: 20px; margin-bottom: 5px;"
     )
@@ -297,6 +388,34 @@ def get_appointment_widget():
     header_layout.addWidget(appointment_buttons_widget)
     header.setLayout(header_layout)
     layout.addWidget(header)
+    
+    def open_appointment_view_mode(table, row):
+        """Open the Appointment Form in view mode with data from the selected row."""
+        dialog = AppointmentFormDialog()
+
+        # Populate the form fields with data from the selected row
+        dialog.date_edit.setDate(QDate.fromString(table.item(row, 0).text(), "yyyy-MM-dd"))
+        dialog.status_combo.setCurrentText(table.item(row, 4).text())
+        dialog.payment_combo.setCurrentText(table.item(row, 5).text())
+        dialog.pet_name_combo.setCurrentText(table.item(row, 1).text().strip())
+        dialog.reason_input.setPlainText(table.item(row, 3).text())
+        dialog.vet_combo.setCurrentText(table.item(row, 6).text().strip())
+
+        # Disable all input fields to make the form read-only
+        dialog.date_edit.setEnabled(False)
+        dialog.status_combo.setEnabled(False)
+        dialog.payment_combo.setEnabled(False)
+        dialog.pet_name_combo.setEnabled(False)
+        dialog.reason_input.setReadOnly(True)
+        dialog.vet_combo.setEnabled(False)
+
+       # Disable the Save button
+        save_button = dialog.findChild(QPushButton, "SaveButton")
+        if save_button:
+            save_button.setEnabled(False)
+
+        # Show the dialog
+        dialog.exec()
 
     # --- Tables Setup ---
     def create_table(headers):
@@ -306,6 +425,7 @@ def get_appointment_widget():
         table.setHorizontalHeaderLabels(headers)
         table.horizontalHeader().setStretchLastSection(True)
         table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)  # Make columns non-resizable
+        table.setEditTriggers(QTableWidget.NoEditTriggers)  # Make cells non-editable
         table.setStyleSheet("""
             QTableWidget {
                 background-color: #FFF;
@@ -349,6 +469,9 @@ def get_appointment_widget():
     for i, width in enumerate([150, 120, 150, 200, 180, 200, 150, 100]):
         all_table.setColumnWidth(i, width)
     layout.addWidget(all_table)
+    
+    urgent_table.cellClicked.connect(lambda row, column: open_appointment_view_mode(urgent_table, row))
+    all_table.cellClicked.connect(lambda row, column: open_appointment_view_mode(all_table, row))
 
     def show_table(table_to_show):
         for table in [urgent_table, all_table]:
@@ -373,18 +496,72 @@ def get_appointment_widget():
     all_table.show()
     select_appointment(appointment_buttons["All"])
 
-    # Connect add appointment button
     def open_appointment_form():
         dialog = AppointmentFormDialog()
         if dialog.exec():
-            # You can process the input data here
-            print("Appointment Saved:")
-            print("Date:", dialog.date_edit.date().toString())
-            print("Status:", dialog.status_combo.currentText())
-            print("Payment:", dialog.payment_combo.currentText())
-            print("Pet Name:", dialog.pet_name_input.text())
-            print("Reason:", dialog.reason_input.toPlainText())
-            print("Veterinarian:", dialog.vet_input.text())
+            # Capture the form data
+            date = dialog.date_edit.date().toString("yyyy-MM-dd")
+            status = dialog.status_combo.currentText()
+            payment = dialog.payment_combo.currentText()
+            pet_name_display = dialog.pet_name_combo.currentText().strip()  # Get the displayed pet name
+            reason = dialog.reason_input.toPlainText().strip()
+            veterinarian = dialog.vet_combo.currentText().strip()
+
+            # Extract the actual pet name (remove " - owner" if present)
+            pet_name = pet_name_display.split(" - ")[0].strip()
+
+            # Validate the data
+            if not (pet_name and reason and veterinarian):
+                QMessageBox.warning(dialog, "Input Error", "All fields are required!")
+                return
+
+            # Save the data to the database
+            db = Database()
+            try:
+                # Fetch the pet, client IDs, and client name
+                print(f"DEBUG: Searching for pet name '{pet_name}' in the database.")
+                db.cursor.execute("""
+                    SELECT p.pet_id, c.client_id, c.name AS client_name
+                    FROM pets p
+                    JOIN clients c ON p.client_id = c.client_id
+                    WHERE LOWER(p.name) = LOWER(?)
+                """, (pet_name,))
+                result = db.cursor.fetchone()
+                print(f"DEBUG: Query result for pet_name '{pet_name}': {result}")
+                if not result:
+                    QMessageBox.warning(dialog, "Error", f"Pet '{pet_name}' not found in the database! Please ensure the pet is registered.")
+                    return
+
+                pet_id, client_id, client_name = result
+
+                # Insert the appointment into the database
+                db.cursor.execute("""
+                    INSERT INTO appointments (pet_id, client_id, date, status, payment_status, reason, veterinarian)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (pet_id, client_id, date, status, payment, reason, veterinarian))
+                db.conn.commit()
+
+                # Add the data to the appropriate table
+                target_table = urgent_table if status.lower() == "urgent" else all_table
+                target_table.insertRow(0)
+                target_table.setItem(0, 0, QTableWidgetItem(date))
+                target_table.setItem(0, 1, QTableWidgetItem(pet_name_display))  # Use the display name
+                target_table.setItem(0, 2, QTableWidgetItem(client_name))  # Display the client name
+                target_table.setItem(0, 3, QTableWidgetItem(reason))
+                target_table.setItem(0, 4, QTableWidgetItem(status))
+                target_table.setItem(0, 5, QTableWidgetItem(payment))
+                target_table.setItem(0, 6, QTableWidgetItem(veterinarian))
+                target_table.setItem(0, 7, QTableWidgetItem("Action"))
+
+                # Scroll to the top of the table
+                target_table.scrollToItem(target_table.item(0, 0))
+
+                # Show a success message
+                QMessageBox.information(dialog, "Success", "Appointment added successfully!")
+            except Exception as e:
+                QMessageBox.critical(dialog, "Error", f"Failed to save appointment: {e}")
+            finally:
+                db.close_connection()
         else:
             print("Appointment creation cancelled")
 

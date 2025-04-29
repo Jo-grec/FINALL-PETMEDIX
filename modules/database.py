@@ -172,34 +172,34 @@ class Database:
             self.conn.commit()
             print(f"✅ User created with USER_ID: {user_id}")
             return user_id  # Return the generated USER_ID
-        except mariadb.Error as e:
+        except Exception as e:
             print(f"❌ Error inserting user: {e}")
             return None
             
     def authenticate_user(self, identifier, password):
         """Authenticate a user by email or user_id and password."""
         if not self.cursor:
-            print("Database connection not established. Cannot authenticate user.")
+            print("❌ Database connection not established. Cannot authenticate user.")
             return None
 
-        hashed_password = hashlib.sha256(password.encode()).hexdigest()
+        hashed_password = hashlib.sha256(password.encode()).hexdigest()  # Hash the input password
         try:
             self.cursor.execute(
                 """
-                SELECT USER_ID, NAME, ROLE 
+                SELECT user_id, name, role 
                 FROM users 
-                WHERE (EMAIL = ? OR USER_ID = ?) AND HASHED_PASSWORD = ?
+                WHERE (email = ? OR user_id = ?) AND hashed_password = ?
                 """,
                 (identifier, identifier, hashed_password)
             )
             user = self.cursor.fetchone()
             if user:
-                return {"user_id": user[0], "name": user[1], "role": user[2]}
+                return {"user_id": user[0], "name": user[1], "role": user[2]}  # Return user details
             else:
                 return None
-        except mariadb.Error as e:
-            print(f"Error authenticating user: {e}")
-            return None
+        except Exception as e:
+            print(f"❌ Error authenticating user: {e}")
+        return None
 
     def user_exists(self, email):
         """Check if a user already exists by email."""
@@ -273,7 +273,6 @@ class Database:
             print(f"❌ Error saving client: {e}")
             return False
 
-
     # fetching client info to display
     def get_client_info(self, email):
         """Fetch client information by email."""
@@ -291,4 +290,32 @@ class Database:
         except mariadb.Error as e:
             print(f"❌ Error fetching client info: {e}")
             return None
-
+            
+    def save_appointment(self, pet_id, client_id, date, status, payment_status, reason, veterinarian):
+        """Save an appointment to the database."""
+        try:
+            self.cursor.execute("""
+                INSERT INTO appointments (pet_id, client_id, date, status, payment_status, reason, veterinarian)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (pet_id, client_id, date, status, payment_status, reason, veterinarian))
+            self.conn.commit()  # Ensure the transaction is committed
+            print("✅ Appointment saved successfully.")
+        except Exception as e:
+            print(f"❌ Error saving appointment: {e}")
+            raise
+        
+    def fetch_appointments(self):
+        """Fetch all appointments from the database."""
+        try:
+            self.cursor.execute("""
+                SELECT a.date, p.name AS pet_name, c.name AS client_name, a.reason, a.status, 
+                    a.payment_status, a.veterinarian
+                FROM appointments a
+                JOIN pets p ON a.pet_id = p.pet_id
+                JOIN clients c ON a.client_id = c.client_id
+                ORDER BY a.date DESC
+            """)
+            return self.cursor.fetchall()  # Return all rows
+        except Exception as e:
+            print(f"❌ Error fetching appointments: {e}")
+            return []

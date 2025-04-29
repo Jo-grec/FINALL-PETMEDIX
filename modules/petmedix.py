@@ -9,9 +9,12 @@ from modules.billing import update_billing_widget
 from modules.setting import get_setting_widget
 
 class PetMedix(QWidget):
-    def __init__(self):
+    def __init__(self, role, last_name):
         super().__init__()
 
+        self.user_role = role
+        self.last_name = last_name
+        
         self.setWindowTitle("PetMedix - Home")
 
         # Apply styles from external QSS file
@@ -36,14 +39,15 @@ class PetMedix(QWidget):
         self.logo_label.setFixedHeight(50)  # Adjust if needed
         self.logo_label.setScaledContents(True)
 
-        # Username label
-        self.username_label = QLabel("Hello, Dr. Smith")
+        # Username label (dynamic greeting)
+        greeting = self.get_greeting(role, last_name)
+        self.username_label = QLabel(greeting)
         self.username_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.username_label.setObjectName("UsernameLabel")
 
         # User icon
         self.user_icon_label = QLabel()
-        user_pixmap = QPixmap("assets/userlogo.png")  # 👉 Path to your user icon
+        user_pixmap = QPixmap("assets/userlogo.png")  # Path to your user icon
         self.user_icon_label.setPixmap(user_pixmap)
         self.user_icon_label.setFixedSize(40, 40)
         self.user_icon_label.setScaledContents(True)
@@ -161,6 +165,15 @@ class PetMedix(QWidget):
                 if widget is not None:
                     widget.setParent(None)
                     widget.deleteLater()
+                    
+    def get_greeting(self, role, last_name):
+        """Generate a greeting based on the user's role and last name."""
+        if role.lower() == "receptionist":
+            return f"Hello, Ma'am/Sir {last_name}"
+        elif role.lower() == "veterinarian":
+            return f"Hello, Doctor {last_name}"
+        else:
+            return f"Hello, {last_name}"
                 
     def add_search_bar(self):
         search_layout = QHBoxLayout()
@@ -527,7 +540,7 @@ class PetMedix(QWidget):
     def show_appointments_content(self):
         self.clear_content()
         self.add_search_bar()
-        appointment_widget = get_appointment_widget()
+        appointment_widget = get_appointment_widget(self.user_role)
         self.content_layout.addWidget(appointment_widget)
             
     # -- Billings Tab -- #
