@@ -2,14 +2,14 @@ from PySide6.QtWidgets import QWidget, QMainWindow, QLabel, QLineEdit, QPushButt
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap, QIcon
 from modules.database import Database  # Import the Database class
-from modules.utils import create_styled_message_box
+from modules.utils import create_styled_message_box, show_message
 import re
 
 class SignUpWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-
         self.setWindowTitle("PetMedix - Sign Up")
+        self.setup_ui()
 
         with open("styles/login.qss", "r") as file:
             self.setStyleSheet(file.read())
@@ -156,7 +156,7 @@ class SignUpWindow(QMainWindow):
         first_name = self.first_name_input.text().strip()
         last_name = self.last_name_input.text().strip()
         email = self.email_input.text().strip()
-        role = self.role_input.currentText().strip()
+        role = self.role_input.currentText()  # Use self.role_input instead of self.role_dropdown
         password = self.password_input.text().strip()
 
         if not (first_name and last_name and email and password) or role == "Select Role":
@@ -169,12 +169,11 @@ class SignUpWindow(QMainWindow):
             return
 
         if not email.endswith("@petmedix.med"):
-            QMessageBox.warning(self, "Invalid Email", "Email must end with @petmedix.med")
+            show_message(self, "Email must end with @petmedix.med", QMessageBox.Warning)
             return
 
         if not re.fullmatch(r"[A-Za-z0-9]{6,20}", password):
-            QMessageBox.warning(self, "Invalid Password",
-                "Password must be alphanumeric and 6-20 characters long.")
+            show_message(self, "Password must be alphanumeric and 6-20 characters long.", QMessageBox.Warning)
             return
 
         full_name = f"{first_name} {last_name}"
@@ -183,13 +182,13 @@ class SignUpWindow(QMainWindow):
         try:
             # Check if user already exists
             if db.user_exists(email):
-                QMessageBox.warning(self, "Account Exists", "An account with this email already exists.")
+                show_message(self, "An account with this email already exists.", QMessageBox.Warning)
                 return
 
             # Create user and retrieve the generated USER_ID
-            user_id = db.create_user(full_name, email, password, role)
+            user_id = db.create_user(first_name, last_name, email, password, role)
             if user_id:
-                QMessageBox.information(self, "Success", f"Account created successfully! Your username is: {user_id}")
+                show_message(self, f"Account created successfully! Your username is: {user_id}\n\nYour account is pending verification by an administrator. You will be notified once your account is verified.")
 
                 redirect_label = QLabel("Redirecting to login page...", self)
                 redirect_label.setAlignment(Qt.AlignCenter)
@@ -198,9 +197,9 @@ class SignUpWindow(QMainWindow):
 
                 QTimer.singleShot(2000, self.redirect_to_login)
             else:
-                QMessageBox.critical(self, "Error", "Failed to generate a username. Please try again.")
+                show_message(self, "Failed to generate a username. Please try again.", QMessageBox.Critical)
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to create account: {e}")
+            show_message(self, f"Failed to create account: {e}", QMessageBox.Critical)
         finally:
             db.close_connection()
 

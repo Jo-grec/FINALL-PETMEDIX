@@ -6,14 +6,16 @@ from PySide6.QtGui import QPixmap, QIcon
 from PySide6.QtCore import Qt
 from modules.database import Database  # Import the Database class
 from modules.petmedix import PetMedix
-from modules.utils import create_styled_message_box
+from modules.utils import create_styled_message_box, show_message
 
 class LoginWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-
         self.setWindowTitle("PetMedix - Login")
+        self.setWindowIcon(QIcon("assets/logo.ico"))
+        self.setup_ui()
 
+    def setup_ui(self):
         with open("styles/login.qss", "r") as file: 
             self.setStyleSheet(file.read())
 
@@ -196,33 +198,54 @@ class LoginWindow(QMainWindow):
 
     def login_user(self):
         """Handle user login."""
-        identifier = self.username_input.text().strip()  # Can be email or USER_ID
+        email = self.username_input.text().strip()  # Can be email or USER_ID
         password = self.password_input.text().strip()
 
-        if not (identifier and password):
-            QMessageBox.warning(self, "Input Error", "Email/User ID and password are required!")
+        # Validate input
+        if not (email and password):
+            show_message(self, "Email/User ID and password are required!", QMessageBox.Warning)
             return
 
         # Connect to the database and authenticate the user
         db = Database()
         try:
-            user = db.authenticate_user(identifier, password)
+            user = db.authenticate_user(email, password)
             if user:
-                message_box = create_styled_message_box(
-                    QMessageBox.Information, 
-                    "Success", 
-                    f"Welcome {user['name']}!"
-                )
-                message_box.exec()
+                user_id = user.get('user_id', 'Unknown ID')
+                role = user.get('role', 'Unknown Role')
+                last_name = user.get('last_name', 'Unknown')
+                status = user.get('status', 'Unknown')
                 
-                # Redirect to HomePage
-                self.home_page = PetMedix()
-                self.home_page.showMaximized()  # Ensure the HomePage is maximized
-                self.close()  # Close the LoginWindow
+                print(f"Login successful - User ID: {user_id}, Role: {role}, Status: {status}")
+                
+                # Check if user is admin
+                if role == 'Admin':
+                    print("Admin login detected, launching admin dashboard...")
+                    from modules.admin_dashboard import AdminDashboard
+                    self.admin_dashboard = AdminDashboard()
+                    self.admin_dashboard.showMaximized()
+                    self.close()
+                else:
+                    # For non-admin users, check if they are verified
+                    if status != 'Verified':
+                        show_message(self, "Your account is pending verification. Please contact the administrator.", QMessageBox.Warning)
+                        return
+                        
+                    message_box = create_styled_message_box(
+                        QMessageBox.Information, 
+                        "Success", 
+                        f"Welcome {user['name']} {last_name}!"
+                    )
+                    message_box.exec()
+                    
+                    # Redirect to HomePage with role and last_name
+                    self.home_page = PetMedix(user_id=user_id, role=role, last_name=last_name)
+                    self.home_page.showMaximized()
+                    self.close()
             else:
-                QMessageBox.warning(self, "Login Failed", "Invalid email/User ID or password.")
+                show_message(self, "Invalid email/User ID or password.", QMessageBox.Warning)
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to login: {e}")
+            print(f"Login error: {str(e)}")
+            show_message(self, f"Failed to login: {e}", QMessageBox.Critical)
         finally:
             db.close_connection()
-

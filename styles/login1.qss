@@ -109,6 +109,9 @@ QLabel#SubwelcomeLabel {
     font-size: 90px;
     font-style: normal;
     font-weight: 300;
+    background-color: transparent;
+    margin-bottom: -10px;
+    padding-bottom: -20px;
 }
 
 #LoginButton {
@@ -133,11 +136,10 @@ QLabel#SubwelcomeLabel {
 
 #FormInput {
     border: 1px solid #B0B0B0;
-    border-radius: 20px;
+    border-radius: 25px;
     padding: 10px;
     background-color: white;
-    min-height: 20px; 
-    font-size: 12px;
+    min-height: 40px; 
 }
 
 QPushButton#create {
@@ -156,12 +158,12 @@ QPushButton#create:hover {
 
 QComboBox#RoleComboBox, QComboBox#RoleComboBox QLineEdit {
     padding: 10px;
-    font-size: 12px;
+    font-size: 16px;
     border: 1px solid  #B0B0B0;
-    border-radius: 20px;
+    border-radius: 25px;
     background: white;
     color: gray;
-    min-height: 20px;
+    min-height: 40px;
 }
 
 QComboBox#RoleComboBox:hover, QComboBox#RoleComboBox QLineEdit:hover {
@@ -170,11 +172,10 @@ QComboBox#RoleComboBox:hover, QComboBox#RoleComboBox QLineEdit:hover {
 
 #RoleComboBox {
     border: 1px solid #B0B0B0;
-    border-radius: 20px;
+    border-radius: 25px;
     padding: 5px 30px 10px 10px; 
     background-color: white;
-    min-height: 20px;
-    qproperty-iconSize: 0px;
+    min-height: 40px;
 }
 
 /* Hide default arrow */
@@ -186,32 +187,43 @@ QComboBox#RoleComboBox:hover, QComboBox#RoleComboBox QLineEdit:hover {
 #RoleComboBox::drop-down {
     subcontrol-origin: padding;
     subcontrol-position: right center;
-    width: 15px;
+    width: 30px;
     background: transparent;
     border: none;
     image: url("assets/polygon 1.png");
-    padding-right: 20px;
+    padding-right: 10px;
 }
 
 QComboBox#RoleComboBox::drop-down {
     border: none;
-    width: 15px;
+    width: 30px;
 }
 
 #SignupPasswordContainer{
     border: 1px solid #B0B0B0;
-    border-radius: 20px;
+    border-radius: 25px;
     padding: 10px;
     background-color: white;
-    min-height: 20px; 
+    min-height: 40px; 
 }
 
 #PasswordFormInput{
     border: none;
-    font-size: 12px;
-    border-radius: 20px;
-    mi-height: 20px;
 }
+
+QPushButton#navbarButton {
+    background-color: #F4F4F8;
+    color: #000;
+    border: none;
+    padding: 5px;
+    text-align: left;
+}
+
+QPushButton#navbarButton:checked {
+    background-color: #4A90E2;
+    color: #fff;
+}
+
 
 /* Home Page */
 
@@ -261,7 +273,6 @@ QPushButton {
     padding: 10px;  /* Optional: padding inside the search bar */
     margin-bottom: 30px;  /* Add space below the search bar */
     margin-top: 20px;
-    border: 2px solid gray;
 }
 
 
@@ -299,16 +310,24 @@ QPushButton {
     font-weight: 800;
     line-height: normal;
     padding: 10px;
-    margin-bottom: 0;
 }
 
-#AddClientButton{
+#PreviousButton, #NextButton {
     color: #000;
     font-family: Lato;
     font-size: 10px;
     font-style: normal;
     font-weight: 700;
     line-height: normal;
+}
+
+#PreviousButton:hover{
+    background-color: #000;  /* Keep the same color on hover */
+    color: #FFF;  /* Keep text color the same on hover */
+}
+
+#PreviousButton{
+    margin-left: 25px;
 }
 
 #ClientInformationLabel, #PetsLabel, #EditClientInfoLabel, #EditPetInfoLabel {
@@ -320,40 +339,22 @@ QPushButton {
     line-height: normal;
     padding-left: 10px;
     padding-top: 0px;
-    background-color: transparent;
-    margin: 0;
 }
 
-#NameLabel, #AddressLabel, #ContactLabel, #EmailLabel{
+#NameLabel, #GenderLabel, #AddressLabel, #ContactLabel, #EmailLabel {
     color: #000;
     font-family: Poppins;
     font-size: 15px;
     font-style: normal;
-    font-weight: bold;
-    line-height: 10px;
+    font-weight: 700;
+    line-height: normal;
     margin-left: 30px;
-    background-color: transparent;
-    padding: 0; 
-}
-
-#NameInput, #AddressInput, #ContactInput, #EmailInput{
-    color: #000;
-    font-family: Poppins;
-    font-size: 15px;
-    font-style: normal;
-    font-weight: 300;
-    line-height: 10px;
-    margin-left: 30px;
-    background-color: transparent;
-    padding: 0;
 }
 
 #PetPicture {
+    border-radius: 40px;
     margin-left: 30px;
     margin-right: 30px;
-    border: 1px solid gray;
-    max-width: 150px;
-    max-height: 150px;
 }
 
 #PetNameLabel, #PetGenderLabel, #PetTypeLabel, #PetBreedLabel, #PetColorLabel, #PetColorLabel, #PetBirthLabel, #PetAgeLabel {
@@ -361,26 +362,19 @@ QPushButton {
     font-family: Poppins;
     font-size: 12px;
     font-style: normal;
-    font-weight: 300;
-    line-height: 10px;
-    background-color: transparent;
+    font-weight: 700;
+    line-height: normal;
 }
 
 #UpdateInfoButton, #CheckScheduleButton, #SeeRecordsButton {
-    background-color: #012547;
-    color: white;
+    color: #fff;
     font-family: Lato;
-    font-size: 14px;
+    font-size: 13px;
     font-style: normal;
     font-weight: 700;
     line-height: normal;
     border-radius: 20px;
-}
-
-#DeleteButton {
-    background-color: transparent;
-    border: none; 
-    margin-top: -3px;
+    padding: 0px;
 }
 
 /*Reports Tab*/

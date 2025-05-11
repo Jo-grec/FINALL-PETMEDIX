@@ -28,3 +28,31 @@ def create_styled_message_box(icon, title, text):
         }
     """)
     return message_box
+
+def show_message(parent, message, icon=QMessageBox.Information):
+    """Show a message box without a title."""
+    msg = QMessageBox(parent)
+    msg.setIcon(icon)
+    msg.setText(message)
+    msg.setWindowTitle("")  # Remove title
+    msg.setStyleSheet("""
+        QMessageBox {
+            background-color: white;
+        }
+        QMessageBox QLabel {
+            color: black;
+            font-size: 14px;
+        }
+        QPushButton {
+            background-color: #012547;
+            color: white;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 5px;
+            min-width: 80px;
+        }
+        QPushButton:hover {
+            background-color: #01315d;
+        }
+    """)
+    return msg.exec()

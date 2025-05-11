@@ -9,9 +9,10 @@ from modules.billing import update_billing_widget
 from modules.setting import get_setting_widget
 
 class PetMedix(QWidget):
-    def __init__(self, role, last_name):
+    def __init__(self, user_id, role, last_name):
         super().__init__()
 
+        self.user_id = user_id
         self.user_role = role
         self.last_name = last_name
         
@@ -101,7 +102,7 @@ class PetMedix(QWidget):
         line.setFrameShape(QFrame.HLine)  # Set the shape of the frame to a horizontal line
         line.setFrameShadow(QFrame.Sunken)  # Make the line appear sunken (optional)
         navbar_layout.addWidget(line)
-
+        # Create nav buttons
         self.button1 = QPushButton("Home")
         self.button2 = QPushButton("Client")
         self.button3 = QPushButton("Reports")
@@ -109,6 +110,7 @@ class PetMedix(QWidget):
         self.button5 = QPushButton("Billings")
         self.button6 = QPushButton("Settings")
 
+        # Add to layout
         navbar_layout.addWidget(self.button1)
         navbar_layout.addWidget(self.button2)
         navbar_layout.addWidget(self.button3)
@@ -116,13 +118,22 @@ class PetMedix(QWidget):
         navbar_layout.addWidget(self.button5)
         navbar_layout.addWidget(self.button6)
 
-        self.button1.setFlat(True)
-        self.button2.setFlat(True)
-        self.button3.setFlat(True)
-        self.button4.setFlat(True)
-        self.button5.setFlat(True)
-        self.button6.setFlat(True)
+        # Optional: Make flat
+        for btn in [self.button1, self.button2, self.button3, self.button4, self.button5, self.button6]:
+            btn.setFlat(True)
+            btn.setObjectName("navbarButton")  # Give all nav buttons the same object name
+            btn.setCheckable(True)
 
+        # Store in a list for logic
+        self.nav_buttons = [
+            self.button1, self.button2, self.button3,
+            self.button4, self.button5, self.button6
+        ]
+
+        # Connect for active highlight
+        for btn in self.nav_buttons:
+            btn.clicked.connect(lambda checked, b=btn: self.set_active_button(b))
+            
         # Add a stretch to move the buttons to the top
         navbar_layout.addStretch()  # This ensures the buttons are at the top
 
@@ -156,6 +167,10 @@ class PetMedix(QWidget):
         self.button6.clicked.connect(self.show_settings_content)
         
         self.show_home_content()
+        
+    def set_active_button(self, active_button):
+        for btn in self.nav_buttons:
+            btn.setChecked(btn == active_button)
 
     def clear_content(self):
         if self.content_layout is not None:
@@ -554,7 +569,7 @@ class PetMedix(QWidget):
     # -- Settings Tab -- #
     def show_settings_content(self):
         self.clear_content()
-        settings_widget = get_setting_widget()
+        settings_widget = get_setting_widget(user_id=self.user_id)
         self.content_layout.addWidget(settings_widget)
         
 if __name__ == "__main__":

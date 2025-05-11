@@ -1,16 +1,23 @@
+import os
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTableWidget,
-    QDialog, QMessageBox, QLineEdit, QComboBox, QTextEdit, QDateEdit,
+    QDialog, QMessageBox, QFileDialog, QComboBox, QTextEdit, QDateEdit,
     QHeaderView, QTableWidgetItem
 )
+from PySide6.QtGui import QColor, QBrush, QIcon
 from PySide6.QtCore import Qt, QDate
 from modules.database import Database
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from datetime import datetime
+from modules.utils import show_message
 
 
 class AppointmentFormDialog(QDialog):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Add Appointment")
+        self.setWindowTitle("PetMedix - Appointments")
         self.setFixedSize(800, 600)  # Consistent size with report form
         
         layout = QVBoxLayout(self)
@@ -21,7 +28,9 @@ class AppointmentFormDialog(QDialog):
         title_container.setStyleSheet("background-color: #012547;")
         title_layout = QHBoxLayout(title_container)
         title_layout.setContentsMargins(20, 10, 20, 10)
-        title_label = QLabel("Appointment Form")
+        # Title
+        title_label = QLabel("Schedule Appointment")
+        title_label.setObjectName("TitleLabel")  # Assign an object name
         title_label.setStyleSheet("font-size: 36px; font-weight: bold; color: #FFF;")
         title_layout.addWidget(title_label)
         layout.addWidget(title_container)
@@ -242,15 +251,16 @@ class AppointmentFormDialog(QDialog):
         layout.addLayout(button_layout)
         
     def load_pet_names(self):
-        """Load pet names into the pet_name_combo grouped by owners."""
+        """Load pet names grouped by their owners into the pet_name_combo."""
         try:
             db = Database()
             cursor = db.cursor
 
+            # Fetch pet names along with their owners
             cursor.execute("""
                 SELECT c.name AS client_name, p.name AS pet_name
-                FROM pets p
-                JOIN clients c ON p.client_id = c.client_id
+                FROM clients c
+                JOIN pets p ON c.client_id = p.client_id
                 ORDER BY c.name ASC, p.name ASC
             """)
             rows = cursor.fetchall()
@@ -259,16 +269,17 @@ class AppointmentFormDialog(QDialog):
                 self.pet_name_combo.addItem("No pets found")
                 return
 
+            # Group pets by their owners
             current_owner = None
             for client_name, pet_name in rows:
                 if client_name != current_owner:
-                    # Owner group label
+                    # Add owner group label
                     self.pet_name_combo.addItem(f"{client_name} - Owner")
                     index = self.pet_name_combo.count() - 1
                     self.pet_name_combo.model().item(index).setEnabled(False)
                     current_owner = client_name
 
-                # Add pet name
+                # Add pet name under the owner
                 self.pet_name_combo.addItem(f"  {pet_name}")
 
             db.close_connection()
@@ -345,6 +356,51 @@ def get_appointment_widget(user_role):
         "background-color: #F4F4F8; border: none; border-radius: 20px; margin-bottom: 5px;"
     )
 
+    # Define the save_pdf function before connecting it
+    def save_pdf():
+        # Detect which table is visible
+        table = urgent_table if urgent_table.isVisible() else all_table
+        table_type = "Urgent" if table is urgent_table else "All"
+
+        # Define the output folder relative to the project
+        folder_path = os.path.join(os.getcwd(), "pdf_reports")
+        os.makedirs(folder_path, exist_ok=True)  # Create folder if not exists
+
+        # Create file name with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_name = f"{table_type}_Appointments_{timestamp}.pdf"
+        file_path = os.path.join(folder_path, file_name)
+
+        # Create PDF
+        c = canvas.Canvas(file_path, pagesize=letter)
+        width, height = letter
+        x_margin = 50
+        y_start = height - 50
+        row_height = 20
+
+        # Write table headers
+        for col in range(table.columnCount()):
+            header = table.horizontalHeaderItem(col).text()
+            c.drawString(x_margin + col * 100, y_start, header)
+
+        # Write table rows
+        for row in range(table.rowCount()):
+            for col in range(table.columnCount()):
+                item = table.item(row, col)
+                if item:
+                    text = item.text()
+                elif table.cellWidget(row, col):
+                    text = "[Buttons]"
+                else:
+                    text = ""
+                c.drawString(x_margin + col * 100, y_start - (row + 1) * row_height, text)
+
+        c.save()
+        show_message(None, f"PDF successfully saved to:\n{file_path}")
+
+    # Connect the save_pdf function to the button
+    save_pdf_button.clicked.connect(save_pdf)
+
     header_layout.addWidget(appointment_label)
     header_layout.addWidget(add_appointment_button)
     header_layout.addWidget(save_pdf_button)
@@ -393,13 +449,29 @@ def get_appointment_widget(user_role):
         """Open the Appointment Form in view mode with data from the selected row."""
         dialog = AppointmentFormDialog()
 
+        # Safely fetch data from the table
+        def get_item_text(row, column):
+            item = table.item(row, column)
+            return item.text() if item else ""
+
         # Populate the form fields with data from the selected row
-        dialog.date_edit.setDate(QDate.fromString(table.item(row, 0).text(), "yyyy-MM-dd"))
-        dialog.status_combo.setCurrentText(table.item(row, 4).text())
-        dialog.payment_combo.setCurrentText(table.item(row, 5).text())
-        dialog.pet_name_combo.setCurrentText(table.item(row, 1).text().strip())
-        dialog.reason_input.setPlainText(table.item(row, 3).text())
-        dialog.vet_combo.setCurrentText(table.item(row, 6).text().strip())
+        dialog.date_edit.setDate(QDate.fromString(get_item_text(row, 0), "yyyy-MM-dd"))
+        dialog.status_combo.setCurrentText(get_item_text(row, 4))
+        dialog.payment_combo.setCurrentText(get_item_text(row, 5))
+
+        # Extract the actual pet name (remove " - Owner" if present)
+        pet_name_with_owner = get_item_text(row, 1).strip()
+        pet_name = pet_name_with_owner.split(" - ")[0]  # Extract the pet name
+        dialog.pet_name_combo.clear()  # Clear existing items in the combo box
+        dialog.pet_name_combo.addItem(pet_name)  # Add the actual pet name
+        dialog.pet_name_combo.setCurrentText(pet_name)  # Set the current text to the pet name
+
+        dialog.reason_input.setPlainText(get_item_text(row, 3))
+        dialog.vet_combo.setCurrentText(get_item_text(row, 6).strip())
+
+        # Update the dialog title and window title
+        dialog.setWindowTitle("View Appointment")
+        dialog.findChild(QLabel, "TitleLabel").setText(f"{pet_name}'s Appointment")  # Use pet's name
 
         # Disable all input fields to make the form read-only
         dialog.date_edit.setEnabled(False)
@@ -409,7 +481,7 @@ def get_appointment_widget(user_role):
         dialog.reason_input.setReadOnly(True)
         dialog.vet_combo.setEnabled(False)
 
-       # Disable the Save button
+        # Disable the Save button
         save_button = dialog.findChild(QPushButton, "SaveButton")
         if save_button:
             save_button.setEnabled(False)
@@ -425,10 +497,12 @@ def get_appointment_widget(user_role):
         table.setHorizontalHeaderLabels(headers)
         table.horizontalHeader().setStretchLastSection(True)
         table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)  # Make columns non-resizable
+        table.horizontalHeader().setSectionsClickable(False)
         table.setEditTriggers(QTableWidget.NoEditTriggers)  # Make cells non-editable
         table.setStyleSheet("""
             QTableWidget {
-                background-color: #FFF;
+                background-color: white;
+                color: black;  /* Ensure text is black */
                 gridline-color: #000;
             }
             QHeaderView::section {
@@ -439,6 +513,11 @@ def get_appointment_widget(user_role):
             }
         """)
         table.verticalHeader().setVisible(False)
+
+        # Make the table scrollable but hide the scrollbars
+        table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
         return table
 
     urgent_table = create_table([
@@ -451,7 +530,7 @@ def get_appointment_widget(user_role):
         "Veterinarian In Charge",
         "Action"
     ])
-    for i, width in enumerate([150, 120, 150, 200, 180, 200, 150, 100]):
+    for i, width in enumerate([150, 120, 150, 200, 180, 150, 150, 80]):
         urgent_table.setColumnWidth(i, width)
     urgent_table.hide()
     layout.addWidget(urgent_table)
@@ -466,17 +545,211 @@ def get_appointment_widget(user_role):
         "Veterinarian In Charge",
         "Action"
     ])
-    for i, width in enumerate([150, 120, 150, 200, 180, 200, 150, 100]):
+    for i, width in enumerate([150, 120, 150, 200, 180, 150, 150, 80]):
         all_table.setColumnWidth(i, width)
     layout.addWidget(all_table)
     
-    urgent_table.cellClicked.connect(lambda row, column: open_appointment_view_mode(urgent_table, row))
-    all_table.cellClicked.connect(lambda row, column: open_appointment_view_mode(all_table, row))
+    urgent_table.cellClicked.connect(lambda row, column: handle_table_click(urgent_table, row, column))
+    all_table.cellClicked.connect(lambda row, column: handle_table_click(all_table, row, column))
+        
+    def populate_tables():
+        """Fetch appointments from the database and populate the tables."""
+        db = Database()
+        try:
+            # Fetch appointments from the database
+            appointments = db.fetch_appointments()
+
+            # Clear existing rows in the tables
+            urgent_table.setRowCount(0)  # Clear all rows in urgent table
+            all_table.setRowCount(0)  # Clear all rows in all table
+
+            # Populate the tables with fetched data
+            for appointment in appointments:
+                # Ensure all data is converted to strings
+                date = str(appointment[0])  # Convert date to string
+                pet_name = str(appointment[1])
+                client_name = str(appointment[2])
+                reason = str(appointment[3])
+                status = str(appointment[4])
+                payment_status = str(appointment[5])
+                veterinarian = f"Dr. {str(appointment[6])}"  # Add "Dr." prefix to veterinarian's name
+
+                # Insert into the "All" table
+                all_row_position = all_table.rowCount()
+                all_table.insertRow(all_row_position)
+                all_table.setItem(all_row_position, 0, QTableWidgetItem(date))
+                all_table.setItem(all_row_position, 1, QTableWidgetItem(pet_name))
+                all_table.setItem(all_row_position, 2, QTableWidgetItem(client_name))
+                all_table.setItem(all_row_position, 3, QTableWidgetItem(reason))
+
+                # Set the background color for the "Status" column
+                status_item = QTableWidgetItem(status)
+                if status.lower() == "scheduled":
+                    status_item.setBackground(QBrush(QColor("#FFEEBA")))
+                elif status.lower() == "completed":
+                    status_item.setBackground(QBrush(QColor("#DFF2BF")))  # Green
+                elif status.lower() == "urgent":
+                    status_item.setBackground(QBrush(QColor("#FFBABA")))  # Red
+                elif status.lower() in ["cancelled", "no-show"]:
+                    status_item.setBackground(QBrush(QColor("#D3D3D3")))  # Gray
+                elif status.lower() == "rescheduled":
+                    status_item.setBackground(QBrush(QColor("orange")))  # Orange
+                all_table.setItem(all_row_position, 4, status_item)
+
+                all_table.setItem(all_row_position, 5, QTableWidgetItem(payment_status))
+                all_table.setItem(all_row_position, 6, QTableWidgetItem(veterinarian))  # Add veterinarian with "Dr." prefix
+
+                # Add "Edit" and "Delete" buttons in the "Action" column for the "All" table
+                all_action_widget = QWidget()
+                all_action_layout = QHBoxLayout(all_action_widget)
+                all_action_layout.setContentsMargins(0, 0, 0, 0)
+                all_action_layout.setSpacing(0)
+
+                all_edit_button = QPushButton("Edit")
+                all_edit_button.setFixedWidth(70)
+                all_edit_button.setStyleSheet("""
+                    QPushButton {
+                        background-color: #FED766;
+                        border: none;
+                        border-radius: 5px;
+                        font-size: 10px;
+                        padding: 5px;
+                        min-height: 10px;
+                        min-width: 30px;
+                    }
+                    QPushButton:hover {
+                        background-color: #FFC107;
+                    }
+                """)
+                all_edit_button.clicked.connect(lambda _, r=all_row_position: edit_appointment(all_table, r))
+
+                all_delete_button = QPushButton("Delete")
+                all_delete_button.setFixedWidth(70)
+                all_delete_button.setStyleSheet("""
+                    QPushButton {
+                        background-color: #FF6F61;
+                        border: none;
+                        border-radius: 5px;
+                        font-size: 10px;
+                        padding: 5px;
+                        min-height: 10px;
+                        min-width: 30px;
+                    }
+                    QPushButton:hover {
+                        background-color: #E53935;
+                    }
+                """)
+                all_delete_button.clicked.connect(lambda _, r=all_row_position: delete_appointment(all_table, r))
+
+                all_action_layout.addWidget(all_edit_button)
+                all_action_layout.addWidget(all_delete_button)
+                all_action_widget.setLayout(all_action_layout)
+                all_table.setCellWidget(all_row_position, 7, all_action_widget)
+
+                # If the appointment is urgent, also add it to the "Urgent" table
+                if status.lower() == "urgent":
+                    urgent_row_position = urgent_table.rowCount()
+                    urgent_table.insertRow(urgent_row_position)
+                    urgent_table.setItem(urgent_row_position, 0, QTableWidgetItem(date))
+                    urgent_table.setItem(urgent_row_position, 1, QTableWidgetItem(pet_name))
+                    urgent_table.setItem(urgent_row_position, 2, QTableWidgetItem(client_name))
+                    urgent_table.setItem(urgent_row_position, 3, QTableWidgetItem(reason))
+
+                    # Set the background color for the "Status" column in the urgent table
+                    urgent_status_item = QTableWidgetItem(status)
+                    urgent_status_item.setBackground(QBrush(QColor("#FFBABA")))  # Red for urgent
+                    urgent_table.setItem(urgent_row_position, 4, urgent_status_item)
+
+                    urgent_table.setItem(urgent_row_position, 5, QTableWidgetItem(payment_status))
+                    urgent_table.setItem(urgent_row_position, 6, QTableWidgetItem(veterinarian))  # Add veterinarian with "Dr." prefix
+
+                    # Add "Edit" and "Delete" buttons in the "Action" column for the "Urgent" table
+                    urgent_action_widget = QWidget()
+                    urgent_action_layout = QHBoxLayout(urgent_action_widget)
+                    urgent_action_layout.setContentsMargins(0, 0, 0, 0)  # Remove margins
+                    urgent_action_layout.setSpacing(0)  # Adjust spacing
+
+                    urgent_edit_button = QPushButton("Edit")
+                    urgent_edit_button.setFixedWidth(70)
+                    urgent_edit_button.setStyleSheet("""
+                        QPushButton {
+                            background-color: #FED766;
+                            border: none;
+                            border-radius: 5px;
+                            font-size: 10px;
+                            padding: 5px;
+                            min-height: 10px;
+                            min-width: 30px;
+                        }
+                        QPushButton:hover {
+                            background-color: #FFC107;
+                        }
+                    """)
+                    urgent_edit_button.clicked.connect(lambda _, r=urgent_row_position: edit_appointment(urgent_table, r))
+
+                    urgent_delete_button = QPushButton("Delete")
+                    urgent_delete_button.setFixedWidth(70)
+                    urgent_delete_button.setStyleSheet("""
+                        QPushButton {
+                            background-color: #FF6F61;
+                            border: none;
+                            border-radius: 5px;
+                            font-size: 10px;
+                            color: black;
+                            padding: 5px;
+                            min-height: 10px;
+                            min-width: 30px;
+                        }
+                        QPushButton:hover {
+                            background-color: #E53935;
+                        }
+                    """)
+                    urgent_delete_button.clicked.connect(lambda _, r=urgent_row_position: delete_appointment(urgent_table, r))
+
+                    urgent_action_layout.addWidget(urgent_edit_button)
+                    urgent_action_layout.addWidget(urgent_delete_button)
+                    urgent_action_widget.setLayout(urgent_action_layout)
+                    urgent_table.setCellWidget(urgent_row_position, 7, urgent_action_widget)
+
+            # Add placeholder if no appointments are found
+            if all_table.rowCount() == 0:
+                all_table.insertRow(0)
+                placeholder_item = QTableWidgetItem("No appointments added")
+                placeholder_item.setTextAlignment(Qt.AlignCenter)
+                all_table.setSpan(0, 0, 1, all_table.columnCount())  # Span across all columns
+                all_table.setItem(0, 0, placeholder_item)
+
+            if urgent_table.rowCount() == 0:
+                urgent_table.insertRow(0)
+                placeholder_item = QTableWidgetItem("No urgent appointments added")
+                placeholder_item.setTextAlignment(Qt.AlignCenter)
+                urgent_table.setSpan(0, 0, 1, urgent_table.columnCount())  # Span across all columns
+                urgent_table.setItem(0, 0, placeholder_item)
+
+            # Debug: Print the number of rows added
+            print(f"✅ {len(appointments)} appointments loaded into the tables.")
+        except Exception as e:
+            print(f"❌ Error populating tables: {e}")
+        finally:
+            db.close_connection()
+
+    # Populate tables on widget load
+    populate_tables()
 
     def show_table(table_to_show):
         for table in [urgent_table, all_table]:
             table.hide()
         table_to_show.show()
+        
+    # Connect cellClicked signals with a check for placeholder rows
+    def handle_table_click(table, row, column):
+        """Handle table clicks, ignoring placeholder rows."""
+        # Check if the first row contains a placeholder
+        if table.item(row, 0) and table.item(row, 0).text() in ["No appointments added", "No urgent appointments added"]:
+            return  # Ignore clicks on placeholder rows
+
+        # Open the appointment view mode for valid rows
+        open_appointment_view_mode(table, row)
 
     def select_appointment(selected_button):
         for button in appointment_buttons.values():
@@ -495,6 +768,80 @@ def get_appointment_widget(user_role):
     # Show all_table by default
     all_table.show()
     select_appointment(appointment_buttons["All"])
+        
+    def edit_appointment(table, row):
+        """Handle the Edit button click."""
+        dialog = AppointmentFormDialog()
+
+        # Safely fetch data from the table
+        def get_item_text(row, column):
+            item = table.item(row, column)
+            return item.text() if item else ""
+
+        # Populate the form fields with data from the selected row
+        dialog.date_edit.setDate(QDate.fromString(get_item_text(row, 0), "yyyy-MM-dd"))
+        dialog.status_combo.setCurrentText(get_item_text(row, 4))
+        dialog.payment_combo.setCurrentText(get_item_text(row, 5))
+        dialog.pet_name_combo.setCurrentText(get_item_text(row, 1).strip())
+        dialog.reason_input.setPlainText(get_item_text(row, 3))
+        dialog.vet_combo.setCurrentText(get_item_text(row, 6).strip())
+
+        # Show the dialog and save changes if accepted
+        if dialog.exec():
+            # Save changes to the database
+            db = Database()
+            try:
+                db.cursor.execute("""
+                    UPDATE appointments
+                    SET date = ?, status = ?, payment_status = ?, reason = ?, veterinarian = ?
+                    WHERE date = ? AND reason = ?
+                """, (
+                    dialog.date_edit.date().toString("yyyy-MM-dd"),
+                    dialog.status_combo.currentText(),
+                    dialog.payment_combo.currentText(),
+                    dialog.reason_input.toPlainText().strip(),
+                    dialog.vet_combo.currentText().strip(),
+                    get_item_text(row, 0),  # Original date
+                    get_item_text(row, 3)   # Original reason
+                ))
+                db.conn.commit()
+                show_message(None, "Appointment updated successfully!")
+
+                # Refresh the table
+                populate_tables()
+            except Exception as e:
+                show_message(None, f"Failed to update appointment: {e}", QMessageBox.Critical)
+            finally:
+                db.close_connection()
+                
+    def delete_appointment(table, row):
+        """Handle the Delete button click."""
+        confirmation = QMessageBox()
+        confirmation.setIcon(QMessageBox.Question)
+        confirmation.setText("Are you sure you want to delete this appointment?")
+        confirmation.setWindowTitle("")
+        confirmation.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        if confirmation.exec() == QMessageBox.Yes:
+            # Get the appointment details
+            date = table.item(row, 0).text()
+            reason = table.item(row, 3).text()
+
+            # Delete the appointment from the database
+            db = Database()
+            try:
+                db.cursor.execute("""
+                    DELETE FROM appointments
+                    WHERE date = ? AND reason = ?
+                """, (date, reason))
+                db.conn.commit()
+                show_message(None, "Appointment deleted successfully!")
+
+                # Refresh the table
+                populate_tables()
+            except Exception as e:
+                show_message(None, f"Failed to delete appointment: {e}", QMessageBox.Critical)
+            finally:
+                db.close_connection()
 
     def open_appointment_form():
         dialog = AppointmentFormDialog()
@@ -508,11 +855,11 @@ def get_appointment_widget(user_role):
             veterinarian = dialog.vet_combo.currentText().strip()
 
             # Extract the actual pet name (remove " - owner" if present)
-            pet_name = pet_name_display.split(" - ")[0].strip()
+            pet_name = pet_name_display.split(" - ")[-1].strip()
 
             # Validate the data
             if not (pet_name and reason and veterinarian):
-                QMessageBox.warning(dialog, "Input Error", "All fields are required!")
+                show_message(dialog, "All fields are required!", QMessageBox.Warning)
                 return
 
             # Save the data to the database
@@ -529,7 +876,7 @@ def get_appointment_widget(user_role):
                 result = db.cursor.fetchone()
                 print(f"DEBUG: Query result for pet_name '{pet_name}': {result}")
                 if not result:
-                    QMessageBox.warning(dialog, "Error", f"Pet '{pet_name}' not found in the database! Please ensure the pet is registered.")
+                    show_message(dialog, f"Pet '{pet_name}' not found in the database! Please ensure the pet is registered.", QMessageBox.Warning)
                     return
 
                 pet_id, client_id, client_name = result
@@ -543,23 +890,87 @@ def get_appointment_widget(user_role):
 
                 # Add the data to the appropriate table
                 target_table = urgent_table if status.lower() == "urgent" else all_table
-                target_table.insertRow(0)
-                target_table.setItem(0, 0, QTableWidgetItem(date))
-                target_table.setItem(0, 1, QTableWidgetItem(pet_name_display))  # Use the display name
-                target_table.setItem(0, 2, QTableWidgetItem(client_name))  # Display the client name
-                target_table.setItem(0, 3, QTableWidgetItem(reason))
-                target_table.setItem(0, 4, QTableWidgetItem(status))
-                target_table.setItem(0, 5, QTableWidgetItem(payment))
-                target_table.setItem(0, 6, QTableWidgetItem(veterinarian))
-                target_table.setItem(0, 7, QTableWidgetItem("Action"))
+                row_position = target_table.rowCount()
+                target_table.insertRow(row_position)
 
-                # Scroll to the top of the table
-                target_table.scrollToItem(target_table.item(0, 0))
+                # Add items to the table
+                target_table.setItem(row_position, 0, QTableWidgetItem(date))
+                target_table.setItem(row_position, 1, QTableWidgetItem(pet_name_display))  # Use the display name
+                target_table.setItem(row_position, 2, QTableWidgetItem(client_name))  # Display the client name
+                target_table.setItem(row_position, 3, QTableWidgetItem(reason))
+
+                # Set the background color for the "Status" column
+                status_item = QTableWidgetItem(status)
+                if status.lower() == "scheduled":
+                    status_item.setBackground(QBrush(QColor("#FFEEBA")))
+                elif status.lower() == "completed":
+                    status_item.setBackground(QBrush(QColor("#DFF2BF")))  # Green
+                elif status.lower() == "urgent":
+                    status_item.setBackground(QBrush(QColor("#FFBABA")))  # Red
+                elif status.lower() in ["cancelled", "no-show"]:
+                    status_item.setBackground(QBrush(QColor("#D3D3D3")))  # Gray
+                elif status.lower() == "rescheduled":
+                    status_item.setBackground(QBrush(QColor("orange")))  # Orange
+                target_table.setItem(row_position, 4, status_item)
+
+                target_table.setItem(row_position, 5, QTableWidgetItem(payment))
+                target_table.setItem(row_position, 6, QTableWidgetItem(f"Dr. {veterinarian}"))
+
+                # Add "Edit" and "Delete" buttons in the "Action" column
+                action_widget = QWidget()
+                action_layout = QHBoxLayout(action_widget)
+                action_layout.setContentsMargins(0, 0, 0, 0)
+                action_layout.setSpacing(5)
+
+                edit_button = QPushButton("Edit")
+                edit_button.setFixedWidth(70)
+                edit_button.setStyleSheet("""
+                    QPushButton {
+                        background-color: #FED766;
+                        border: none;
+                        border-radius: 5px;
+                        font-size: 10px;
+                        padding: 2px 8px;
+                        min-height: 10px;
+                        min-width: 30px;
+                    }
+                    QPushButton:hover {
+                        background-color: #FFC107;
+                    }
+                """)
+                edit_button.clicked.connect(lambda _, r=row_position: edit_appointment(target_table, r))
+
+                delete_button = QPushButton("Delete")
+                delete_button.setFixedWidth(70)
+                delete_button.setStyleSheet("""
+                    QPushButton {
+                        background-color: #FF6F61;
+                        border: none;
+                        border-radius: 5px;
+                        font-size: 10px;
+                        color: white;
+                        padding: 2px 8px;
+                        min-height: 10px;
+                        min-width: 30px;
+                    }
+                    QPushButton:hover {
+                        background-color: #E53935;
+                    }
+                """)
+                delete_button.clicked.connect(lambda _, r=row_position: delete_appointment(target_table, r))
+
+                action_layout.addWidget(edit_button)
+                action_layout.addWidget(delete_button)
+                action_widget.setLayout(action_layout)
+                target_table.setCellWidget(row_position, 7, action_widget)
+
+                # Scroll to the newly added row
+                target_table.scrollToItem(target_table.item(row_position, 0))
 
                 # Show a success message
-                QMessageBox.information(dialog, "Success", "Appointment added successfully!")
+                show_message(dialog, "Appointment added successfully!")
             except Exception as e:
-                QMessageBox.critical(dialog, "Error", f"Failed to save appointment: {e}")
+                show_message(dialog, f"Failed to save appointment: {e}", QMessageBox.Critical)
             finally:
                 db.close_connection()
         else:

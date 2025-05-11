@@ -1,29 +1,22 @@
 from PySide6.QtWidgets import (
     QWidget, QDialog, QLabel, QHBoxLayout, QVBoxLayout, QPushButton,
-    QLineEdit, QFrame, QGridLayout, QScrollArea, QComboBox, QDateEdit,
+    QLineEdit, QFrame, QGridLayout, QScrollArea, QComboBox, QDateEdit, QFileDialog, QMessageBox
 )
 from PySide6.QtCore import Qt, QSize, QDate
-from PySide6.QtGui import QIcon, QFont
+from PySide6.QtGui import QIcon, QPixmap, QPainter, QPainterPath
+import os
+from shutil import copyfile
+import re
+
+from modules.database import Database
+from modules.utils import show_message
 
 class UpdateInfoDialog(QDialog):
     def __init__(self, user_data=None):
         super().__init__()
+        self.user_data = user_data or {}
         self.setWindowTitle("Update Profile Information")
         self.setFixedSize(650, 620)
-        
-        # Default user data if none provided
-        if user_data is None:
-            user_data = {
-                "name": "Jisi Dela Cruz",
-                "id": "2025001",
-                "role": "Veterinarian",
-                "contact": "09167896826",
-                "address": "La Paz, Iloilo City",
-                "email": "jisidelacruz1231@gmail.com",
-                "gender": "Female",
-                "birthdate": "01/01/1991"
-            }
-        self.user_data = user_data
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 20)
@@ -329,15 +322,6 @@ class UpdateClinicInfoDialog(QDialog):
         self.setWindowTitle("Update Clinic Information")
         self.setFixedSize(650, 500)
         
-        # Default clinic data if none provided
-        if clinic_data is None:
-            clinic_data = {
-                "name": "VetGuard Animal Clinic",
-                "email": "vetguardclinic@gmail.com",
-                "address": "Jaro, Iloilo City",
-                "contact": "09430434443",
-                "employees": "21"
-            }
         self.clinic_data = clinic_data
         
         layout = QVBoxLayout(self)
@@ -524,18 +508,25 @@ class UpdateClinicInfoDialog(QDialog):
             "employees": self.employees_input.text()
         }
 
-def get_setting_widget():
-    # Import the UpdateInfoDialog at the top of your file
-    # from update_info_dialog import UpdateInfoDialog  # Assuming you saved the dialog in this file
-    # from update_clinic_dialog import UpdateClinicInfoDialog  # Add this import
+def get_setting_widget(user_id=None):
     
-    # Main container with scroll functionality
-    scroll = QScrollArea()
-    scroll.setWidgetResizable(True)
-    scroll.setFrameShape(QFrame.NoFrame)
+    db = Database()
     
-    content = QWidget()
-    main_layout = QVBoxLayout(content)
+    user_data = {
+        "id": "",
+        "name": "",
+        "role": "",
+        "email": "",
+        "contact": "",
+        "address": "",
+        "gender": "",
+        "birthdate": "",
+        "photo_path": ""
+    }
+
+    
+    widget = QWidget()
+    main_layout = QVBoxLayout(widget)
     main_layout.setContentsMargins(20, 20, 20, 20)
     main_layout.setSpacing(5)
 
@@ -551,7 +542,7 @@ def get_setting_widget():
     profile_section.setStyleSheet("background-color: white; border-radius: 5px;")
     profile_layout = QVBoxLayout(profile_section)
     profile_layout.setContentsMargins(10, 10, 10, 10)
-    profile_layout.setSpacing(10)
+    profile_layout.setSpacing(0)
     
     # Section Header
     profile_header = QLabel("PROFILE INFORMATION")
@@ -560,7 +551,7 @@ def get_setting_widget():
     
     # Content layout
     profile_content = QHBoxLayout()
-    profile_content.setSpacing(15)
+    profile_content.setSpacing(25)
     
     # Left side - User picture
     picture_column = QVBoxLayout()
@@ -568,27 +559,66 @@ def get_setting_widget():
     
     user_picture = QLabel()
     user_picture.setFixedSize(200, 200)
-    user_picture.setStyleSheet("""
-        background-color: #8395a7;
-        border-radius: 100px;
-        color: white;
-        font-size: 12px;
-    """)
     user_picture.setAlignment(Qt.AlignCenter)
     user_picture.setText("User\nPicture")
     
     upload_btn = QPushButton("Upload Photo")
     upload_btn.setStyleSheet("""
-        background-color: #dfe4ea;
-        color: #000;
-        font-size: 12px;
-        padding: 3px;
-        border-radius: 3px;
-        margin-left:50px;
-    """)
+            background-color: #dfe4ea;
+            color: #000;
+            font-size: 12px;
+            padding: 3px;
+            border-radius: 3px;
+            margin-left:50px;
+        """)
     upload_btn.setFixedWidth(100)
+        
+    def upload_photo():
+        file_path, _ = QFileDialog.getOpenFileName("Select Profile Picture", "", "Images (*.png *.jpg *.jpeg)")
+        if file_path:
+            # Save image to profile_photos
+            photo_dir = os.path.join("assets", "profile_photos")
+            os.makedirs(photo_dir, exist_ok=True)
+            filename = f"{user_id}.jpg"
+            new_path = os.path.join(photo_dir, filename)
+            copyfile(file_path, new_path)
+
+            # Save new path in DB
+            db.save_user_profile(
+                user_id,
+                user_data["contact"],
+                user_data["address"],
+                user_data["gender"],
+                user_data["birthdate"],
+                photo_path=new_path
+            )
+            db.conn.commit()
+
+            original_pixmap = QPixmap(new_path)
+            size = clinic_logo.size()
+            
+            rounded_pixmap = QPixmap(size)
+            rounded_pixmap.fill(Qt.transparent)
+            
+            painter = QPainter(rounded_pixmap)
+            painter.setRenderHint(QPainter.Antialiasing)
+            path = QPainterPath()
+            path.addEllipse(0, 0, size.width(), size.height())
+            painter.setClipPath(path)
+            
+            scaled_pixmap = original_pixmap.scaled(size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            painter.drawPixmap(0, 0, scaled_pixmap)
+            painter.end()
+            
+            user_picture.setPixmap(rounded_pixmap)
+            user_picture.setText("")
+
+            user_data["photo_path"] = new_path  # ensure future calls use correct path
+
+    upload_btn.clicked.connect(upload_photo)
     
     picture_column.addWidget(user_picture)
+    picture_column.setSpacing(0) 
     picture_column.addWidget(upload_btn)
     picture_column.addStretch()
     
@@ -597,46 +627,98 @@ def get_setting_widget():
     info_column.setVerticalSpacing(10)
     info_column.setHorizontalSpacing(10)
     
-    # Profile fields
-    user_data = {
-        "name": "Jisi Dela Cruz",
-        "id": "2025001",
-        "role": "Veterinarian",
-        "contact": "09167896826",
-        "address": "La Paz, Iloilo City",
-        "email": "jisidelacruz1231@gmail.com",
-        "gender": "Female",
-        "birthdate": "01/01/1991"
-    }
-    
-    fields = {
-        "Name:": user_data["name"],
-        "ID:": user_data["id"],
-        "Role:": user_data["role"],
-        "Contact Number:": user_data["contact"],
-        "Address:": user_data["address"],
-        "Email Address:": user_data["email"],
-        "Gender:": user_data["gender"],
-        "Birthdate:": user_data["birthdate"],
-        "Account Password:": "••••••••••"
-    }
-    
-    # Create a dictionary to store the QLabel widgets
+    # Create info label pairs and store them in a dictionary for easy update later
     info_labels = {}
+    info_fields = [
+        ("Name", "name"),
+        ("ID", "id"),
+        ("Role", "role"),
+        ("Contact Number", "contact"),
+        ("Address", "address"),
+        ("Email Address", "email"),
+        ("Gender", "gender"),
+        ("Birthdate", "birthdate")
+    ]
     
+    # Fetch user data if user_id is provided
+    if user_id:
+        try:
+            db.cursor.execute("""
+                SELECT user_id, name, last_name, email, role FROM users 
+                WHERE user_id = ?
+            """, (user_id,))
+            user_db_data = db.cursor.fetchone()
+                
+            if user_db_data:
+                # Create user data dictionary from database result
+                user_data["id"] = user_db_data[0]
+                full_name = f"{user_db_data[1]} {user_db_data[2]}" if user_db_data[2] else user_db_data[1]
+                user_data["name"] = full_name
+                user_data["role"] = user_db_data[4]
+                user_data["email"] = user_db_data[3]
+                    
+                # Try to get additional profile information if available
+                db.cursor.execute("""
+                    SELECT contact_number, address, gender, birthdate, photo_path FROM user_profiles 
+                    WHERE user_id = ?
+                """, (user_id,))
+                profile_data = db.cursor.fetchone()
+                    
+                if profile_data:
+                    user_data["contact"] = profile_data[0] or ""
+                    user_data["address"] = profile_data[1] or ""
+                    user_data["gender"] = profile_data[2] or ""
+                    # Format the birthdate if it exists
+                    if profile_data[3]:
+                        if isinstance(profile_data[3], str):
+                            user_data["birthdate"] = profile_data[3]
+                        else:
+                            # Format date object to string
+                            user_data["birthdate"] = profile_data[3].strftime("%d/%m/%Y")
+
+                    else:
+                        user_data["birthdate"] = ""   
+                    user_data["photo_path"] = profile_data[4] or ""
+        except Exception as e:
+            print(f"Error fetching user data: {e}")
+            
+        if user_data.get("photo_path") and os.path.exists(user_data["photo_path"]):
+            original_pixmap = QPixmap(user_data["photo_path"])
+            size = user_picture.size()
+            rounded_pixmap = QPixmap(size)
+            rounded_pixmap.fill(Qt.transparent)
+
+            painter = QPainter(rounded_pixmap)
+            painter.setRenderHint(QPainter.Antialiasing)
+            path = QPainterPath()
+            path.addEllipse(0, 0, size.width(), size.height())
+            painter.setClipPath(path)
+
+            scaled_pixmap = original_pixmap.scaled(size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            painter.drawPixmap(0, 0, scaled_pixmap)
+            painter.end()
+
+            user_picture.setPixmap(rounded_pixmap)
+            user_picture.setText("")
+    
+    # Create and populate the info fields
     row = 0
-    for label_text, value_text in fields.items():
-        label = QLabel(label_text)
-        label.setStyleSheet("font-size: 13px;")
+    for label_text, data_key in info_fields:
+        # Create the label key (left column)
+        label_key = QLabel(f"{label_text}:")
+        label_key.setStyleSheet("font-weight: bold; color: #222f3e;")
         
-        value = QLabel(value_text)
-        value.setStyleSheet("font-size: 13px;")
+        # Create the label value (right column)
+        label_value = QLabel(user_data[data_key])
+        label_value.setStyleSheet("color: #222f3e;")
         
-        # Store the value label for updating later
-        info_labels[label_text.replace(":", "")] = value
+        # Add to grid layout
+        info_column.addWidget(label_key, row, 0)
+        info_column.addWidget(label_value, row, 1)
         
-        info_column.addWidget(label, row, 0)
-        info_column.addWidget(value, row, 1)
+        # Store reference to value label for updates
+        info_labels[label_text] = label_value
+        
         row += 1
     
     # Action buttons on the right
@@ -673,23 +755,54 @@ def get_setting_widget():
     def open_update_info_dialog():
         dialog = UpdateInfoDialog(user_data)
         if dialog.exec():
-            # Update user data with the new values
+            # Get updated data from the dialog
             updated_data = dialog.get_updated_data()
-            
+
+            # Convert birthdate to SQL-friendly format (yyyy-MM-dd)
+            qt_date = dialog.birthdate_input.date()
+            birthdate_sql = qt_date.toString("yyyy-MM-dd")
+
             # Update the labels
             info_labels["Name"].setText(updated_data["name"])
+            info_labels["ID"].setText(updated_data["id"])
             info_labels["Role"].setText(updated_data["role"])
             info_labels["Contact Number"].setText(updated_data["contact"])
             info_labels["Address"].setText(updated_data["address"])
             info_labels["Email Address"].setText(updated_data["email"])
             info_labels["Gender"].setText(updated_data["gender"])
             info_labels["Birthdate"].setText(updated_data["birthdate"])
-            
+
             # Update the user_data dictionary
             for key, value in updated_data.items():
                 user_data[key] = value
-                
-            print("User information updated successfully")
+
+            if user_id:
+                try:
+                    # Split name for DB update
+                    name_parts = updated_data["name"].split(" ", 1)
+                    first_name = name_parts[0]
+                    last_name = name_parts[1] if len(name_parts) > 1 else ""
+
+                    # Update user table
+                    db.cursor.execute("""
+                        UPDATE users SET name = ?, last_name = ?, email = ?
+                        WHERE user_id = ?
+                    """, (first_name, last_name, updated_data["email"], user_id))
+
+                    # Update or insert profile info
+                    db.save_user_profile(
+                        user_id,
+                        updated_data["contact"],
+                        updated_data["address"],
+                        updated_data["gender"],
+                        birthdate_sql,
+                        photo_path=user_data.get("photo_path")
+                    )
+
+                    db.conn.commit()
+                    print("✅ User information updated and saved to database.")
+                except Exception as e:
+                    print(f"❌ Error updating user info in database: {e}")
         else:
             print("Update cancelled")
     
@@ -701,6 +814,7 @@ def get_setting_widget():
     
     # Add all columns to the profile content
     profile_content.addLayout(picture_column)
+    profile_content.addSpacing(40)
     profile_content.addLayout(info_column, 1)  # Give it stretch factor
     profile_content.addLayout(button_column)
     
@@ -712,7 +826,7 @@ def get_setting_widget():
     clinic_section.setStyleSheet("background-color: white; border-radius: 5px;")
     clinic_layout = QVBoxLayout(clinic_section)
     clinic_layout.setContentsMargins(10, 10, 10, 10)
-    clinic_layout.setSpacing(10)
+    clinic_layout.setSpacing(25)
     
     # Section Header
     clinic_header = QLabel("VET CLINIC INFORMATION")
@@ -721,23 +835,26 @@ def get_setting_widget():
     
     # Content layout
     clinic_content = QHBoxLayout()
-    clinic_content.setSpacing(15)
+    clinic_content.setSpacing(25)
     
+    clinic_data = {
+    "name": "",
+    "address": "",
+    "contact": "",
+    "email": "",
+    "employees": "",
+    "logo_path": ""
+    }
+
     # Left side - Clinic logo
     clinic_picture_column = QVBoxLayout()
     clinic_picture_column.setAlignment(Qt.AlignTop | Qt.AlignCenter)
-    
+
     clinic_logo = QLabel()
     clinic_logo.setFixedSize(200, 200)
-    clinic_logo.setStyleSheet("""
-        background-color: #f1f2f6;
-        border-radius: 100px;
-        color: #000;
-        font-size: 12px;
-    """)
     clinic_logo.setAlignment(Qt.AlignCenter)
     clinic_logo.setText("Clinic\nLogo")
-    
+
     clinic_upload_btn = QPushButton("Upload Photo")
     clinic_upload_btn.setStyleSheet("""
         background-color: #dfe4ea;
@@ -749,6 +866,49 @@ def get_setting_widget():
     """)
     clinic_upload_btn.setFixedWidth(100)
     
+    def upload_logo():
+        file_path, _ = QFileDialog.getOpenFileName("Select Clinic Logo", "", "Images (*.png *.jpg *.jpeg)")
+        if file_path:
+            logo_dir = os.path.join("assets", "clinic_logos")
+            os.makedirs(logo_dir, exist_ok=True)
+
+            filename = "clinic_logo.jpg"
+            new_path = os.path.join(logo_dir, filename)
+            copyfile(file_path, new_path)
+
+            original_pixmap = QPixmap(new_path)
+            size = clinic_logo.size()
+
+            # Resize and round the image
+            rounded_pixmap = QPixmap(size)
+            rounded_pixmap.fill(Qt.transparent)
+
+            painter = QPainter(rounded_pixmap)
+            painter.setRenderHint(QPainter.Antialiasing)
+            path = QPainterPath()
+            path.addEllipse(0, 0, size.width(), size.height())
+            painter.setClipPath(path)
+
+            scaled_pixmap = original_pixmap.scaled(size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            painter.drawPixmap(0, 0, scaled_pixmap)
+            painter.end()
+
+            clinic_logo.setPixmap(rounded_pixmap)
+            clinic_logo.setText("")  # remove placeholder
+
+            # Save path to DB
+            db.save_clinic_info(
+                clinic_data["name"],
+                clinic_data["address"],
+                clinic_data["contact"],
+                clinic_data["email"],
+                clinic_data["employees"],
+                logo_path=new_path
+            )
+            clinic_data["logo_path"] = new_path
+
+    clinic_upload_btn.clicked.connect(upload_logo)
+
     clinic_picture_column.addWidget(clinic_logo)
     clinic_picture_column.addWidget(clinic_upload_btn)
     clinic_picture_column.addStretch()
@@ -758,15 +918,51 @@ def get_setting_widget():
     clinic_info_column.setVerticalSpacing(10)
     clinic_info_column.setHorizontalSpacing(10)
     
-    # Clinic fields
-    clinic_data = {
-        "name": "VetGuard Animal Clinic",
-        "email": "vetguardclinic@gmail.com",
-        "address": "Jaro, Iloilo City",
-        "contact": "09430434443",
-        "employees": "21"
-    }
-    
+    # Load clinic info from database
+    try:
+        db.cursor.execute("SELECT name, address, contact_number, email, employees_count, logo_path FROM clinic_info LIMIT 1")
+        clinic_row = db.cursor.fetchone()
+        if clinic_row:
+            clinic_data = {
+                "name": clinic_row[0],
+                "address": clinic_row[1],
+                "contact": clinic_row[2],
+                "email": clinic_row[3],
+                "employees": str(clinic_row[4]),
+                "logo_path": clinic_row[5] or ""
+            }
+        else:
+            clinic_data = {
+                "name": "VetGuard Animal Clinic",
+                "email": "vetguardclinic@gmail.com",
+                "address": "Jaro, Iloilo City",
+                "contact": "09430434443",
+                "employees": "21"
+            }
+    except Exception as e:
+        print(f"❌ Error loading clinic data: {e}")
+        
+    if clinic_data.get("logo_path") and os.path.exists(clinic_data["logo_path"]):
+        original_pixmap = QPixmap(clinic_data["logo_path"])
+        size = clinic_logo.size()
+        rounded_pixmap = QPixmap(size)
+        rounded_pixmap.fill(Qt.transparent)
+
+        painter = QPainter(rounded_pixmap)
+        painter.setRenderHint(QPainter.Antialiasing)
+        path = QPainterPath()
+        path.addEllipse(0, 0, size.width(), size.height())
+        painter.setClipPath(path)
+
+        scaled_pixmap = original_pixmap.scaled(size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+        painter.drawPixmap(0, 0, scaled_pixmap)
+        painter.end()
+
+        clinic_logo.setPixmap(rounded_pixmap)
+        clinic_logo.setText("")
+            
+
+    # ✅ Now define clinic_fields using the loaded clinic_data
     clinic_fields = {
         "Name:": clinic_data["name"],
         "Email Address:": clinic_data["email"],
@@ -774,25 +970,23 @@ def get_setting_widget():
         "Contact Number:": clinic_data["contact"],
         "No. of Employees:": clinic_data["employees"]
     }
-    
+  
     # Create a dictionary to store the clinic QLabel widgets
     clinic_labels = {}
     
     row = 0
     for label_text, value_text in clinic_fields.items():
         label = QLabel(label_text)
-        label.setStyleSheet("font-size: 13px;")
+        label.setStyleSheet("font-weight: bold; color: #222f3e;")
         
         value = QLabel(value_text)
-        value.setStyleSheet("font-size: 13px;")
-        
-        # Store the value label for updating later
-        clinic_labels[label_text.replace(":", "")] = value
+        value.setStyleSheet("color: #222f3e;")
         
         clinic_info_column.addWidget(label, row, 0)
         clinic_info_column.addWidget(value, row, 1)
+        clinic_labels[label_text.replace(":", "")] = value
         row += 1
-    
+        
     # Clinic update button
     clinic_button_column = QVBoxLayout()
     clinic_button_column.setAlignment(Qt.AlignTop)
@@ -810,13 +1004,22 @@ def get_setting_widget():
     """)
     update_clinic_btn.setFixedWidth(120)
     
-    # Connect the clinic update button to open the clinic update dialog
+        # Connect the clinic update button to open the clinic update dialog
     def open_update_clinic_dialog():
         dialog = UpdateClinicInfoDialog(clinic_data)
         if dialog.exec():
-            # Update clinic data with the new values
+            # Get updated data from the dialog first
             updated_data = dialog.get_updated_data()
             
+            db.save_clinic_info(
+                updated_data["name"],
+                updated_data["address"],
+                updated_data["contact"],
+                updated_data["email"],
+                int(updated_data["employees"]),
+                logo_path=clinic_data.get("logo_path")  # preserve existing logo
+            )
+
             # Update the labels
             clinic_labels["Name"].setText(updated_data["name"])
             clinic_labels["Email Address"].setText(updated_data["email"])
@@ -831,7 +1034,7 @@ def get_setting_widget():
             print("Clinic information updated successfully")
         else:
             print("Clinic update cancelled")
-    
+
     update_clinic_btn.clicked.connect(open_update_clinic_dialog)
     
     clinic_button_column.addWidget(update_clinic_btn)
@@ -839,50 +1042,91 @@ def get_setting_widget():
     
     # Add all columns to the clinic content
     clinic_content.addLayout(clinic_picture_column)
+    clinic_content.addSpacing(40)
     clinic_content.addLayout(clinic_info_column, 1)  # Give it stretch factor
     clinic_content.addLayout(clinic_button_column)
     
     clinic_layout.addLayout(clinic_content)
     main_layout.addWidget(clinic_section)
     
-    # Page navigation at bottom
-    nav_container = QWidget()
-    nav_layout = QHBoxLayout(nav_container)
-    nav_layout.setContentsMargins(0, 5, 0, 0)
+    return widget
+
+def save_settings(self):
+    """Save the settings to the database."""
+    # Get values from form
+    clinic_name = self.clinic_name_input.text().strip()
+    email = self.email_input.text().strip()
+    phone = self.phone_input.text().strip()
+    address = self.address_input.toPlainText().strip()
+    vat_rate = self.vat_rate_input.text().strip()
+
+    # Validate required fields
+    if not (clinic_name and email and phone):
+        show_message(self, "Clinic name, email, and phone are required!", QMessageBox.Warning)
+        return
+
+    # Validate email format
+    if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+        show_message(self, "Please enter a valid email address!", QMessageBox.Warning)
+        return
+
+    # Validate VAT rate
+    try:
+        vat_rate = float(vat_rate)
+        if vat_rate < 0 or vat_rate > 100:
+            show_message(self, "VAT rate must be between 0 and 100!", QMessageBox.Warning)
+            return
+    except ValueError:
+        show_message(self, "Please enter a valid VAT rate!", QMessageBox.Warning)
+        return
+
+    # Save to database
+    db = Database()
+    try:
+        # Save settings
+        if db.save_settings(clinic_name, email, phone, address, vat_rate):
+            show_message(self, "Settings saved successfully!")
+            self.accept()
+        else:
+            show_message(self, "Failed to save settings!", QMessageBox.Critical)
+    except Exception as e:
+        show_message(self, f"Failed to save settings: {e}", QMessageBox.Critical)
+    finally:
+        db.close_connection()
+
+def reset_settings(self):
+    """Reset settings to default values."""
+    # Confirm reset
+    confirmation = QMessageBox()
+    confirmation.setIcon(QMessageBox.Question)
+    confirmation.setText("Are you sure you want to reset all settings to default values?")
+    confirmation.setWindowTitle("")
+    confirmation.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
     
-    nav_buttons = QHBoxLayout()
-    nav_buttons.setSpacing(10)
-    
-    prev_btn = QPushButton("Previous")
-    prev_btn.setStyleSheet("""
-        background-color: #012547;
-        color: white;
-        border-radius: 5px;
-        padding: 2px;
-        border-radius:20px;;
-        font-size:12px;
-    """)
-    prev_btn.setFixedWidth(70)
-    
-    next_btn = QPushButton("Next")
-    next_btn.setStyleSheet("""
-        background-color: #012547;
-        color: white;
-        border-radius: 5px;
-        padding: 2px;
-        border-radius:20px;
-        font-size:12px;
-    """)
-    next_btn.setFixedWidth(70)
-    
-    nav_buttons.addWidget(prev_btn)
-    nav_buttons.addWidget(next_btn)
-    
-    nav_layout.addStretch()
-    nav_layout.addLayout(nav_buttons)
-    
-    main_layout.addWidget(nav_container)
-    main_layout.addStretch()  # Add stretch at the end to keep everything at the top
-    
-    scroll.setWidget(content)
-    return scroll
+    if confirmation.exec() == QMessageBox.Yes:
+        # Reset to default values
+        self.clinic_name_input.setText("PetMedix Veterinary Clinic")
+        self.email_input.setText("")
+        self.phone_input.setText("")
+        self.address_input.setPlainText("")
+        self.vat_rate_input.setText("12")
+
+        # Save to database
+        db = Database()
+        try:
+            if db.save_settings(
+                "PetMedix Veterinary Clinic",
+                "",
+                "",
+                "",
+                12
+            ):
+                show_message(self, "Settings reset successfully!")
+            else:
+                show_message(self, "Failed to reset settings!", QMessageBox.Critical)
+        except Exception as e:
+            show_message(self, f"Failed to reset settings: {e}", QMessageBox.Critical)
+        finally:
+            db.close_connection()
+
+

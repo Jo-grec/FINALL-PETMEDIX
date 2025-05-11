@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QWidget, QLabel, QHBoxLayout, QVBoxLayout, QPushButton, QFrame, QHeaderView, QTableWidget, QTableWidgetItem, QAbstractItemView, QScrollBar, QSizePolicy
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap, QIcon
 from PySide6.QtCore import Qt
 from modules.database import Database  # Import the Database class
 
@@ -190,3 +190,13 @@ def get_home_widget():
         layout.addWidget(table_container)
         
         return content
+
+class HomeWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("PetMedix - Home")
+        self.setup_ui()
+
+    def setup_ui(self):
+        content = get_home_widget()
+        self.setLayout(content)

@@ -1,22 +1,20 @@
 from PySide6.QtWidgets import (
     QWidget, QLabel, QHBoxLayout, QVBoxLayout, QPushButton, QLineEdit,
-    QTableWidget, QScroller, QScrollArea,
-    QStackedLayout, QComboBox, QTabWidget, QDateEdit, QMessageBox,
+    QTableWidget, QScroller,
+    QStackedLayout, QComboBox, QSizePolicy, QDateEdit, QMessageBox,
     QFileDialog, QHeaderView
 )
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtCore import Qt, QSize
 from modules.database import Database
-from modules.utils import create_styled_message_box, show_message
+from modules.utils import create_styled_message_box
 from datetime import datetime
 
 def get_client_widget(main_window):
     content = QWidget()
     main_layout = QVBoxLayout(content)
-    main_layout.setContentsMargins(0, -30, 0, 30)
+    main_layout.setContentsMargins(0, 0, 0, 30)
     main_layout.setSpacing(0)
-    
-    main_window.tab_widget = QTabWidget()
     
     def open_edit_form():
         """Open the form for editing the selected client."""
@@ -77,53 +75,27 @@ def get_client_widget(main_window):
     # Add the button to the layout
     client_info_layout_inner.addWidget(edit_client_button)    
 
-    # Client header 
-
-    client_header = QWidget()
-    client_header.setFixedHeight(50)
-    client_header.setStyleSheet("background-color: #102547;")
-    client_header_layout = QHBoxLayout()
-    client_header_layout.setContentsMargins(0, 0, 0, 0)
-    client_header_layout.setSpacing(0)
-
-    
     # --- Client List Label ---
     client_list = QLabel("Client List", content)
     client_list.setObjectName("ClientList")
     client_list.setStyleSheet("background-color: #102547;")
-    client_list.setAlignment(Qt.AlignVCenter)
-
-    # --- add client button --- #
-
-    add_button = QPushButton("Add Client", content)
-    add_button.setObjectName("AddClientButton")
-    add_button.setFixedSize(60, 40)
-    add_button.setStyleSheet(
-        "background-color: #F4F4F8; border: none; border-radius: 20px; margin-bottom: 5px;"
-    )
-
-    client_header_layout.addWidget(client_list)
-    client_header_layout.addWidget(add_button)
-
-    client_header_layout.addStretch()
-    client_header.setLayout(client_header_layout)
-    main_layout.addWidget(client_header)
+    main_layout.addWidget(client_list)
 
     # --- Table and Client Info Layout ---
     table_info_layout = QHBoxLayout()
     table_info_layout.setContentsMargins(0, 0, 0, 0)
     table_info_layout.setSpacing(0)
 
-   # --- Client Table ---
+    # --- Client Table ---
     table = QTableWidget(content)
-    table.setColumnCount(1)
+    table.setColumnCount(1)  # Single column for client name and delete button
+    table.setHorizontalHeaderLabels(["Client Name"])  # Add header
     table.setRowCount(16)
     table.setFixedWidth(325)
-    table.setFixedHeight(500)
-    table.horizontalHeader().setStretchLastSection(True)
+    table.setFixedHeight(500)  # Set a maximum height for the table
+    table.horizontalHeader().setStretchLastSection(True)  # Stretch the single column
     table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
     table.verticalHeader().setVisible(False)
-    table.horizontalHeader().setVisible(False)  
 
     # Hide the vertical scrollbar but allow scrolling
     table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -132,36 +104,18 @@ def get_client_widget(main_window):
     QScroller.grabGesture(table.viewport(), QScroller.LeftMouseButtonGesture)
 
     table.setStyleSheet("""
-        QHeaderView::section {
-            height: 0px;
-            padding: 0px;
-            margin: 0px;
-            border: none;
-    }
         QTableWidget {
-            background-color: transparent;
+            background-color: white;
             color: black;
             border: 1px solid gray;
-            margin-top: 0;
-            padding-top: 0;
         }
-                        
-        QTableWidget::item {
-            border-bottom: 1px solid gray; 
-            padding-left: 10px;  /* Adds space between text and left border */
-            padding-right: 10px;
-            padding-top: -5px;
-            padding-bottom: 5px;
-            background-color:transparent;
-        }
-                               
-        QTableWidget::item:selected {
-        background-color:  #007a99;  /* Light cyan highlight */
-        color: black;
+        QHeaderView::section {
+            background-color: #f4f4f8;
+            color: black;
+            font-weight: bold;
+            border: 1px solid gray;
         }
     """)
-
-
     table.setEditTriggers(QTableWidget.NoEditTriggers)
     table.setSelectionBehavior(QTableWidget.SelectRows)  # Allow row selection
     table.setSelectionMode(QTableWidget.SingleSelection)
@@ -175,7 +129,7 @@ def get_client_widget(main_window):
     client_info_view = QWidget(client_info_stack_widget)  # Set parent
     client_info_layout = QVBoxLayout(client_info_view)
     client_info_layout.setContentsMargins(0, 0, 0, 0)
-    client_info_layout.setSpacing(5)
+    client_info_layout.setSpacing(10)
 
     # Top bar (yellow background with label and edit button)
     client_info_widget = QWidget(client_info_view)
@@ -183,7 +137,7 @@ def get_client_widget(main_window):
     client_info_widget.setStyleSheet("background-color: #FED766;")
     client_info_layout_inner = QHBoxLayout(client_info_widget)
     client_info_layout_inner.setContentsMargins(0, 0, 0, 0)
-    client_info_layout_inner.setSpacing(0)
+    client_info_layout_inner.setSpacing(10)
 
     client_info_label = QLabel("CLIENT INFORMATION", client_info_widget)
     client_info_label.setObjectName("ClientInformationLabel")
@@ -203,35 +157,14 @@ def get_client_widget(main_window):
 
     client_info_layout.addWidget(client_info_widget)
 
-    ###########################################
-
     labels = ["Name:", "Address:", "Contact Number:", "Email Address:"]
-    label_names = ["NameLabel", "AddressLabel", "ContactLabel", "EmailLabel"]
-    input_names = ["NameInput", "AddressInput", "ContactInput", "EmailInput"]
-
-    for i, (text, label_name, input_name) in enumerate(zip(labels, label_names, input_names)):
-        pair_layout = QHBoxLayout()
-
-        label = QLabel(text, client_info_view)
-        label.setObjectName(label_name)
-        label.setFixedWidth(180)
-        label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-
-        input_field = QLineEdit(client_info_view)
-        input_field.setObjectName(input_name)
-        input_field.setMinimumWidth(250)
-
-        pair_layout.addWidget(label)
-        pair_layout.addWidget(input_field)
-        pair_layout.addStretch()  # optional, pushes input field left if there's space
-
-        client_info_layout.addLayout(pair_layout)
-
-
-    ################################################
+    object_names = ["NameLabel", "AddressLabel", "ContactLabel", "EmailLabel"]
+    for text, obj_name in zip(labels, object_names):
+        label = QLabel(text, client_info_view)  # Set parent
+        label.setObjectName(obj_name)
+        client_info_layout.addWidget(label)
 
     # PETS section
-    
     pet_info_widget = QWidget(client_info_view)  # Set parent
     pet_info_widget.setFixedHeight(50)
     pet_info_widget.setStyleSheet("background-color: #FED766;")
@@ -242,6 +175,27 @@ def get_client_widget(main_window):
     pet_info_label = QLabel("PETS", pet_info_widget)
     pet_info_label.setObjectName("PetsLabel")
     pet_info_label.setAlignment(Qt.AlignVCenter)
+    
+    # Create a container widget for the arrow buttons to keep them together
+    arrow_container = QWidget(pet_info_widget)
+    arrow_container_layout = QHBoxLayout(arrow_container)
+    arrow_container_layout.setContentsMargins(0, 0, 0, 0)
+    arrow_container_layout.setSpacing(0)  # No spacing between arrows
+
+    # Add left arrow button
+    left_arrow_button = QPushButton(arrow_container)
+    left_arrow_button.setText("<")
+    left_arrow_button.setFixedSize(25, 40)
+    left_arrow_button.setStyleSheet("background-color: #FED766; border: none;")
+
+    # Add right arrow button
+    right_arrow_button = QPushButton(arrow_container)
+    right_arrow_button.setText(">")
+    right_arrow_button.setFixedSize(25, 40)
+    right_arrow_button.setStyleSheet("background-color: #FED766; border: none; margin-left:-20px;")
+
+    arrow_container_layout.addWidget(left_arrow_button)
+    arrow_container_layout.addWidget(right_arrow_button)
 
     edit_pet_button = QPushButton(pet_info_widget)
     edit_pet_button.setIcon(QIcon("assets/add pet button.png"))
@@ -251,31 +205,56 @@ def get_client_widget(main_window):
 
     pet_info_layout.addWidget(pet_info_label)
     pet_info_layout.addStretch()  # Add stretch to push arrows and button to the right
+    pet_info_layout.addWidget(arrow_container)
     pet_info_layout.addWidget(edit_pet_button)
     client_info_layout.addWidget(pet_info_widget)
 
-    pet_picture = QLabel()
-    pet_picture.setFixedSize(120, 120)
-    pet_picture.setAlignment(Qt.AlignCenter)
-    pet_picture.setStyleSheet("background-color: white; border-radius: 10px;")
-    pet_picture.setText("No Photo")
+    pet_info_section = QHBoxLayout()
 
-
-
-    #####################################################
-   # Scroll area setup (already correct)
-    scroll_area = QScrollArea(client_info_view)
-    scroll_area.setWidgetResizable(True)
-    scroll_area.setFixedHeight(300)
+    pet_picture = QLabel(client_info_view)  # Set parent
+    pet_picture.setFixedSize(250, 150)  # Set the size of the container
+    pet_picture.setStyleSheet("""
+        background-color: white;  /* White background for the frame */
+        border: 2px solid #012547;  /* Dark blue border for the frame */
+        border-radius: 5px;  /* Rounded corners */
+    """)
+    pet_picture.setObjectName("PetPicture")
+    pet_picture.setAlignment(Qt.AlignCenter)  # Center the image inside the container
     
-    scroll_content = QWidget()
-    scroll_layout = QVBoxLayout(scroll_content)
-    scroll_layout.setSpacing(5)
-    scroll_layout.setContentsMargins(10, 10, 10, 10)
-    scroll_layout.setAlignment(Qt.AlignTop)
-    scroll_area.setWidget(scroll_content)
+    pet_info_section.addWidget(pet_picture)
 
-    client_info_layout.addWidget(scroll_area)
+    pet_details_layout = QVBoxLayout()
+    pet_labels = ["Name:", "Gender:", "Pet Type:", "Breed:", "Color:", "Birthdate:", "Age:"]
+    pet_object_names = [
+        "PetNameLabel", "PetGenderLabel", "PetTypeLabel",
+        "PetBreedLabel", "PetColorLabel", "PetBirthLabel", "PetAgeLabel"
+    ]
+    for text, obj_name in zip(pet_labels, pet_object_names):
+        label = QLabel(text, client_info_view)  # Set parent
+        label.setObjectName(obj_name)
+        pet_details_layout.addWidget(label)
+    pet_info_section.addLayout(pet_details_layout)
+
+    pet_buttons_layout = QVBoxLayout()
+    update_info_button = QPushButton("Update Info", client_info_view)  # Set parent
+    check_schedule_button = QPushButton("Check Schedule", client_info_view)  # Set parent
+    see_records_button = QPushButton("See Records", client_info_view)  # Set parent
+
+    for btn in [update_info_button, check_schedule_button, see_records_button]:
+        btn.setStyleSheet("background-color: #012547; color: white; font-size: 14px")
+        btn.setFixedSize(120, 40)
+        pet_buttons_layout.addWidget(btn)
+
+    pet_buttons_layout.addStretch()
+    pet_buttons_layout.setContentsMargins(0, 0, 120, 0)
+
+    see_records_button.clicked.connect(main_window.show_pet_records)
+
+    pet_info_section.addLayout(pet_buttons_layout)
+    client_info_layout.addLayout(pet_info_section)
+    client_info_layout.addStretch()
+
+    client_info_stack.addWidget(client_info_view)
 
     # ===== CLIENT EDIT FORM =====
     edit_form_widget = QWidget(client_info_stack_widget)  # Set parent
@@ -317,6 +296,8 @@ def get_client_widget(main_window):
     edit_form_layout.addLayout(button_layout)
     edit_form_layout.addStretch()
 
+    client_info_stack.addWidget(edit_form_widget)
+
     # ===== PETS EDIT FORM =====
     pets_edit_widget = QWidget(client_info_stack_widget)  # Set parent
     pets_edit_layout = QVBoxLayout(pets_edit_widget)
@@ -349,7 +330,7 @@ def get_client_widget(main_window):
 
     pet_gender = QComboBox(pets_fields_widget)  # Set parent
     pet_gender.addItems(["Male", "Female"])
-    pet_gender.setFixedSize(200, 50)
+    pet_gender.setFixedSize(200, 41)
     pet_gender.setStyleSheet("""
         QComboBox {
             padding: 8px;
@@ -455,6 +436,8 @@ def get_client_widget(main_window):
     pets_edit_layout.addLayout(pets_button_row)
     pets_edit_layout.addStretch()
 
+    client_info_stack.addWidget(pets_edit_widget)
+
     # --- Hook up button functionality ---
     save_button.clicked.connect(lambda: client_info_stack.setCurrentIndex(0))
     cancel_button.clicked.connect(lambda: client_info_stack.setCurrentIndex(0))
@@ -463,9 +446,6 @@ def get_client_widget(main_window):
     pets_save_btn.clicked.connect(lambda: client_info_stack.setCurrentIndex(0))
     pets_cancel_btn.clicked.connect(lambda: client_info_stack.setCurrentIndex(0))
 
-    client_info_stack.addWidget(client_info_view)
-    client_info_stack.addWidget(edit_form_widget)
-    client_info_stack.addWidget(pets_edit_widget)
     client_info_stack.setCurrentIndex(0)
     table_info_layout.addWidget(client_info_stack_widget)
     main_layout.addLayout(table_info_layout)
@@ -473,6 +453,30 @@ def get_client_widget(main_window):
     button_layout = QHBoxLayout()
     button_layout.setContentsMargins(0, 0, 0, 20)  # Adjust margins
     button_layout.setSpacing(10)  # Add spacing between buttons
+
+    # Create Previous, Next, and Add buttons
+    prev_button = QPushButton("<", content)
+    next_button = QPushButton(">", content)
+    add_button = QPushButton("+", content)
+
+    # Force adjust the size of the buttons
+    for btn in [prev_button, next_button, add_button]:
+        btn.setFixedSize(80, 40)  # Set fixed size
+        btn.setMinimumSize(80, 40)  # Set minimum size
+        btn.setMaximumSize(80, 40)  # Set maximum size
+        btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)  # Ensure fixed size policy
+        btn.setStyleSheet("background-color: #012547; color: white; border-radius:10px; font-size: 14px")
+
+    # Add buttons to the layout
+    button_layout.addWidget(prev_button)
+    button_layout.addWidget(next_button)
+    button_layout.addWidget(add_button)
+
+    # Add stretch to align buttons to the left
+    button_layout.addStretch()
+
+    # Add the layout to the main layout
+    main_layout.addLayout(button_layout)
 
     # Force layout update
     content.update()
@@ -488,11 +492,19 @@ def get_client_widget(main_window):
 
             # Validate inputs
             if not name or not address or not contact_number or not email:
-                show_message(content, "All fields are required!", QMessageBox.Warning)
+                create_styled_message_box(
+                    QMessageBox.Warning,
+                    "Validation Error",
+                    "❌ All fields are required."
+                ).exec()
                 return
 
             if "@" not in email or "." not in email:
-                show_message(content, "Please enter a valid email address!", QMessageBox.Warning)
+                create_styled_message_box(
+                    QMessageBox.Warning,
+                    "Validation Error",
+                    "❌ Invalid email address."
+                ).exec()
                 return
 
             db = Database()
@@ -504,13 +516,21 @@ def get_client_widget(main_window):
                         "UPDATE clients SET name = ?, address = ?, contact_number = ?, email = ? WHERE email = ?",
                         (name, address, contact_number, email, original_email)
                     )
-                    show_message(content, "Client updated successfully!")
+                    create_styled_message_box(
+                        QMessageBox.Information,
+                        "Success",
+                        "✅ Client data updated successfully."
+                    ).exec()
                 else:  # Add mode
                     db.cursor.execute(
                         "INSERT INTO clients (name, address, contact_number, email) VALUES (?, ?, ?, ?)",
                         (name, address, contact_number, email)
                     )
-                    show_message(content, "Client added successfully!")
+                    create_styled_message_box(
+                        QMessageBox.Information,
+                        "Success",
+                        "✅ New client added successfully."
+                    ).exec()
 
                 db.conn.commit()
 
@@ -522,7 +542,11 @@ def get_client_widget(main_window):
                 # Clear the original_email property after saving
                 edit_form_widget.setProperty("original_email", None)
             except Exception as e:
-                show_message(content, f"Failed to save client: {e}", QMessageBox.Critical)
+                create_styled_message_box(
+                    QMessageBox.Critical,
+                    "Error",
+                    f"❌ Error saving client data: {e}"
+                ).exec()
             finally:
                 db.close_connection()
             
@@ -545,7 +569,7 @@ def get_client_widget(main_window):
     # Connect the "+" button to the open_add_form function
     add_button.clicked.connect(open_add_form)
 
-    # --- Function to Update the Client Table ---
+   # --- Function to Update the Client Table ---
     def update_client_table():
         """Update the client table with data from the database."""
         db = Database()
@@ -565,20 +589,31 @@ def get_client_widget(main_window):
             cell_widget = QWidget()
             cell_layout = QHBoxLayout(cell_widget)
             cell_layout.setContentsMargins(5, 5, 5, 5)
-            cell_widget.setStyleSheet("background-color: transparent;")
             cell_layout.setSpacing(5)
 
             cell_widget.setFixedHeight(34)
 
             name_label = QLabel(client_name)
-            name_label.setStyleSheet("color: black; font-size: 14px; background-color: transparent;")
+            name_label.setStyleSheet("color: black; font-size: 14px;")
             cell_layout.addWidget(name_label)
 
             cell_layout.addStretch()
 
             delete_button = QPushButton()
-            delete_button.setIcon(QIcon("assets/trash-can.png"))
-            delete_button.setObjectName("DeleteButton")
+            delete_button.setStyleSheet("""
+                QPushButton {
+                    background-color: red;
+                    border: none;
+                    border-radius: 10px;  /* Exactly half of width/height */
+                    min-width: 20px;
+                    min-height: 20px;
+                    max-width: 20px;
+                    max-height: 20px;
+                }
+                QPushButton:hover {
+                    background-color: darkred;
+                }
+            """)
 
             delete_button.clicked.connect(lambda _, email=client_email: delete_client(email))
             cell_layout.addWidget(delete_button)
@@ -587,31 +622,33 @@ def get_client_widget(main_window):
                 
     def delete_client(email):
         """Delete a client from the database with confirmation."""
+        # Show a confirmation dialog
         confirmation = QMessageBox()
-        confirmation.setIcon(QMessageBox.Question)
+        confirmation.setIcon(QMessageBox.Warning)
+        confirmation.setWindowTitle("Delete Client")
         confirmation.setText(f"Are you sure you want to delete the client with email: {email}?")
-        confirmation.setWindowTitle("")
         confirmation.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         confirmation.setDefaultButton(QMessageBox.No)
 
+        # Check the user's response
         response = confirmation.exec()
         if response == QMessageBox.Yes:
             db = Database()
             try:
                 db.cursor.execute("DELETE FROM clients WHERE email = ?", (email,))
                 db.conn.commit()
-                show_message(content, f"Client with email {email} deleted successfully.")
+                QMessageBox(f"✅ Client with email {email} deleted successfully.")
                 update_client_table()  # Refresh the table after deletion
             except Exception as e:
-                show_message(content, f"Failed to delete client: {e}", QMessageBox.Critical)
+                print(f"❌ Error deleting client: {e}")
             finally:
                 db.close_connection()
                 
         update_client_table()
         
-    main_layout.addLayout(table_info_layout)
-
-  # --- Function to Update Client Info ---
+        main_layout.addLayout(table_info_layout)
+                
+    # --- Function to Update Client Info ---
     def update_client_info(email):
         """Update the client info labels with data from the database."""
         db = Database()
@@ -621,30 +658,31 @@ def get_client_widget(main_window):
         if client_data:
             name, address, contact_number, email = client_data
 
-            # Find the input fields
-            name_input = client_info_view.findChild(QLineEdit, "NameInput")
-            address_input = client_info_view.findChild(QLineEdit, "AddressInput")
-            contact_input = client_info_view.findChild(QLineEdit, "ContactInput")
-            email_input = client_info_view.findChild(QLineEdit, "EmailInput")
+            # Update the labels
+            name_label = client_info_view.findChild(QLabel, "NameLabel")
+            address_label = client_info_view.findChild(QLabel, "AddressLabel")
+            contact_label = client_info_view.findChild(QLabel, "ContactLabel")
+            email_label = client_info_view.findChild(QLabel, "EmailLabel")
 
-            # Update the input fields
-            if name_input:
-                name_input.setText(name)
-            if address_input:
-                address_input.setText(address)
-            if contact_input:
-                contact_input.setText(contact_number)
-            if email_input:
-                email_input.setText(email)
+            if name_label:
+                name_label.setText(f"Name: {name}")
+            if address_label:
+                address_label.setText(f"Address: {address}")
+            if contact_label:
+                contact_label.setText(f"Contact Number: {contact_number}")
+            if email_label:
+                email_label.setText(f"Email Address: {email}")
                 
     def update_pet_info(client_email):
+        """Update the pet info section with data from the database."""
         db = Database()
+
+        # Fetch the client_id using the client_email
         try:
             db.cursor.execute("SELECT client_id FROM clients WHERE email = ?", (client_email,))
             result = db.cursor.fetchone()
-            
             if not result:
-                print("❌ No client found with email")
+                print("❌ No client found with the provided email.")
                 return
             client_id = result[0]
             print(f"✅ Retrieved client_id: {client_id}")
@@ -655,185 +693,116 @@ def get_client_widget(main_window):
         # Fetch pets associated with the client_id, including the photo_path
         try:
             db.cursor.execute("""
-                SELECT name, gender, species, breed, color, birthdate, age, photo_path
-                FROM pets
+                SELECT name, gender, species, breed, color, birthdate, age, photo_path 
+                FROM pets 
                 WHERE client_id = ?
             """, (client_id,))
             pets = db.cursor.fetchall()
-
-            for i in range(scroll_layout.count()):
-                widget = scroll_layout.itemAt(i).widget()
-                if widget:
-                    widget.deleteLater()
-
-            # Create new pet cards and add them to the layout
-            for idx, pet in enumerate(pets):
-                card = create_pet_card(pet, idx)
-                scroll_layout.addWidget(card)
-
+            print(f"✅ Retrieved pets: {pets}")
         except Exception as e:
             print(f"❌ Error fetching pets: {e}")
             return
         finally:
             db.close_connection()
 
-        # 🧹 Clear the scroll layout
-        while scroll_layout.count():
-            child = scroll_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
-
         if pets:
-            # Create cards for all pets and add to scroll area
-            for index, pet in enumerate(pets):
-                pet_card = create_pet_card(pet, index)
-                scroll_layout.addWidget(pet_card)
-        else:
-            no_pet_label = QLabel("No pets found.")
-            no_pet_label.setAlignment(Qt.AlignCenter)
-            scroll_layout.addWidget(no_pet_label)
+            # Store pets in a list for navigation
+            pet_info_widget.setProperty("pets", pets)
+            pet_info_widget.setProperty("current_index", 0)
 
-    def handle_update_pet(pet_data, index):
-        pets = pet_info_widget.property("pets") or []
-        pets.insert(0, pet_data)  # optional: update or replace existing list
-        pet_info_widget.setProperty("pets", pets)
-        pet_info_widget.setProperty("current_index", index)
-        open_edit_pet_form(pet_data)
-        
-    def redirect_to_appointments_tab(pet_data):
-        """Redirect to the Appointments Tab and filter appointments by the pet's name."""
-        pet_name = pet_data[0]  # Assuming the first element is the pet's name
+            # Display the first pet's information and picture
+            first_pet = pets[0]
+            display_pet_info(first_pet)
 
-        # Ensure the main_window has a tab_widget attribute
-        if hasattr(main_window, "tab_widget"):
-            # Switch to the Appointments Tab
-            main_window.tab_widget.setCurrentIndex(2)  # Assuming the Appointments Tab is at index 2
-
-            # Call a method in the Appointments Tab to filter appointments
-            appointments_tab = main_window.tab_widget.widget(2)  # Get the Appointments Tab widget
-            if hasattr(appointments_tab, "filter_appointments_by_pet"):
-                appointments_tab.filter_appointments_by_pet(pet_name)
+            # Update the pet picture
+            photo_path = first_pet[7]  # Assuming the 8th column in the pets table is the photo path
+            if photo_path:
+                pet_picture.setPixmap(QPixmap(photo_path).scaled(
+                    pet_picture.width(), pet_picture.height(),
+                    Qt.KeepAspectRatio, Qt.SmoothTransformation
+                ))
             else:
-                print("❌ Appointments Tab does not have a 'filter_appointments_by_pet' method.")
+                pet_picture.clear()
+                pet_picture.setText("No Photo")
         else:
-            print("❌ 'main_window' does not have a 'tab_widget' attribute.")
-                
-    def create_pet_card(pet_data, index):
+            print("❌ No pets found for the selected client.")
+            # Clear the pet display if no pets are found
+            label_names = [
+                "PetNameLabel", "PetGenderLabel", "PetTypeLabel",
+                "PetBreedLabel", "PetColorLabel", "PetBirthLabel", "PetAgeLabel"
+            ]
+            for name in label_names:
+                label = client_info_view.findChild(QLabel, name)
+                if label:
+                    label.setText(name.replace('Label', '') + ":")
+            pet_picture.clear()
+            pet_picture.setText("No Photo")
 
-        pet_card = QWidget()
-        pet_card.setFixedHeight(160)
-        pet_card_layout = QHBoxLayout(pet_card)
-        pet_card_layout.setContentsMargins(10, 10, 20, 10)
-        pet_card_layout.setSpacing(10)
+    def display_pet_info(pet_data):
+        """Display the information of a single pet."""
+        pet_labels = [
+            ("PetNameLabel", f"Name: {pet_data[0]}"),
+            ("PetGenderLabel", f"Gender: {pet_data[1]}"),
+            ("PetTypeLabel", f"Species: {pet_data[2]}"),
+            ("PetBreedLabel", f"Breed: {pet_data[3]}"),
+            ("PetColorLabel", f"Color: {pet_data[4]}"),
+            ("PetBirthLabel", f"Birthdate: {pet_data[5]}"),
+            ("PetAgeLabel", f"Age: {pet_data[6]}")
+        ]
+        for obj_name, text in pet_labels:
+            label = client_info_view.findChild(QLabel, obj_name)
+            if label:
+                label.setText(text)
+            else:
+                print(f"❌ Label with object name '{obj_name}' not found.")
 
-        pet_card.setStyleSheet("background-color: white; border-radius: 20px;")
+    # Add navigation functionality to the Next and Previous buttons
+    left_arrow_button.clicked.connect(lambda: navigate_pets("prev"))
+    right_arrow_button.clicked.connect(lambda: navigate_pets("next"))
 
-        # 📷 Pet photo on the left
-        pet_card_picture = QLabel()
-        pet_card_picture.setFixedSize(150, 150)
-        pet_card_picture.setAlignment(Qt.AlignCenter)
-        pet_card_picture.setStyleSheet("background-color: white; border-radius: 10px;")
+    def navigate_pets(direction):
+        """Navigate between pets using the arrow buttons."""
+        pets = pet_info_widget.property("pets")
+        if not pets or len(pets) == 0:
+            print("❌ No pets available to navigate.")
+            return
 
-        photo_path = pet_data[7]
+        current_index = pet_info_widget.property("current_index")
+        if direction == "next":
+            current_index = (current_index + 1) % len(pets)
+        elif direction == "prev":
+            current_index = (current_index - 1) % len(pets)
+
+        pet_info_widget.setProperty("current_index", current_index)
+        pet_data = pets[current_index]
+        display_pet_info(pet_data)
+
+        # Update the pet picture
+        photo_path = pet_data[7]  # Assuming the 8th column in the pets table is the photo path
         if photo_path:
-            pet_card_picture.setPixmap(QPixmap(photo_path).scaled(
-                150, 150,
-                Qt.KeepAspectRatio,
-                Qt.SmoothTransformation
+            pet_picture.setPixmap(QPixmap(photo_path).scaled(
+                pet_picture.width(), pet_picture.height(),
+                Qt.KeepAspectRatio, Qt.SmoothTransformation
             ))
         else:
-            pet_card_picture.setText("No Photo")
+            pet_picture.clear()  # Clear the picture if no photo is available
+            pet_picture.setText("No Photo")  # Optional: Display a placeholder text
 
-        # 📄 Pet info in the middle
-        pet_info_widget = QWidget()
-        pet_info_layout = QVBoxLayout(pet_info_widget)
-        pet_info_layout.setContentsMargins(0, 0, 0, 0)
-        pet_info_layout.setSpacing(2)
-
-        for label_text, value in zip(
-            ["Name", "Gender", "Species", "Breed", "Color", "Birthdate", "Age"],
-            pet_data[:7]
-        ):
-            row_layout = QHBoxLayout()
-
-            label = QLabel(f"{label_text}:")
-            label.setStyleSheet("font-weight: bold;")
-            label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-
-            value_label = QLabel(str(value))
-            value_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-
-            # Optionally set fixed width for label to align values
-            label.setFixedWidth(80)  # adjust width as needed
-
-            row_layout.addWidget(label)
-            row_layout.addWidget(value_label)
-            row_layout.addStretch()  # Push items to the left
-
-            pet_info_layout.addLayout(row_layout)
-
-        # 🔘 Buttons on the right
-        pet_buttons_widget = QWidget()
-        pet_buttons_layout = QVBoxLayout(pet_buttons_widget)
-        pet_buttons_layout.setContentsMargins(0, 0, 0, 0)
-        pet_buttons_layout.setSpacing(5)  # Reduced spacing for compact layout
-        
-        # Create buttons
-        update_info_button = QPushButton("Update Info")
-        pet_info_layout.addWidget(update_info_button)
-        check_schedule_button = QPushButton("Check Schedule")
-        see_records_button = QPushButton("See Records")
-        pet_info_layout.addWidget(see_records_button)
-        
-        # Connect the "Check Schedule" button
-        check_schedule_button.clicked.connect(lambda _, pet_data=pet_data: redirect_to_appointments_tab(pet_data))
-        
-        # Style buttons
-        button_style = """
-            background-color: #012547; 
-            color: white; 
-            font-family: Lato; 
-            font-size: 10px; 
-            font-weight: 700; 
-            border-radius: 15px; 
-            padding: 0;
-            margin: 0;
-        """
-        
-        for btn in [update_info_button, check_schedule_button, see_records_button]:
-            btn.setFixedSize(200, 20)  # Slightly smaller height to fit in the card
-            btn.setStyleSheet(button_style)
-            pet_buttons_layout.addWidget(btn)
-        
-        # Connect button signals
-        
-        
-        update_info_button.clicked.connect(lambda _, d=pet_data, i=index: handle_update_pet(d, i))
-        see_records_button.clicked.connect(main_window.show_pet_records)
-
-
-        pet_buttons_layout.addStretch()
-
-        # 🧩 Assemble layout: [Photo] [Info] [Buttons]
-        pet_card_layout.addWidget(pet_card_picture)
-        pet_card_layout.addWidget(pet_info_widget, 1)  # Give info widget more space
-        pet_card_layout.addWidget(pet_buttons_widget)
-
-        return pet_card
-
-    def upload_pet_photo(pet_label):
+    # 1. Define the function first
+    def upload_pet_photo():
         """Open a file dialog to select a pet photo and display it inside the container."""
         file_dialog = QFileDialog()
         file_dialog.setNameFilters(["Image files (*.jpg *.jpeg *.png)"])
         if file_dialog.exec():
             selected_file = file_dialog.selectedFiles()[0]
-            file_name = selected_file.split("/")[-1]
+            file_name = selected_file.split("/")[-1]  # Extract file name
 
-            pet_label.setPixmap(QPixmap(selected_file).scaled(
-                pet_label.width() - 4, pet_label.height() - 4,
+            # Set the image in the pet_picture label
+            pet_picture.setPixmap(QPixmap(selected_file).scaled(
+                pet_picture.width() - 4, pet_picture.height() - 4,
                 Qt.KeepAspectRatio, Qt.SmoothTransformation
             ))
-            pet_label.setProperty("photo_path", selected_file)
+            pet_picture.setProperty("photo_path", selected_file)
 
             success_message = create_styled_message_box(
                 QMessageBox.Information, 
@@ -842,22 +811,20 @@ def get_client_widget(main_window):
             )
             success_message.exec()
 
-     # 2. THEN create the button and connect it
+    # 2. THEN create the button and connect it
     upload_photo_button = QPushButton("Upload Photo", pets_fields_widget)
     upload_photo_button.setStyleSheet("""
         background-color: white; 
         color: black; 
-        border: 2px solid black;
+        border: 2px solid black
         border-radius: 5px; 
         font-size: 20px; 
         padding: 8px;
     """)
     pets_fields_layout.addWidget(upload_photo_button)
-    # Add photo preview label before the button
-    pets_fields_layout.addWidget(pet_picture)
 
     # 3. Connect after both exist
-    upload_photo_button.clicked.connect(lambda: upload_pet_photo(pet_picture))
+    upload_photo_button.clicked.connect(upload_pet_photo)
 
     def open_add_pet_form():
         """Open the form to add a new pet."""
@@ -869,13 +836,12 @@ def get_client_widget(main_window):
         color_input.clear()
         birthdate_input.setDate(datetime.now())  # Reset to today
         pet_gender.setCurrentIndex(0)  # Reset gender dropdown
-        pet_picture.setPixmap(QPixmap())  # Clear previous image
-        pet_picture.setText("No Photo")
+
         pets_edit_widget.setProperty("mode", "add")  # 🆕 Mark as adding mode
 
         client_info_stack.setCurrentIndex(2)  # Switch to pet form
 
-    def open_edit_pet_form(pet_data):
+    def open_edit_pet_form():
         """Open the form to edit the currently selected pet."""
         pets = pet_info_widget.property("pets")
         current_index = pet_info_widget.property("current_index")
@@ -894,24 +860,11 @@ def get_client_widget(main_window):
         birthdate_input.setDate(pet_data[5])
         age_input.setText(str(pet_data[6]))
 
-        # 🖼️ Set the photo preview in pet_picture
-        photo_path = pet_data[7]
-        if photo_path:
-            pet_picture.setPixmap(QPixmap(photo_path).scaled(
-                pet_picture.width(), pet_picture.height(),
-                Qt.KeepAspectRatio, Qt.SmoothTransformation
-            ))
-            pet_picture.setProperty("photo_path", photo_path)
-        else:
-            pet_picture.setPixmap(QPixmap())
-            pet_picture.setText("No Photo")
-            pet_picture.setProperty("photo_path", None)
-
         pets_edit_widget.setProperty("mode", "edit")  # 🆕 Mark as editing mode
 
         client_info_stack.setCurrentIndex(2)  # Switch to pet form
         
-    # update_info_button.clicked.connect(open_edit_pet_form)
+    update_info_button.clicked.connect(open_edit_pet_form)
     edit_pet_button.clicked.connect(open_add_pet_form)
 
     def save_pet_data():
@@ -925,18 +878,30 @@ def get_client_widget(main_window):
         age = age_input.text().strip()
 
         if not name or not species or not breed or not color or not birthdate or not age:
-            show_message(pets_edit_widget, "All fields are required!", QMessageBox.Warning)
+            create_styled_message_box(
+                QMessageBox.Warning,
+                "Validation Error",
+                "❌ All fields are required."
+            ).exec()
             return
 
         if not age.isdigit():
-            show_message(pets_edit_widget, "Age must be a valid integer!", QMessageBox.Warning)
+            create_styled_message_box(
+                QMessageBox.Warning,
+                "Validation Error",
+                "❌ Age must be a valid integer."
+            ).exec()
             return
 
         age = int(age)
 
         client_email = edit_form_widget.property("original_email")
         if not client_email:
-            show_message(pets_edit_widget, "No client selected for adding a pet!", QMessageBox.Warning)
+            create_styled_message_box(
+                QMessageBox.Warning,
+                "Validation Error",
+                "❌ No client selected for adding a pet."
+            ).exec()
             return
 
         db = Database()
@@ -944,7 +909,11 @@ def get_client_widget(main_window):
             db.cursor.execute("SELECT client_id FROM clients WHERE email = ?", (client_email,))
             result = db.cursor.fetchone()
             if not result:
-                show_message(pets_edit_widget, "No client found with the provided email!", QMessageBox.Warning)
+                create_styled_message_box(
+                    QMessageBox.Warning,
+                    "Validation Error",
+                    "❌ No client found with the provided email."
+                ).exec()
                 return
             client_id = result[0]
 
@@ -958,9 +927,12 @@ def get_client_widget(main_window):
                     INSERT INTO pets (name, gender, species, breed, color, birthdate, age, photo_path, client_id)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (name, gender, species, breed, color, birthdate, age, photo_path, client_id))
-                print("🖼️ Photo path being saved:", photo_path)
                 db.conn.commit()
-                show_message(pets_edit_widget, "New pet added successfully!")
+                create_styled_message_box(
+                    QMessageBox.Information,
+                    "Success",
+                    "✅ New pet added successfully."
+                ).exec()
             elif mode == "edit":
                 current_pet_name = pet_info_widget.property("pets")[pet_info_widget.property("current_index")][0]
                 db.cursor.execute("""
@@ -969,7 +941,11 @@ def get_client_widget(main_window):
                     WHERE name = ? AND client_id = ?
                 """, (name, gender, species, breed, color, birthdate, age, photo_path, current_pet_name, client_id))
                 db.conn.commit()
-                show_message(pets_edit_widget, "Pet updated successfully!")
+                create_styled_message_box(
+                    QMessageBox.Information,
+                    "Success",
+                    "✅ Pet updated successfully."
+                ).exec()
 
             # ✅ Update pet info display after save
             update_pet_info(client_email)
@@ -977,18 +953,26 @@ def get_client_widget(main_window):
             client_info_stack.setCurrentIndex(0)
 
         except Exception as e:
-            show_message(pets_edit_widget, f"Failed to save pet data: {e}", QMessageBox.Critical)
+            create_styled_message_box(
+                QMessageBox.Critical,
+                "Error",
+                f"❌ Error saving pet data: {e}"
+            ).exec()
         finally:
             db.close_connection()
                 
     pets_save_btn.clicked.connect(save_pet_data)
-
+            
     def delete_pet():
         """Delete the currently displayed pet."""
         pets = pet_info_widget.property("pets")
         current_index = pet_info_widget.property("current_index")
         if not pets or current_index is None:
-            show_message(pets_edit_widget, "No pet selected!", QMessageBox.Warning)
+            create_styled_message_box(
+                QMessageBox.Warning,
+                "Error",
+                "❌ No pet selected."
+            ).exec()
             return
 
         pet_data = pets[current_index]
@@ -996,7 +980,11 @@ def get_client_widget(main_window):
 
         client_email = edit_form_widget.property("original_email")
         if not client_email:
-            show_message(pets_edit_widget, "No client selected for deleting a pet!", QMessageBox.Warning)
+            create_styled_message_box(
+                QMessageBox.Warning,
+                "Error",
+                "❌ No client selected for deleting a pet."
+            ).exec()
             return
 
         # Confirmation dialog
@@ -1018,14 +1006,21 @@ def get_client_widget(main_window):
                     AND client_id = (SELECT client_id FROM clients WHERE email = ?)
                 """, (pet_name, client_email))
                 db.conn.commit()
-                show_message(pets_edit_widget, f"Pet \"{pet_name}\" was successfully deleted!")
+                create_styled_message_box(
+                    QMessageBox.Information,
+                    "Success",
+                    f"✅ Pet \"{pet_name}\" was successfully deleted."
+                ).exec()
 
                 # Update the pet info section
                 update_pet_info(client_email)
-                client_info_stack.setCurrentIndex(0)
 
             except Exception as e:
-                show_message(pets_edit_widget, f"Failed to delete pet: {e}", QMessageBox.Critical)
+                create_styled_message_box(
+                    QMessageBox.Critical,
+                    "Error",
+                    f"❌ Error deleting pet: {e}"
+                ).exec()
             finally:
                 db.close_connection()
 
@@ -1046,45 +1041,45 @@ def get_client_widget(main_window):
     pets_delete_btn.clicked.connect(delete_pet)
 
     def on_client_selected(row, column, table):
-            """Handle client selection from the table and highlight the active row."""
-            # Reset the style of all rows
-            for r in range(table.rowCount()):
-                cell_widget = table.cellWidget(r, 0)
-                if cell_widget:
-                    cell_widget.setStyleSheet("background-color:transparent")  # Default background color
+        """Handle client selection from the table and highlight the active row."""
+        # Reset the style of all rows
+        for r in range(table.rowCount()):
+            cell_widget = table.cellWidget(r, 0)
+            if cell_widget:
+                cell_widget.setStyleSheet("background-color: white;")  # Default background color
 
-            # Highlight the selected row
-            selected_item = table.cellWidget(row, 0)
-            if selected_item:
-                selected_item.setStyleSheet("background-color: transparent")  # Highlight color (yellow)
+        # Highlight the selected row
+        selected_item = table.cellWidget(row, 0)
+        if selected_item:
+            selected_item.setStyleSheet("background-color: #FED766;")  # Highlight color (yellow)
 
-                # Fetch the client name
-                name_label = selected_item.findChild(QLabel)
-                if name_label:
-                    client_name = name_label.text()
+            # Fetch the client name
+            name_label = selected_item.findChild(QLabel)
+            if name_label:
+                client_name = name_label.text()
 
-                    db = Database()
-                    try:
-                        db.cursor.execute("SELECT email FROM clients WHERE name = ?", (client_name,))
-                        result = db.cursor.fetchone()
-                    except Exception as e:
-                        print(f"❌ Error fetching client email: {e}")
-                        return
-                    finally:
-                        db.close_connection()
+                db = Database()
+                try:
+                    db.cursor.execute("SELECT email FROM clients WHERE name = ?", (client_name,))
+                    result = db.cursor.fetchone()
+                except Exception as e:
+                    print(f"❌ Error fetching client email: {e}")
+                    return
+                finally:
+                    db.close_connection()
 
-                    if result:
-                        email = result[0]
-                        update_client_info(email)
-                        update_pet_info(email)  # ✅ Also load pets immediately
-                        edit_form_widget.setProperty("original_email", email)  # ✅ Remember client email for pets
+                if result:
+                    email = result[0]
+                    update_client_info(email)
+                    update_pet_info(email)  # ✅ Also load pets immediately
+                    edit_form_widget.setProperty("original_email", email)  # ✅ Remember client email for pets
 
-        # Connect the table's cell click signal to the function
+    # Connect the table's cell click signal to the function
     table.cellClicked.connect(lambda row, column: on_client_selected(row, column, table))
 
-        # Add the layout to the main layout
+    # Add the layout to the main layout
     main_layout.addLayout(table_info_layout)
-        
+    
     update_client_table()
 
     return content
