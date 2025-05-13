@@ -2,13 +2,288 @@ from PySide6.QtWidgets import (
     QWidget, QLabel, QHBoxLayout, QVBoxLayout, QPushButton, QLineEdit,
     QTableWidget, QScroller, QScrollArea,
     QStackedLayout, QComboBox, QTabWidget, QDateEdit, QMessageBox,
-    QFileDialog, QHeaderView
+    QFileDialog, QHeaderView, QDialog
 )
 from PySide6.QtGui import QIcon, QPixmap
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt, QSize, QDate
 from modules.database import Database
 from modules.utils import create_styled_message_box, show_message
 from datetime import datetime
+
+class AddPetDialog(QDialog):
+    def __init__(self, client_email, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Add Pet")
+        self.setFixedSize(600, 700)
+        self.client_email = client_email
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        # Title
+        title_label = QLabel("Add New Pet")
+        title_label.setStyleSheet("font-size: 24px; font-weight: bold; color: #012547;")
+        title_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title_label)
+
+        # Form fields
+        form_layout = QVBoxLayout()
+        form_layout.setSpacing(15)
+
+        # Name
+        name_layout = QHBoxLayout()
+        name_label = QLabel("Name:")
+        name_label.setStyleSheet("font-size: 16px; font-weight: bold; min-width: 150px;")
+        self.name_input = QLineEdit()
+        self.name_input.setPlaceholderText("Enter pet name")
+        self.name_input.setMinimumHeight(35)
+        name_layout.addWidget(name_label)
+        name_layout.addWidget(self.name_input)
+        form_layout.addLayout(name_layout)
+
+        # Gender
+        gender_layout = QHBoxLayout()
+        gender_label = QLabel("Gender:")
+        gender_label.setStyleSheet("font-size: 16px; font-weight: bold; min-width: 150px;")
+        self.gender_combo = QComboBox()
+        self.gender_combo.addItems(["Male", "Female"])
+        self.gender_combo.setMinimumHeight(35)
+        gender_layout.addWidget(gender_label)
+        gender_layout.addWidget(self.gender_combo)
+        form_layout.addLayout(gender_layout)
+
+        # Species
+        species_layout = QHBoxLayout()
+        species_label = QLabel("Species:")
+        species_label.setStyleSheet("font-size: 16px; font-weight: bold; min-width: 150px;")
+        self.species_input = QLineEdit()
+        self.species_input.setPlaceholderText("Enter species")
+        self.species_input.setMinimumHeight(35)
+        species_layout.addWidget(species_label)
+        species_layout.addWidget(self.species_input)
+        form_layout.addLayout(species_layout)
+
+        # Breed
+        breed_layout = QHBoxLayout()
+        breed_label = QLabel("Breed:")
+        breed_label.setStyleSheet("font-size: 16px; font-weight: bold; min-width: 150px;")
+        self.breed_input = QLineEdit()
+        self.breed_input.setPlaceholderText("Enter breed")
+        self.breed_input.setMinimumHeight(35)
+        breed_layout.addWidget(breed_label)
+        breed_layout.addWidget(self.breed_input)
+        form_layout.addLayout(breed_layout)
+
+        # Color
+        color_layout = QHBoxLayout()
+        color_label = QLabel("Color:")
+        color_label.setStyleSheet("font-size: 16px; font-weight: bold; min-width: 150px;")
+        self.color_input = QLineEdit()
+        self.color_input.setPlaceholderText("Enter color")
+        self.color_input.setMinimumHeight(35)
+        color_layout.addWidget(color_label)
+        color_layout.addWidget(self.color_input)
+        form_layout.addLayout(color_layout)
+
+        # Birthdate
+        birthdate_layout = QHBoxLayout()
+        birthdate_label = QLabel("Birthdate:")
+        birthdate_label.setStyleSheet("font-size: 16px; font-weight: bold; min-width: 150px;")
+        self.birthdate_input = QDateEdit()
+        self.birthdate_input.setCalendarPopup(True)
+        self.birthdate_input.setDate(QDate.currentDate())
+        self.birthdate_input.setDisplayFormat("dd/MM/yyyy")
+        self.birthdate_input.setMinimumHeight(35)
+        birthdate_layout.addWidget(birthdate_label)
+        birthdate_layout.addWidget(self.birthdate_input)
+        form_layout.addLayout(birthdate_layout)
+
+        # Age
+        age_layout = QHBoxLayout()
+        age_label = QLabel("Age:")
+        age_label.setStyleSheet("font-size: 16px; font-weight: bold; min-width: 150px;")
+        self.age_input = QLineEdit()
+        self.age_input.setPlaceholderText("Enter age")
+        self.age_input.setMinimumHeight(35)
+        age_layout.addWidget(age_label)
+        age_layout.addWidget(self.age_input)
+        form_layout.addLayout(age_layout)
+
+        # Weight
+        weight_layout = QHBoxLayout()
+        weight_label = QLabel("Weight:")
+        weight_label.setStyleSheet("font-size: 16px; font-weight: bold; min-width: 150px;")
+        self.weight_input = QLineEdit()
+        self.weight_input.setPlaceholderText("Enter weight in kg")
+        self.weight_input.setMinimumHeight(35)
+        weight_layout.addWidget(weight_label)
+        weight_layout.addWidget(self.weight_input)
+        form_layout.addLayout(weight_layout)
+
+        # Height
+        height_layout = QHBoxLayout()
+        height_label = QLabel("Height:")
+        height_label.setStyleSheet("font-size: 16px; font-weight: bold; min-width: 150px;")
+        self.height_input = QLineEdit()
+        self.height_input.setPlaceholderText("Enter height in meters")
+        self.height_input.setMinimumHeight(35)
+        height_layout.addWidget(height_label)
+        height_layout.addWidget(self.height_input)
+        form_layout.addLayout(height_layout)
+
+        # Blood Type
+        blood_type_layout = QHBoxLayout()
+        blood_type_label = QLabel("Blood Type:")
+        blood_type_label.setStyleSheet("font-size: 16px; font-weight: bold; min-width: 150px;")
+        self.blood_type_combo = QComboBox()
+        self.blood_type_combo.addItems(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"])
+        self.blood_type_combo.setMinimumHeight(35)
+        blood_type_layout.addWidget(blood_type_label)
+        blood_type_layout.addWidget(self.blood_type_combo)
+        form_layout.addLayout(blood_type_layout)
+
+        # Photo
+        photo_layout = QHBoxLayout()
+        photo_label = QLabel("Photo:")
+        photo_label.setStyleSheet("font-size: 16px; font-weight: bold; min-width: 150px;")
+        self.photo_path = None
+        self.photo_label = QLabel()
+        self.photo_label.setFixedSize(150, 150)
+        self.photo_label.setStyleSheet("""
+            QLabel {
+                background-color: #f5f5f5;
+                border: 2px dashed #012547;
+                border-radius: 10px;
+            }
+        """)
+        self.photo_label.setAlignment(Qt.AlignCenter)
+        self.photo_label.setText("Click to add photo")
+        self.photo_label.mousePressEvent = self.select_photo
+        photo_layout.addWidget(photo_label)
+        photo_layout.addWidget(self.photo_label)
+        form_layout.addLayout(photo_layout)
+
+        layout.addLayout(form_layout)
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setFixedSize(120, 40)
+        cancel_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f5f5f5;
+                border-radius: 20px;
+                font-size: 14px;
+                font-weight: bold;
+                color: #333;
+            }
+            QPushButton:hover {
+                background-color: #e0e0e0;
+            }
+        """)
+        cancel_btn.clicked.connect(self.reject)
+
+        save_btn = QPushButton("Save")
+        save_btn.setFixedSize(120, 40)
+        save_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #012547;
+                border-radius: 20px;
+                font-size: 14px;
+                font-weight: bold;
+                color: white;
+            }
+            QPushButton:hover {
+                background-color: #01315d;
+            }
+        """)
+        save_btn.clicked.connect(self.save_pet)
+
+        button_layout.addWidget(cancel_btn)
+        button_layout.addWidget(save_btn)
+        layout.addLayout(button_layout)
+
+    def select_photo(self, event):
+        file_name, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Pet Photo",
+            "",
+            "Image Files (*.png *.jpg *.jpeg *.bmp)"
+        )
+        if file_name:
+            self.photo_path = file_name
+            pixmap = QPixmap(file_name)
+            self.photo_label.setPixmap(pixmap.scaled(
+                150, 150,
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation
+            ))
+
+    def save_pet(self):
+        name = self.name_input.text().strip()
+        gender = self.gender_combo.currentText()
+        species = self.species_input.text().strip()
+        breed = self.breed_input.text().strip()
+        color = self.color_input.text().strip()
+        birthdate = self.birthdate_input.date().toString("yyyy-MM-dd")
+        age = self.age_input.text().strip()
+        weight = self.weight_input.text().strip()
+        height = self.height_input.text().strip()
+        blood_type = self.blood_type_combo.currentText()
+
+        if not all([name, species, breed, color, age, weight, height]):
+            show_message(self, "All fields are required!", QMessageBox.Warning)
+            return
+
+        if not age.isdigit():
+            show_message(self, "Age must be a valid integer!", QMessageBox.Warning)
+            return
+
+        try:
+            weight_float = float(weight)
+            if weight_float <= 0:
+                show_message(self, "Weight must be greater than 0!", QMessageBox.Warning)
+                return
+        except ValueError:
+            show_message(self, "Weight must be a valid number!", QMessageBox.Warning)
+            return
+
+        try:
+            height_float = float(height)
+            if height_float <= 0:
+                show_message(self, "Height must be greater than 0!", QMessageBox.Warning)
+                return
+        except ValueError:
+            show_message(self, "Height must be a valid number!", QMessageBox.Warning)
+            return
+
+        age = int(age)
+
+        db = Database()
+        try:
+            db.cursor.execute("SELECT client_id FROM clients WHERE email = ?", (self.client_email,))
+            result = db.cursor.fetchone()
+            if not result:
+                show_message(self, "No client found with the provided email!", QMessageBox.Warning)
+                return
+            client_id = result[0]
+
+            db.cursor.execute("""
+                INSERT INTO pets (name, gender, species, breed, color, birthdate, age, weight, height, blood_type, photo_path, client_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (name, gender, species, breed, color, birthdate, age, weight_float, height_float, blood_type, self.photo_path, client_id))
+            db.conn.commit()
+            show_message(self, "New pet added successfully!")
+            self.accept()
+        except Exception as e:
+            show_message(self, f"Error saving pet: {e}", QMessageBox.Critical)
+        finally:
+            db.close_connection()
 
 def get_client_widget(main_window):
     content = QWidget()
@@ -296,7 +571,7 @@ def get_client_widget(main_window):
     for field in edit_fields:
         line_edit = QLineEdit(edit_fields_widget)  # Set parent
         line_edit.setPlaceholderText(f"Enter {field}")
-        line_edit.setStyleSheet("padding: 8px; margin: 10px; background-color: #f4f4f8; border: 1px solid gray; border-radius: 5px;")
+        line_edit.setStyleSheet("padding: 8px; margin: 10px; background-color: #f4f4f8; border: 1px solid gray; border-radius: 5px; font-size: 12px;")
         edit_fields_layout.addWidget(line_edit)
 
     edit_form_layout.addWidget(edit_fields_widget)
@@ -306,11 +581,11 @@ def get_client_widget(main_window):
 
     cancel_button = QPushButton("Cancel", edit_form_widget)  # Set parent
     cancel_button.setFixedSize(40, 40)
-    cancel_button.setStyleSheet("background-color: #f4f4f8; border-radius:20px; color: black;")
+    cancel_button.setStyleSheet("background-color: #f4f4f8; border-radius:20px; color: black; font-size: 12px;")
 
     save_button = QPushButton("Save", edit_form_widget)  # Set parent
     save_button.setFixedSize(40, 40)
-    save_button.setStyleSheet("background-color: #012547; border-radius:20px; color: white; margin-right:90px;")
+    save_button.setStyleSheet("background-color: #012547; border-radius:20px; color: white; margin-right:90px; font-size: 12px;")
 
     button_layout.addWidget(cancel_button)
     button_layout.addWidget(save_button)
@@ -334,6 +609,7 @@ def get_client_widget(main_window):
         background-color: #f4f4f8;
         border: 1px solid gray;
         border-radius: 5px;
+        font-size: 12px;
     """
 
     # Create pet fields layout
@@ -345,29 +621,33 @@ def get_client_widget(main_window):
     row1 = QHBoxLayout()
     name_input = QLineEdit(pets_fields_widget)  # Set parent
     name_input.setPlaceholderText("Enter Name")
+    name_input.setMinimumHeight(35)
     name_input.setStyleSheet(line_edit_style)
 
     pet_gender = QComboBox(pets_fields_widget)  # Set parent
     pet_gender.addItems(["Male", "Female"])
-    pet_gender.setFixedSize(200, 50)
+    pet_gender.setMinimumHeight(35)
     pet_gender.setStyleSheet("""
         QComboBox {
             padding: 8px;
             border: 1px solid gray;
             border-radius: 5px;
-            background-color: #f4f4f8;        
-            }
+            background-color: #f4f4f8;
+            font-size: 12px;
+        }
         QComboBox::drop-down {
             border: none;
         }
         QComboBox QAbstractItemView {
             background-color: white;
             selection-background-color: #FED766;
+            font-size: 12px;
         }
     """)
 
     age_input = QLineEdit(pets_fields_widget)  # Set parent
     age_input.setPlaceholderText("Enter Age")
+    age_input.setMinimumHeight(35)
     age_input.setStyleSheet(line_edit_style)
 
     row1.addWidget(name_input)
@@ -379,19 +659,68 @@ def get_client_widget(main_window):
     row2 = QHBoxLayout()
     species_input = QLineEdit(pets_fields_widget)  # Set parent
     species_input.setPlaceholderText("Enter Species")
+    species_input.setMinimumHeight(35)
     species_input.setStyleSheet(line_edit_style)
 
     breed_input = QLineEdit(pets_fields_widget)  # Set parent
     breed_input.setPlaceholderText("Enter Breed")
+    breed_input.setMinimumHeight(35)
     breed_input.setStyleSheet(line_edit_style)
 
     row2.addWidget(species_input)
     row2.addWidget(breed_input)
     pets_fields_layout.addLayout(row2)
 
+    # Row 3: Weight, Height, Blood Type
+    row3 = QHBoxLayout()
+    
+    # Weight input
+    weight_input = QLineEdit(pets_fields_widget)  # Set parent
+    weight_input.setPlaceholderText("Enter Weight (kg)")
+    weight_input.setMinimumHeight(35)
+    weight_input.setStyleSheet(line_edit_style)
+    
+    # Height input
+    height_input = QLineEdit(pets_fields_widget)  # Set parent
+    height_input.setPlaceholderText("Enter Height (m)")
+    height_input.setMinimumHeight(35)
+    height_input.setStyleSheet(line_edit_style)
+    
+    # Blood Type combo
+    blood_type_combo = QComboBox(pets_fields_widget)  # Set parent
+    blood_type_combo.addItem("Select Blood Type")  # Add placeholder as first item
+    blood_type_combo.addItems(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"])
+    blood_type_combo.setMinimumHeight(35)
+    blood_type_combo.setStyleSheet("""
+        QComboBox {
+            padding: 8px;
+            border: 1px solid gray;
+            border-radius: 5px;
+            background-color: #f4f4f8;
+            font-size: 12px;
+        }
+        QComboBox::drop-down {
+            border: none;
+        }
+        QComboBox QAbstractItemView {
+            background-color: white;
+            selection-background-color: #FED766;
+            font-size: 12px;
+        }
+    """)
+    
+    # Make the placeholder item non-selectable
+    blood_type_combo.model().item(0).setEnabled(False)
+    
+    row3.addWidget(weight_input)
+    row3.addWidget(height_input)
+    row3.addWidget(blood_type_combo)
+    pets_fields_layout.addLayout(row3)
+
     # Add other input fields
     color_input = QLineEdit(pets_fields_widget)  # Set parent
     color_input.setPlaceholderText("Enter Color")
+    color_input.setMinimumHeight(35)
     color_input.setStyleSheet(line_edit_style)
     pets_fields_layout.addWidget(color_input)
 
@@ -399,19 +728,20 @@ def get_client_widget(main_window):
     birthdate_input = QDateEdit(pets_fields_widget)  # Set parent
     birthdate_input.setDisplayFormat("yyyy-MM-dd")  # Set the display format to YYYY-MM-DD
     birthdate_input.setCalendarPopup(True)  # Enable calendar popup for easier selection
+    birthdate_input.setMinimumHeight(35)
     birthdate_input.setStyleSheet(line_edit_style)
 
     # Customize the calendar widget
     calendar_style = """
         QCalendarWidget {
-            font-size: 16px;  /* Make the calendar text bigger */
+            font-size: 16px;
             background-color: white;
             border: 1px solid gray;
             border-radius: 5px;
         }
         QCalendarWidget QToolButton {
-            color: black;  /* Change the color of the month and year to black */
-            font-size: 18px;  /* Make the month and year text bigger */
+            color: black;
+            font-size: 18px;
             margin: 5px;
         }
         QCalendarWidget QToolButton::menu-indicator {
@@ -419,14 +749,14 @@ def get_client_widget(main_window):
             subcontrol-origin: padding;
         }
         QCalendarWidget QSpinBox {
-            font-size: 16px;  /* Adjust the size of the spinbox text */
+            font-size: 16px;
         }
         QCalendarWidget QSpinBox::up-button, QCalendarWidget QSpinBox::down-button {
             width: 20px;
             height: 20px;
         }
         QCalendarWidget QTableView {
-            font-size: 14px;  /* Adjust the size of the calendar days */
+            font-size: 14px;
         }
     """
     birthdate_input.calendarWidget().setStyleSheet(calendar_style)
@@ -442,12 +772,12 @@ def get_client_widget(main_window):
     # Cancel button
     pets_cancel_btn = QPushButton("Cancel", pets_edit_widget)  # Set parent
     pets_cancel_btn.setFixedSize(40, 40)
-    pets_cancel_btn.setStyleSheet("background-color: #f4f4f8; border-radius:20px; color: black;")
+    pets_cancel_btn.setStyleSheet("background-color: #f4f4f8; border-radius:20px; color: black; font-size: 12px;")
 
     # Save button
     pets_save_btn = QPushButton("Save", pets_edit_widget)  # Set parent
     pets_save_btn.setFixedSize(40, 40)
-    pets_save_btn.setStyleSheet("background-color: #012547; border-radius:20px; color: white; margin-right:10px;")
+    pets_save_btn.setStyleSheet("background-color: #012547; border-radius:20px; color: white; margin-right:10px; font-size: 12px;")
 
     # Add buttons to layout
     pets_button_row.addWidget(pets_cancel_btn)
@@ -700,26 +1030,38 @@ def get_client_widget(main_window):
         pet_info_widget.setProperty("current_index", index)
         open_edit_pet_form(pet_data)
         
-    def redirect_to_appointments_tab(pet_data):
+    def redirect_to_appointments_tab(pet_name):
         """Redirect to the Appointments Tab and filter appointments by the pet's name."""
-        pet_name = pet_data[0]  # Assuming the first element is the pet's name
+        try:
+            # Get the main window's tab widget
+            tab_widget = main_window.tab_widget
+            if not tab_widget:
+                print("❌ Could not find tab widget")
+                return
 
-        # Ensure the main_window has a tab_widget attribute
-        if hasattr(main_window, "tab_widget"):
-            # Switch to the Appointments Tab
-            main_window.tab_widget.setCurrentIndex(2)  # Assuming the Appointments Tab is at index 2
-
-            # Call a method in the Appointments Tab to filter appointments
-            appointments_tab = main_window.tab_widget.widget(2)  # Get the Appointments Tab widget
-            if hasattr(appointments_tab, "filter_appointments_by_pet"):
-                appointments_tab.filter_appointments_by_pet(pet_name)
-            else:
-                print("❌ Appointments Tab does not have a 'filter_appointments_by_pet' method.")
-        else:
-            print("❌ 'main_window' does not have a 'tab_widget' attribute.")
+            # Find the Appointments tab by name
+            for i in range(tab_widget.count()):
+                if tab_widget.tabText(i) == "Appointments":
+                    # Switch to the Appointments Tab
+                    tab_widget.setCurrentIndex(i)
+                    
+                    # Get the Appointments Tab widget
+                    appointments_tab = tab_widget.widget(i)
+                    
+                    # Call the filter method if it exists
+                    if hasattr(appointments_tab, "filter_appointments_by_pet"):
+                        appointments_tab.filter_appointments_by_pet(pet_name)
+                        print(f"✅ Successfully filtered appointments for pet: {pet_name}")
+                    else:
+                        print("❌ Appointments tab does not have filter_appointments_by_pet method")
+                    return
                 
-    def create_pet_card(pet_data, index):
+            print("❌ Could not find Appointments tab")
+            
+        except Exception as e:
+            print(f"❌ Error in redirect_to_appointments_tab: {str(e)}")
 
+    def create_pet_card(pet_data, index):
         pet_card = QWidget()
         pet_card.setFixedHeight(160)
         pet_card_layout = QHBoxLayout(pet_card)
@@ -780,14 +1122,9 @@ def get_client_widget(main_window):
         
         # Create buttons
         update_info_button = QPushButton("Update Info")
-        pet_info_layout.addWidget(update_info_button)
         check_schedule_button = QPushButton("Check Schedule")
         see_records_button = QPushButton("See Records")
-        pet_info_layout.addWidget(see_records_button)
-        
-        # Connect the "Check Schedule" button
-        check_schedule_button.clicked.connect(lambda _, pet_data=pet_data: redirect_to_appointments_tab(pet_data))
-        
+
         # Style buttons
         button_style = """
             background-color: #012547; 
@@ -801,16 +1138,16 @@ def get_client_widget(main_window):
         """
         
         for btn in [update_info_button, check_schedule_button, see_records_button]:
-            btn.setFixedSize(200, 20)  # Slightly smaller height to fit in the card
+            btn.setFixedSize(200, 20)
             btn.setStyleSheet(button_style)
             pet_buttons_layout.addWidget(btn)
         
-        # Connect button signals
-        
-        
-        update_info_button.clicked.connect(lambda _, d=pet_data, i=index: handle_update_pet(d, i))
-        see_records_button.clicked.connect(main_window.show_pet_records)
+        # Connect the "Check Schedule" button to show the appointments dialog
+        pet_name = pet_data[0]  # Get the pet name
+        check_schedule_button.clicked.connect(lambda checked, name=pet_name: show_pet_appointments(name))
 
+        update_info_button.clicked.connect(lambda _, d=pet_data, i=index: handle_update_pet(d, i))
+        see_records_button.clicked.connect(lambda: setattr(main_window, 'selected_pet_name', pet_data[0]) or main_window.show_pet_records())
 
         pet_buttons_layout.addStretch()
 
@@ -820,6 +1157,12 @@ def get_client_widget(main_window):
         pet_card_layout.addWidget(pet_buttons_widget)
 
         return pet_card
+
+    def show_pet_appointments(pet_name):
+        """Show a dialog with the pet's appointments."""
+        from modules.appointment import PetAppointmentsDialog
+        dialog = PetAppointmentsDialog(pet_name)
+        dialog.exec()
 
     def upload_pet_photo(pet_label):
         """Open a file dialog to select a pet photo and display it inside the container."""
@@ -867,13 +1210,16 @@ def get_client_widget(main_window):
         species_input.clear()
         breed_input.clear()
         color_input.clear()
-        birthdate_input.setDate(datetime.now())  # Reset to today
-        pet_gender.setCurrentIndex(0)  # Reset gender dropdown
-        pet_picture.setPixmap(QPixmap())  # Clear previous image
+        weight_input.clear()
+        height_input.clear()
+        birthdate_input.setDate(datetime.now())
+        pet_gender.setCurrentIndex(0)
+        blood_type_combo.setCurrentIndex(0)
+        pet_picture.setPixmap(QPixmap())
         pet_picture.setText("No Photo")
-        pets_edit_widget.setProperty("mode", "add")  # 🆕 Mark as adding mode
+        pets_edit_widget.setProperty("mode", "add")
 
-        client_info_stack.setCurrentIndex(2)  # Switch to pet form
+        client_info_stack.setCurrentIndex(2)
 
     def open_edit_pet_form(pet_data):
         """Open the form to edit the currently selected pet."""
@@ -893,9 +1239,12 @@ def get_client_widget(main_window):
         color_input.setText(pet_data[4])
         birthdate_input.setDate(pet_data[5])
         age_input.setText(str(pet_data[6]))
+        weight_input.setText(str(pet_data[7]))
+        height_input.setText(str(pet_data[8]))
+        blood_type_combo.setCurrentText(pet_data[9])
 
         # 🖼️ Set the photo preview in pet_picture
-        photo_path = pet_data[7]
+        photo_path = pet_data[10]
         if photo_path:
             pet_picture.setPixmap(QPixmap(photo_path).scaled(
                 pet_picture.width(), pet_picture.height(),
@@ -923,13 +1272,34 @@ def get_client_widget(main_window):
         color = color_input.text().strip()
         birthdate = birthdate_input.date().toString("yyyy-MM-dd")
         age = age_input.text().strip()
+        weight = weight_input.text().strip()
+        height = height_input.text().strip()
+        blood_type = blood_type_combo.currentText()
 
-        if not name or not species or not breed or not color or not birthdate or not age:
+        if not all([name, species, breed, color, age, weight, height]):
             show_message(pets_edit_widget, "All fields are required!", QMessageBox.Warning)
             return
 
         if not age.isdigit():
             show_message(pets_edit_widget, "Age must be a valid integer!", QMessageBox.Warning)
+            return
+
+        try:
+            weight_float = float(weight)
+            if weight_float <= 0:
+                show_message(pets_edit_widget, "Weight must be greater than 0!", QMessageBox.Warning)
+                return
+        except ValueError:
+            show_message(pets_edit_widget, "Weight must be a valid number!", QMessageBox.Warning)
+            return
+
+        try:
+            height_float = float(height)
+            if height_float <= 0:
+                show_message(pets_edit_widget, "Height must be greater than 0!", QMessageBox.Warning)
+                return
+        except ValueError:
+            show_message(pets_edit_widget, "Height must be a valid number!", QMessageBox.Warning)
             return
 
         age = int(age)
@@ -955,23 +1325,21 @@ def get_client_widget(main_window):
 
             if mode == "add":
                 db.cursor.execute("""
-                    INSERT INTO pets (name, gender, species, breed, color, birthdate, age, photo_path, client_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (name, gender, species, breed, color, birthdate, age, photo_path, client_id))
-                print("🖼️ Photo path being saved:", photo_path)
+                    INSERT INTO pets (name, gender, species, breed, color, birthdate, age, weight, height, blood_type, photo_path, client_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (name, gender, species, breed, color, birthdate, age, weight_float, height_float, blood_type, photo_path, client_id))
                 db.conn.commit()
                 show_message(pets_edit_widget, "New pet added successfully!")
             elif mode == "edit":
                 current_pet_name = pet_info_widget.property("pets")[pet_info_widget.property("current_index")][0]
                 db.cursor.execute("""
                     UPDATE pets 
-                    SET name = ?, gender = ?, species = ?, breed = ?, color = ?, birthdate = ?, age = ?, photo_path = ?
+                    SET name = ?, gender = ?, species = ?, breed = ?, color = ?, birthdate = ?, age = ?, weight = ?, height = ?, blood_type = ?, photo_path = ?
                     WHERE name = ? AND client_id = ?
-                """, (name, gender, species, breed, color, birthdate, age, photo_path, current_pet_name, client_id))
+                """, (name, gender, species, breed, color, birthdate, age, weight_float, height_float, blood_type, photo_path, current_pet_name, client_id))
                 db.conn.commit()
                 show_message(pets_edit_widget, "Pet updated successfully!")
 
-            # ✅ Update pet info display after save
             update_pet_info(client_email)
             pet_info_widget.setProperty("current_index", 0)
             client_info_stack.setCurrentIndex(0)

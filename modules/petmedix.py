@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QTextEdit, QLabel, QHeaderView, QHBoxLayout, QVBoxLayout, QPushButton, QFrame, QLineEdit, QTableWidget, QTableWidgetItem, QAbstractItemView, QScrollBar, QHeaderView
+from PySide6.QtWidgets import QWidget, QTextEdit, QLabel, QHeaderView, QHBoxLayout, QVBoxLayout, QPushButton, QFrame, QLineEdit, QTableWidget, QTableWidgetItem, QAbstractItemView, QScrollBar, QHeaderView, QScrollArea
 from PySide6.QtGui import QPixmap, QIcon
 from PySide6.QtCore import Qt, QTimer
 from modules.home import get_home_widget
@@ -7,6 +7,7 @@ from modules.report import get_report_widget
 from modules.appointment import get_appointment_widget
 from modules.billing import update_billing_widget
 from modules.setting import get_setting_widget
+from modules.database import Database
 
 class PetMedix(QWidget):
     def __init__(self, user_id, role, last_name):
@@ -226,6 +227,34 @@ class PetMedix(QWidget):
         self.clear_content()  
         self.add_search_bar()
 
+        # Create scroll area
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: white;
+            }
+            QScrollBar:vertical {
+                border: none;
+                background: #f0f0f0;
+                width: 10px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: #c0c0c0;
+                min-height: 20px;
+                border-radius: 5px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: none;
+            }
+        """)
+
+        # Create the main widget that will be scrollable
         records_space = QWidget()
         main_layout = QVBoxLayout()  # Main layout for the entire content
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -321,6 +350,8 @@ class PetMedix(QWidget):
             form_layout.setContentsMargins(5, 5, 5, 5)
             form_layout.setSpacing(3)  # Reduced spacing between fields
             
+            field_widgets = {}  # Dictionary to store field widgets
+            
             for field in fields:
                 field_layout = QVBoxLayout()
                 field_layout.setSpacing(0)
@@ -334,6 +365,15 @@ class PetMedix(QWidget):
                     padding: 0;
                 """)
                 
+                value = QLabel("")  # Empty label for the value
+                value.setStyleSheet("""
+                    font-family: Arial;
+                    font-size: 11px;
+                    color: #000;
+                    margin: 0;
+                    padding: 0;
+                """)
+                
                 line = QFrame()
                 line.setFrameShape(QFrame.HLine)
                 line.setFrameShadow(QFrame.Sunken)
@@ -341,21 +381,24 @@ class PetMedix(QWidget):
                 line.setFixedHeight(1)  # Thinner line
                 
                 field_layout.addWidget(label)
+                field_layout.addWidget(value)
                 field_layout.addWidget(line)
                 form_layout.addLayout(field_layout)
+                
+                field_widgets[field] = value  # Store the value widget
             
             layout.addWidget(form_widget)
-            return form_widget
+            return field_widgets
         
         # Add fields to each section
         vet_fields = ["CLINIC", "ADDRESS", "CONTACT NUMBER", "EMAIL ADDRESS"]
-        create_form_fields(vet_layout, vet_fields)
+        vet_widgets = create_form_fields(vet_layout, vet_fields)
         
         pet_fields = ["NAME", "AGE", "GENDER", "SPECIES", "BREED", "COLOR", "WEIGHT", "HEIGHT", "BLOOD TYPE"]
-        create_form_fields(pet_layout, pet_fields)
+        pet_widgets = create_form_fields(pet_layout, pet_fields)
         
         owner_fields = ["NAME", "ADDRESS", "CONTACT NUMBER", "EMAIL ADDRESS"]
-        create_form_fields(owner_layout, owner_fields)
+        owner_widgets = create_form_fields(owner_layout, owner_fields)
         
         # Notes section
         notes_widget = QTextEdit()
@@ -480,6 +523,7 @@ class PetMedix(QWidget):
             }
         """)
         back_btn.setFixedSize(90, 30)
+        back_btn.clicked.connect(self.show_client_content)
         
         button_layout.addWidget(back_btn)
         button_layout.addStretch()
@@ -494,51 +538,99 @@ class PetMedix(QWidget):
         
         # Set the layout for the records space
         records_space.setLayout(main_layout)
-        self.content_layout.addWidget(records_space)
         
-        # EDIT AND DOWNLOAD BUTTONS - Fixed approach for PySide6
-        # Create buttons directly on the parent widget instead of a separate container
-        edit_btn = QPushButton(records_space)
-        edit_btn.setToolTip("Edit")
-        edit_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #9FE7EF;
-                border: none;
-                padding: 5px;
-                min-width: 40px;
-                min-height: 40px;
-            }
-        """)
-        # Use setText with an icon character if icons aren't loading
-        edit_btn.setText("✏️")  # Unicode edit icon as fallback
+        # Set the records space as the scroll area's widget
+        scroll_area.setWidget(records_space)
         
-        download_btn = QPushButton(records_space)
-        download_btn.setToolTip("Download")
-        download_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #F89794;
-                border: none;
-                padding: 5px;
-                min-width: 40px;
-                min-height: 40px;
-            }
-        """)
-        # Use setText with an icon character if icons aren't loading
-        download_btn.setText("⬇️")  # Unicode download icon as fallback
+        # Load data from database
+        db = Database()
+        try:
+            # Load clinic information
+            clinic_info = db.get_clinic_info()
+            if clinic_info:
+                vet_widgets["CLINIC"].setText(clinic_info["name"])
+                vet_widgets["ADDRESS"].setText(clinic_info["address"])
+                vet_widgets["CONTACT NUMBER"].setText(clinic_info["contact_number"])
+                vet_widgets["EMAIL ADDRESS"].setText(clinic_info["email"])
+            
+            # Load pet and owner information
+            if hasattr(self, 'selected_pet_name'):
+                db.cursor.execute("""
+                    SELECT 
+                        p.name, p.age, p.gender, p.species, p.breed, p.color,
+                        c.name, c.address, c.contact_number, c.email,
+                        c.client_id
+                    FROM pets p
+                    JOIN clients c ON p.client_id = c.client_id
+                    WHERE p.name = ?
+                """, (self.selected_pet_name,))
+                
+                result = db.cursor.fetchone()
+                if result:
+                    # Set pet information
+                    pet_widgets["NAME"].setText(result[0])
+                    pet_widgets["AGE"].setText(str(result[1]))
+                    pet_widgets["GENDER"].setText(result[2])
+                    pet_widgets["SPECIES"].setText(result[3])
+                    pet_widgets["BREED"].setText(result[4])
+                    pet_widgets["COLOR"].setText(result[5])
+                    
+                    # Set owner information
+                    owner_widgets["NAME"].setText(result[6])
+                    owner_widgets["ADDRESS"].setText(result[7])
+                    owner_widgets["CONTACT NUMBER"].setText(result[8])
+                    owner_widgets["EMAIL ADDRESS"].setText(result[9])
+                    
+                    # Store client_id for future reference
+                    self.selected_client_id = result[10]
+                    
+                    # Load medical records
+                    db.cursor.execute("""
+                        SELECT 
+                            DATE_FORMAT(date, '%d/%m/%Y') as date,
+                            type,
+                            veterinarian,
+                            reason,
+                            diagnosis
+                        FROM medical_records
+                        WHERE pet_id = (SELECT pet_id FROM pets WHERE name = ?)
+                        ORDER BY date DESC
+                    """, (self.selected_pet_name,))
+                    
+                    records = db.cursor.fetchall()
+                    records_table.setRowCount(0)
+                    
+                    for row, record in enumerate(records):
+                        records_table.insertRow(row)
+                        for col, value in enumerate(record):
+                            item = QTableWidgetItem(str(value) if value else "")
+                            records_table.setItem(row, col, item)
+                    
+                    # Load past illnesses and medical history
+                    past_illnesses_text = ""
+                    medical_history_text = ""
+                    
+                    for record in records:
+                        if record[1] == "Consultation":  # Type
+                            medical_history_text += f"Date: {record[0]}\n"
+                            medical_history_text += f"Reason: {record[3]}\n"
+                            medical_history_text += f"Diagnosis: {record[4]}\n"
+                            medical_history_text += f"Veterinarian: {record[2]}\n\n"
+                        elif record[1] in ["Deworming", "Vaccination"]:
+                            past_illnesses_text += f"Date: {record[0]}\n"
+                            past_illnesses_text += f"Type: {record[1]}\n"
+                            past_illnesses_text += f"Veterinarian: {record[2]}\n\n"
+                    
+                    past_illnesses_content.setText(past_illnesses_text)
+                    medical_history_content.setText(medical_history_text)
+            
+        except Exception as e:
+            print(f"Error loading pet records: {e}")
+        finally:
+            db.close_connection()
         
-        # Set fixed size for buttons
-        edit_btn.setFixedSize(40, 40)
-        download_btn.setFixedSize(40, 40)
-        
-        # Position the buttons
-        def position_buttons():
-            # Get the position relative to the parent widget
-            x_position = records_space.width() - 45  # 5px from right edge
-            edit_btn.move(x_position, 220)
-            download_btn.move(x_position, 260)  # Below edit button
-        
-        # Use QTimer to position buttons after layout is set
-        QTimer.singleShot(100, position_buttons)
+        # Add the scroll area to the content layout instead of records_space
+        self.content_layout.addWidget(scroll_area)
 
     def position_side_buttons(self, buttons_widget, parent_widget):
         """Position the side buttons at the right edge of the parent widget"""
@@ -550,6 +642,10 @@ class PetMedix(QWidget):
         self.add_search_bar()
         report_widget = get_report_widget()
         self.content_layout.addWidget(report_widget)
+        
+        # Connect the search bar to the report filtering function
+        if hasattr(report_widget, 'filter_tables'):
+            self.search_bar.textChanged.connect(report_widget.filter_tables)
     
     # -- APPOINTMENT TAB -- #   
     def show_appointments_content(self):

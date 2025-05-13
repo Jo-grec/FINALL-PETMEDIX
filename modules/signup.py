@@ -2,14 +2,14 @@ from PySide6.QtWidgets import QWidget, QMainWindow, QLabel, QLineEdit, QPushButt
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap, QIcon
 from modules.database import Database  # Import the Database class
-from modules.utils import create_styled_message_box, show_message
+from modules.utils import create_styled_message_box
 import re
 
 class SignUpWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+
         self.setWindowTitle("PetMedix - Sign Up")
-        self.setup_ui()
 
         with open("styles/login.qss", "r") as file:
             self.setStyleSheet(file.read())
@@ -18,16 +18,19 @@ class SignUpWindow(QMainWindow):
         self.setCentralWidget(self.main_widget)
 
         layout = QVBoxLayout()
-        layout.setContentsMargins(200, 130, 200, 130)
+        layout.setContentsMargins(200, 130, 200, 100)
         layout.setSpacing(10)
 
         header_layout = QVBoxLayout()
-        header_layout.setSpacing(5)
+        header_layout.setSpacing(0)
         header_layout.setObjectName("signupHeader")
+        header_layout.setContentsMargins(0, 0, 0, 0)
 
         self.title_label = QLabel("Get Started with PetMedix!", self)
         self.title_label.setObjectName("TitleLabel")
         self.title_label.setAlignment(Qt.AlignCenter)
+        self.title_label.setContentsMargins(0, 0, 0, 0)
+        self.title_label.setStyleSheet("margin-bottom: 0px;")
 
         login_prompt_layout = QHBoxLayout()
         login_prompt_layout.setAlignment(Qt.AlignCenter)
@@ -43,13 +46,13 @@ class SignUpWindow(QMainWindow):
         login_prompt_layout.addWidget(self.have_account_label)
         login_prompt_layout.addWidget(self.login_button)
         login_prompt_layout.setSpacing(5)
-        login_prompt_layout.setContentsMargins(30, 0, 0, 0)
+        login_prompt_layout.setContentsMargins(0, 0, 0, 0)
 
         header_layout.addWidget(self.title_label)
         header_layout.addLayout(login_prompt_layout)
 
         grid_layout = QGridLayout()
-        grid_layout.setVerticalSpacing(20)
+        grid_layout.setVerticalSpacing(15)
 
         self.first_name_input = QLineEdit()
         self.first_name_input.setPlaceholderText("First Name")
@@ -73,7 +76,7 @@ class SignUpWindow(QMainWindow):
         password_container = QWidget()
         password_container.setObjectName("SignupPasswordContainer")
         password_layout = QHBoxLayout(password_container)
-        password_layout.setContentsMargins(0, 0, 15, 0)
+        password_layout.setContentsMargins(0, 0, 20, 0)
         password_layout.setSpacing(10)
 
         eye_closed_pixmap = QPixmap("assets/visible 1.png")
@@ -83,11 +86,21 @@ class SignUpWindow(QMainWindow):
         self.password_input.setPlaceholderText("Enter your password")
         self.password_input.setEchoMode(QLineEdit.Password)
 
+
+        self.questionOne_input = QLineEdit()
+        self.questionOne_input.setPlaceholderText("Security Question #1: What is your mother's maiden name?")
+
+        self.questionTwo_input = QLineEdit()
+        self.questionTwo_input.setPlaceholderText("Security Question #2: What was the name of your first pet?")
+
+        self.questionThree_input = QLineEdit()
+        self.questionThree_input.setPlaceholderText("Security Question #3: What is the name of the street you grew up on?")
+
         #toggle visibility
         eye_icon_label = QLabel()
-        eye_icon_label.setFixedSize(24, 24)
+        eye_icon_label.setFixedSize(15, 15)
         if not eye_closed_pixmap.isNull():
-            eye_icon_label.setPixmap(eye_closed_pixmap.scaled(24, 24, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            eye_icon_label.setPixmap(eye_closed_pixmap.scaled(15, 15, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         else:
             eye_icon_label.setText("👁️")
         eye_icon_label.setStyleSheet("background: transparent;")
@@ -101,13 +114,13 @@ class SignUpWindow(QMainWindow):
             if self.password_input.echoMode() == QLineEdit.Password:
                 self.password_input.setEchoMode(QLineEdit.Normal)
                 if not eye_open_pixmap.isNull():
-                    eye_icon_label.setPixmap(eye_open_pixmap.scaled(24, 24, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                    eye_icon_label.setPixmap(eye_open_pixmap.scaled(15, 15, Qt.KeepAspectRatio, Qt.SmoothTransformation))
                 else:
                     eye_icon_label.setText("👁️‍🗨️")
             else:
                 self.password_input.setEchoMode(QLineEdit.Password)
                 if not eye_closed_pixmap.isNull():
-                    eye_icon_label.setPixmap(eye_closed_pixmap.scaled(24, 24, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                    eye_icon_label.setPixmap(eye_closed_pixmap.scaled(15, 15, Qt.KeepAspectRatio, Qt.SmoothTransformation))
                 else:
                     eye_icon_label.setText("👁️")
 
@@ -117,6 +130,9 @@ class SignUpWindow(QMainWindow):
         self.first_name_input.setObjectName("FormInput")
         self.last_name_input.setObjectName("FormInput")
         self.email_input.setObjectName("FormInput")
+        self.questionOne_input.setObjectName("FormInput")
+        self.questionTwo_input.setObjectName("FormInput")
+        self.questionThree_input.setObjectName("FormInput")
         self.password_input.setObjectName("PasswordFormInput")
 
         grid_layout.addWidget(self.first_name_input, 0, 0)
@@ -124,6 +140,9 @@ class SignUpWindow(QMainWindow):
         grid_layout.addWidget(self.email_input, 1, 0)
         grid_layout.addWidget(self.role_input, 1, 1)
         grid_layout.addWidget(password_container, 2, 0, 1, 2)
+        grid_layout.addWidget(self.questionOne_input, 3, 0, 1, 2)
+        grid_layout.addWidget(self.questionTwo_input, 4, 0, 1, 2)
+        grid_layout.addWidget(self.questionThree_input, 5, 0, 1, 2)
 
         self.signup_button = QPushButton("Create Account")
         self.signup_button.setObjectName("create")
@@ -135,9 +154,9 @@ class SignUpWindow(QMainWindow):
         button_layout.addWidget(self.signup_button)
 
         layout.addLayout(header_layout)  # Add the header layout instead of separate widgets
-        layout.addSpacing(30)  # Space between header and form
+        layout.addSpacing(0)  # Space between header and form
         layout.addLayout(grid_layout)
-        layout.addSpacing(20)
+        layout.addSpacing(10)
         layout.addLayout(button_layout)
 
         self.main_widget.setLayout(layout)
@@ -158,6 +177,11 @@ class SignUpWindow(QMainWindow):
         email = self.email_input.text().strip()
         role = self.role_input.currentText()  # Use self.role_input instead of self.role_dropdown
         password = self.password_input.text().strip()
+        
+        # Get security question answers
+        answer_one = self.questionOne_input.text().strip()
+        answer_two = self.questionTwo_input.text().strip()
+        answer_three = self.questionThree_input.text().strip()
 
         if not (first_name and last_name and email and password) or role == "Select Role":
             message_box = create_styled_message_box(
@@ -169,11 +193,17 @@ class SignUpWindow(QMainWindow):
             return
 
         if not email.endswith("@petmedix.med"):
-            show_message(self, "Email must end with @petmedix.med", QMessageBox.Warning)
+            QMessageBox.warning(self, "Invalid Email", "Email must end with @petmedix.med")
             return
 
         if not re.fullmatch(r"[A-Za-z0-9]{6,20}", password):
-            show_message(self, "Password must be alphanumeric and 6-20 characters long.", QMessageBox.Warning)
+            QMessageBox.warning(self, "Invalid Password",
+                "Password must be alphanumeric and 6-20 characters long.")
+            return
+
+        if not (answer_one and answer_two and answer_three):
+            QMessageBox.warning(self, "Security Questions Required",
+                "Please answer all security questions.")
             return
 
         full_name = f"{first_name} {last_name}"
@@ -182,24 +212,36 @@ class SignUpWindow(QMainWindow):
         try:
             # Check if user already exists
             if db.user_exists(email):
-                show_message(self, "An account with this email already exists.", QMessageBox.Warning)
+                QMessageBox.warning(self, "Account Exists", "An account with this email already exists.")
                 return
 
             # Create user and retrieve the generated USER_ID
             user_id = db.create_user(first_name, last_name, email, password, role)
             if user_id:
-                show_message(self, f"Account created successfully! Your username is: {user_id}\n\nYour account is pending verification by an administrator. You will be notified once your account is verified.")
+                # Save security questions
+                if db.save_security_questions(
+                    user_id,
+                    "What is your mother's maiden name?",
+                    answer_one,
+                    "What was the name of your first pet?",
+                    answer_two,
+                    "What is the name of the street you grew up on?",
+                    answer_three
+                ):
+                    QMessageBox.information(self, "Success", f"Account created successfully! Your username is: {user_id}")
 
-                redirect_label = QLabel("Redirecting to login page...", self)
-                redirect_label.setAlignment(Qt.AlignCenter)
-                redirect_label.setStyleSheet("font-size: 16px; color: green;")
-                self.layout().addWidget(redirect_label)
+                    redirect_label = QLabel("Redirecting to login page...", self)
+                    redirect_label.setAlignment(Qt.AlignCenter)
+                    redirect_label.setStyleSheet("font-size: 16px; color: green;")
+                    self.layout().addWidget(redirect_label)
 
-                QTimer.singleShot(2000, self.redirect_to_login)
+                    QTimer.singleShot(2000, self.redirect_to_login)
+                else:
+                    QMessageBox.critical(self, "Error", "Failed to save security questions. Please try again.")
             else:
-                show_message(self, "Failed to generate a username. Please try again.", QMessageBox.Critical)
+                QMessageBox.critical(self, "Error", "Failed to generate a username. Please try again.")
         except Exception as e:
-            show_message(self, f"Failed to create account: {e}", QMessageBox.Critical)
+            QMessageBox.critical(self, "Error", f"Failed to create account: {e}")
         finally:
             db.close_connection()
 

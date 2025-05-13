@@ -211,6 +211,32 @@ class Database:
             except mariadb.Error as e:
                 print(f"❌ Error checking/adding 'photo_path' column: {e}")
             
+            # Security Questions Table
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS security_questions (
+                question_id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id VARCHAR(10) NOT NULL,
+                question_one VARCHAR(255) NOT NULL,
+                answer_one VARCHAR(255) NOT NULL,
+                question_two VARCHAR(255) NOT NULL,
+                answer_two VARCHAR(255) NOT NULL,
+                question_three VARCHAR(255) NOT NULL,
+                answer_three VARCHAR(255) NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Password History Table
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS password_history (
+                history_id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id VARCHAR(10) NOT NULL,
+                hashed_password VARCHAR(64) NOT NULL,
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            );
+            """)
+            
             # Ensure the billing table has all required columns
             self._ensure_billing_columns()
             
@@ -617,6 +643,56 @@ class Database:
             print(f"❌ Error saving user profile: {e}")
             return False
 
+    def save_security_questions(self, user_id, question_one, answer_one, question_two, answer_two, question_three, answer_three):
+        """Save security questions and answers for a user."""
+        if not self.cursor:
+            print("❌ Database not connected.")
+            return False
+
+        try:
+            # Hash the answers for security
+            hashed_answer_one = hashlib.sha256(answer_one.lower().strip().encode()).hexdigest()
+            hashed_answer_two = hashlib.sha256(answer_two.lower().strip().encode()).hexdigest()
+            hashed_answer_three = hashlib.sha256(answer_three.lower().strip().encode()).hexdigest()
+
+            self.cursor.execute("""
+                INSERT INTO security_questions 
+                (user_id, question_one, answer_one, question_two, answer_two, question_three, answer_three)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (user_id, question_one, hashed_answer_one, question_two, hashed_answer_two, question_three, hashed_answer_three))
+            
+            self.conn.commit()
+            print("✅ Security questions saved successfully.")
+            return True
+        except mariadb.Error as e:
+            print(f"❌ Error saving security questions: {e}")
+            return False
+
+    def verify_security_answers(self, user_id, answer_one, answer_two, answer_three):
+        """Verify security answers for password reset."""
+        if not self.cursor:
+            print("❌ Database not connected.")
+            return False
+
+        try:
+            # Hash the provided answers
+            hashed_answer_one = hashlib.sha256(answer_one.lower().strip().encode()).hexdigest()
+            hashed_answer_two = hashlib.sha256(answer_two.lower().strip().encode()).hexdigest()
+            hashed_answer_three = hashlib.sha256(answer_three.lower().strip().encode()).hexdigest()
+
+            self.cursor.execute("""
+                SELECT 1 FROM security_questions 
+                WHERE user_id = ? 
+                AND answer_one = ? 
+                AND answer_two = ? 
+                AND answer_three = ?
+            """, (user_id, hashed_answer_one, hashed_answer_two, hashed_answer_three))
+            
+            return self.cursor.fetchone() is not None
+        except mariadb.Error as e:
+            print(f"❌ Error verifying security answers: {e}")
+            return False
+
     def save_clinic_info(self, name, address, contact_number, email, employees_count, logo_path=None):
         try:
             self.cursor.execute("SELECT clinic_id FROM clinic_info LIMIT 1")
@@ -725,3 +801,83 @@ class Database:
         except Exception as e:
             print(f"❌ Error fetching medical records: {e}")
             return []
+
+    def check_password_history(self, user_id, new_password):
+        """Check if the new password has been used before."""
+        if not self.cursor:
+            print("❌ Database not connected.")
+            return False
+
+        try:
+            hashed_password = hashlib.sha256(new_password.encode()).hexdigest()
+            
+            # Check current password
+            self.cursor.execute("""
+                SELECT 1 FROM users 
+                WHERE user_id = ? AND hashed_password = ?
+            """, (user_id, hashed_password))
+            
+            if self.cursor.fetchone():
+                return True  # Password is the same as current password
+            
+            # Check password history (last 3 passwords)
+            self.cursor.execute("""
+                SELECT 1 FROM password_history 
+                WHERE user_id = ? AND hashed_password = ?
+                ORDER BY created_date DESC LIMIT 3
+            """, (user_id, hashed_password))
+            
+            return self.cursor.fetchone() is not None
+        except mariadb.Error as e:
+            print(f"❌ Error checking password history: {e}")
+            return False
+
+    def add_to_password_history(self, user_id, hashed_password):
+        """Add a password to the history."""
+        if not self.cursor:
+            print("❌ Database not connected.")
+            return False
+
+        try:
+            self.cursor.execute("""
+                INSERT INTO password_history (user_id, hashed_password)
+                VALUES (?, ?)
+            """, (user_id, hashed_password))
+            self.conn.commit()
+            return True
+        except mariadb.Error as e:
+            print(f"❌ Error adding to password history: {e}")
+            return False
+
+    def update_password(self, user_id, new_password):
+        """Update user password and add to history."""
+        if not self.cursor:
+            print("❌ Database not connected.")
+            return False
+
+        try:
+            hashed_password = hashlib.sha256(new_password.encode()).hexdigest()
+            
+            # Get current password before updating
+            self.cursor.execute("""
+                SELECT hashed_password FROM users 
+                WHERE user_id = ?
+            """, (user_id,))
+            current_password = self.cursor.fetchone()
+            
+            if current_password:
+                # Add current password to history
+                self.add_to_password_history(user_id, current_password[0])
+            
+            # Update password
+            self.cursor.execute("""
+                UPDATE users 
+                SET hashed_password = ? 
+                WHERE user_id = ?
+            """, (hashed_password, user_id))
+            
+            self.conn.commit()
+            return True
+        except mariadb.Error as e:
+            print(f"❌ Error updating password: {e}")
+            return False
