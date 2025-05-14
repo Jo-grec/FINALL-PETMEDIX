@@ -78,9 +78,18 @@ class InvoiceFormDialog(QDialog):
         
         reason_label = QLabel("REASON(S) FOR VISIT:")
         reason_label.setStyleSheet("font-size: 10px;")
-        reason_field = QLineEdit()
-        reason_field.setFixedHeight(20)
-        details_form.addRow(reason_label, reason_field)
+        self.reason_dropdown = QComboBox()
+        self.reason_dropdown.setFixedHeight(20)
+        self.reason_dropdown.addItems([
+            "-- Select Treatment Type --",
+            "Consultation",
+            "Deworming",
+            "Vaccination",
+            "Surgery",
+            "Grooming",
+            "Other Treatments"
+        ])
+        details_form.addRow(reason_label, self.reason_dropdown)
         
         details_container.setLayout(details_form)
         left_column.addWidget(details_container)
@@ -235,8 +244,15 @@ class InvoiceFormDialog(QDialog):
         table_layout = QVBoxLayout(table_widget)
         table_layout.setContentsMargins(0, 0, 0, 0)
         
-        self.services_table = QTableWidget(8, 4)
-        self.services_table.setHorizontalHeaderLabels(["SERVICE(S) RENDERED & CHARGES", "QUANTITY", "UNIT PRICE", "TOTAL"])
+        self.services_table = QTableWidget(8, 6)  # 6 columns now
+        self.services_table.setHorizontalHeaderLabels([
+            "",  # For the checkbox
+            "SERVICE(S) RENDERED & CHARGES",
+            "DATE",
+            "QUANTITY",
+            "UNIT PRICE",
+            "TOTAL"
+        ])
         self.services_table.horizontalHeader().setStyleSheet("QHeaderView::section { background-color: #CFDEF3; font-weight: bold; font-size: 10px; }")
         self.services_table.verticalHeader().setVisible(False)
         self.services_table.setShowGrid(True)
@@ -247,20 +263,20 @@ class InvoiceFormDialog(QDialog):
         
         # Set numeric-only delegate for Quantity and Unit Price columns
         numeric_delegate = NumericDelegate()
-        self.services_table.setItemDelegateForColumn(1, numeric_delegate)
-        self.services_table.setItemDelegateForColumn(2, numeric_delegate)
+        self.services_table.setItemDelegateForColumn(3, numeric_delegate)  # Quantity
+        self.services_table.setItemDelegateForColumn(4, numeric_delegate)  # Unit Price
 
         # Connect the itemChanged signal to auto-update total
         self.services_table.itemChanged.connect(self.update_total)
 
-        
         # Calculate proportional column widths
         table_width = 450
-        # Approximate available width
-        self.services_table.setColumnWidth(0, int(table_width * 0.40))
-        self.services_table.setColumnWidth(1, int(table_width * 0.15))
-        self.services_table.setColumnWidth(2, int(table_width * 0.20))
-        self.services_table.setColumnWidth(3, int(table_width * 0.25))
+        self.services_table.setColumnWidth(0, 30)  # Checkbox
+        self.services_table.setColumnWidth(1, int(table_width * 0.35))  # Service description
+        self.services_table.setColumnWidth(2, int(table_width * 0.15))  # Date
+        self.services_table.setColumnWidth(3, int(table_width * 0.10))  # Quantity
+        self.services_table.setColumnWidth(4, int(table_width * 0.15))  # Unit price
+        self.services_table.setColumnWidth(5, int(table_width * 0.15))  # Total
         
         self.services_table.setMaximumHeight(250)  # Limit table height
         table_layout.addWidget(self.services_table)
@@ -476,6 +492,9 @@ class InvoiceFormDialog(QDialog):
         # Set current date
         self.date_field.setText(datetime.now().strftime("%Y-%m-%d"))
         
+        # Connect reason dropdown to refresh services
+        self.reason_dropdown.currentTextChanged.connect(self.refresh_services)
+        
     def _create_section(self, title):
         container = QGroupBox(title)
         container.setStyleSheet("""
@@ -501,13 +520,13 @@ class InvoiceFormDialog(QDialog):
         row = item.row()
         col = item.column()
 
-        if col not in [1, 2]:  # Only process quantity and unit price columns
+        if col not in [3, 4]:  # Only process quantity and unit price columns
             return
 
         try:
             # Get quantity and unit price values
-            quantity_item = self.services_table.item(row, 1)
-            unit_price_item = self.services_table.item(row, 2)
+            quantity_item = self.services_table.item(row, 3)
+            unit_price_item = self.services_table.item(row, 4)
 
             quantity = float(quantity_item.text()) if quantity_item and quantity_item.text() else 0.0
             unit_price = float(unit_price_item.text()) if unit_price_item and unit_price_item.text() else 0.0
@@ -518,12 +537,12 @@ class InvoiceFormDialog(QDialog):
             # Update row total
             total_item = QTableWidgetItem(f"{total:.2f}")
             total_item.setFlags(total_item.flags() & ~Qt.ItemIsEditable)  # Make total read-only
-            self.services_table.setItem(row, 3, total_item)
+            self.services_table.setItem(row, 5, total_item)
 
             # Calculate and update subtotal
             subtotal = 0.0
             for r in range(self.services_table.rowCount()):
-                total_item = self.services_table.item(r, 3)
+                total_item = self.services_table.item(r, 5)
                 if total_item and total_item.text():
                     subtotal += float(total_item.text())
 
@@ -548,161 +567,33 @@ class InvoiceFormDialog(QDialog):
             pass  # Ignore invalid input
 
     def get_invoice_data(self):
-        """Get all the data from the invoice form."""
-        # Find all form fields with their labels
-        all_fields = {}
-        
-        # Find all QLineEdit objects in the dialog
-        for line_edit in self.findChildren(QLineEdit):
-            all_fields[line_edit.objectName()] = line_edit.text()
-        
-        # Get the date - look for date field or field containing 'date'
-        date_field = self.findChild(QLineEdit, "date_field")
-        if not date_field:
-            # Try alternative names
-            for name in all_fields.keys():
-                if 'date' in name.lower():
-                    date_field = self.findChild(QLineEdit, name)
-                    break
-        date_str = date_field.text() if date_field else datetime.now().strftime("%Y-%m-%d")
-        
-        # Get the invoice number - look for invoice_no or field containing 'invoice'
-        invoice_field = self.findChild(QLineEdit, "invoice_no_field")
-        if not invoice_field:
-            for name in all_fields.keys():
-                if 'invoice' in name.lower():
-                    invoice_field = self.findChild(QLineEdit, name)
-                    break
-        invoice_no = invoice_field.text() if invoice_field else ""
-        
-        veterinarian = self.vet_dropdown.currentText() if self.vet_dropdown.currentIndex() > 0 else ""
-
-        # Get the reason for visit
-        reason_field = self.findChild(QLineEdit, "reason_field")
-        if not reason_field:
-            for name in all_fields.keys():
-                if 'reason' in name.lower():
-                    reason_field = self.findChild(QLineEdit, name)
-                    break
-        reason = reason_field.text() if reason_field else ""
-        
-        # Get client name
-        client_field = self.findChild(QLineEdit, "client_field")
-        if not client_field:
-            for name in all_fields.keys():
-                if 'client' in name.lower():
-                    client_field = self.findChild(QLineEdit, name)
-                    break
-        client_name = client_field.text() if client_field else ""
-        
-        # Get pet name
-        pet_name_field = self.findChild(QLineEdit, "pet_name_field")
-        if not pet_name_field:
-            for name in all_fields.keys():
-                if 'pet' in name.lower() and 'name' in name.lower():
-                    pet_name_field = self.findChild(QLineEdit, name)
-                    break
-        pet_name = pet_name_field.text() if pet_name_field else ""
-        
-        # Get notes directly using the class instance reference
-        notes = self.notes_edit.toPlainText() if hasattr(self, 'notes_edit') and self.notes_edit else ""
-                
-        # Get payment information
-        subtotal_field = self.findChild(QLineEdit, "subtotal_field")
-        if not subtotal_field:
-            for name in all_fields.keys():
-                if 'subtotal' in name.lower():
-                    subtotal_field = self.findChild(QLineEdit, name)
-                    break
-        subtotal_text = subtotal_field.text() if subtotal_field else "0"
-        subtotal = float(subtotal_text) if subtotal_text and subtotal_text.strip() else 0
-        
-        vat_field = self.findChild(QLineEdit, "vat_field")
-        if not vat_field:
-            for name in all_fields.keys():
-                if 'vat' in name.lower():
-                    vat_field = self.findChild(QLineEdit, name)
-                    break
-        vat_text = vat_field.text() if vat_field else "0"
-        vat = float(vat_text) if vat_text and vat_text.strip() else 0
-        
-        # Critical field: total amount - be more thorough in finding it
-        total_field = self.findChild(QLineEdit, "total_amount_field")
-        if not total_field:
-            for name in all_fields.keys():
-                if ('total' in name.lower() and 'amount' in name.lower()) or 'total_' in name.lower():
-                    total_field = self.findChild(QLineEdit, name)
-                    break
-        
-        # If still not found, look for any field with "total" in the name
-        if not total_field:
-            for name in all_fields.keys():
-                if 'total' in name.lower():
-                    total_field = self.findChild(QLineEdit, name)
-                    break
-        
-        # If we have a total field, get its value and convert to float
-        total_text = total_field.text() if total_field else "0"
-        try:
-            # Remove any currency symbols or commas
-            cleaned_total = total_text.replace('₱', '').replace(',', '').strip()
-            total_amount = float(cleaned_total) if cleaned_total else 0
-        except ValueError:
-            total_amount = 0
-        
-        # If the total is still 0, try calculating it from subtotal + VAT
-        if total_amount == 0 and (subtotal > 0 or vat > 0):
-            total_amount = subtotal + vat
-        
-        # Get payment status
-        payment_status = "Unpaid"  # Default
-        for radio in self.findChildren(QRadioButton):
-            if radio.isChecked():
-                if "paid" in radio.text().lower() and "un" not in radio.text().lower():
-                    payment_status = "Paid"
-                elif "partial" in radio.text().lower():
-                    payment_status = "Partial"
-        
-        # Get payment method
-        payment_method = None
-        checked_button = self.payment_method_group.checkedButton()
-        if checked_button:
-            payment_method = checked_button.text()
-
-        # Get received by
-        received_by_field = self.findChild(QLineEdit, "received_by_field")
-        if not received_by_field:
-            for name in all_fields.keys():
-                if 'received' in name.lower():
-                    received_by_field = self.findChild(QLineEdit, name)
-                    break
-        received_by = received_by_field.text() if received_by_field else ""
-        
-        # For client name, get from the dropdown instead
-        client_index = self.client_dropdown.currentIndex()
-        client_name = self.client_dropdown.currentText() if client_index > 0 else ""
-        client_id = self.client_dropdown.itemData(client_index) if client_index > 0 else None
-        
-        # For pet name, get from the dropdown instead
-        pet_index = self.pet_dropdown.currentIndex()
-        pet_name = self.pet_dropdown.currentText() if pet_index > 0 else ""
-        pet_id = self.pet_dropdown.itemData(pet_index) if pet_index > 0 else None
-        
-        return {
-            "date_issued": date_str,
-            "invoice_no": invoice_no,
-            "veterinarian": veterinarian,
-            "reason": reason,
-            "client_name": client_name,
-            "client_id": client_id,
-            "pet_name": pet_name,
-            "pet_id": pet_id,
-            "notes": notes,
-            "total_amount": total_amount,
-            "payment_status": payment_status,
-            "payment_method": payment_method,
-            "received_by": received_by
+        """Get all form data as a dictionary."""
+        data = {
+            "client_id": self.client_dropdown.currentData(),
+            "pet_id": self.pet_dropdown.currentData(),
+            "date_issued": self.date_field.text(),
+            "reason": self.reason_dropdown.currentText(),
+            "veterinarian": self.vet_dropdown.currentText(),
+            "payment_method": self.get_selected_payment_method(),
+            "received_by": self.received_by_dropdown.currentText(),
+            "notes": self.notes_edit.toPlainText().strip(),
+            "services": []
         }
+        
+        # Get selected services
+        for row in range(self.services_table.rowCount()):
+            checkbox = self.services_table.item(row, 0)
+            if checkbox and checkbox.checkState() == Qt.Checked:
+                service = {
+                    "description": self.services_table.item(row, 1).text(),
+                    "date": self.services_table.item(row, 2).text(),
+                    "quantity": self.services_table.item(row, 3).text(),
+                    "unit_price": self.services_table.item(row, 4).text(),
+                    "total": self.services_table.item(row, 5).text()
+                }
+                data["services"].append(service)
+        
+        return data
         
     def load_clients(self):
         """Load all clients into the client dropdown."""
@@ -870,66 +761,155 @@ class InvoiceFormDialog(QDialog):
     def load_services_for_pet(self, pet_id):
         """Load services from medical reports for the selected pet."""
         try:
+            print(f"\n=== Debug: Loading services for pet_id {pet_id} ===")
             db = Database()
             cursor = db.cursor
 
-            # Fetch medical records for this pet
-            cursor.execute("""
-                SELECT 
-                    mr.date,
-                    mr.type,
-                    mr.reason,
-                    mr.diagnosis,
-                    mr.prescribed_treatment,
-                    mr.veterinarian
-                FROM medical_records mr
-                WHERE mr.pet_id = ?
-                ORDER BY mr.date DESC
-            """, (pet_id,))
-            
-            services = cursor.fetchall()
-            
             # Clear existing items in the services table
             self.services_table.setRowCount(0)
+
+            # Get the selected reason for visit
+            selected_reason = self.reason_dropdown.currentText()
+            print(f"Selected reason: {selected_reason}")
+
+            # Base query for all treatment types
+            base_query = """
+                SELECT 
+                    'Consultation' as type,
+                    date,
+                    prescribed_treatment as treatment_details,
+                    veterinarian
+                FROM consultations
+                WHERE pet_id = ?
+                UNION ALL
+                SELECT 
+                    'Deworming' as type,
+                    date,
+                    medication as treatment_details,
+                    veterinarian
+                FROM deworming
+                WHERE pet_id = ?
+                UNION ALL
+                SELECT 
+                    'Vaccination' as type,
+                    date,
+                    vaccine as treatment_details,
+                    veterinarian
+                FROM vaccinations
+                WHERE pet_id = ?
+                UNION ALL
+                SELECT 
+                    'Surgery' as type,
+                    date,
+                    surgery_type as treatment_details,
+                    veterinarian
+                FROM surgeries
+                WHERE pet_id = ?
+                UNION ALL
+                SELECT 
+                    'Grooming' as type,
+                    date,
+                    services as treatment_details,
+                    veterinarian
+                FROM grooming
+                WHERE pet_id = ?
+                UNION ALL
+                SELECT 
+                    'Other Treatments' as type,
+                    date,
+                    medication as treatment_details,
+                    veterinarian
+                FROM other_treatments
+                WHERE pet_id = ?
+            """
+
+            # If a specific reason is selected, filter by that type
+            if selected_reason and selected_reason != "-- Select Treatment Type --":
+                query = f"""
+                    SELECT * FROM (
+                        {base_query}
+                    ) AS combined_services
+                    WHERE type = ?
+                    ORDER BY date DESC
+                """
+                cursor.execute(query, (pet_id, pet_id, pet_id, pet_id, pet_id, pet_id, selected_reason))
+            else:
+                # If no specific reason selected, show all records
+                query = f"""
+                    {base_query}
+                    ORDER BY date DESC
+                """
+                cursor.execute(query, (pet_id, pet_id, pet_id, pet_id, pet_id, pet_id))
+            
+            services = cursor.fetchall()
+            print(f"Found {len(services)} services")
             
             # Add services to the table
             for row_num, service in enumerate(services):
+                print(f"\nProcessing service {row_num + 1}:")
+                print(f"Type: {service[0]}")
+                print(f"Date: {service[1]}")
+                print(f"Details: {service[2]}")
+                print(f"Vet: {service[3]}")
+                
                 self.services_table.insertRow(row_num)
                 
-                # Create service description item with type as the main description
-                service_desc = f"{service[1]}"  # Just use the type
+                # Add checkbox for selection
+                checkbox = QTableWidgetItem()
+                checkbox.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+                checkbox.setCheckState(Qt.Unchecked)
+                self.services_table.setItem(row_num, 0, checkbox)
+                
+                # Format date for display
+                try:
+                    date = datetime.strptime(str(service[1]), "%Y-%m-%d").strftime("%d/%m/%Y")
+                except:
+                    date = str(service[1])
+                
+                # Create service description with date
+                service_desc = f"{service[0]}: {service[2]}"  # Type: Treatment Details
                 service_item = QTableWidgetItem(service_desc)
                 service_item.setFlags(service_item.flags() & ~Qt.ItemIsEditable)  # Make read-only
-                self.services_table.setItem(row_num, 0, service_item)
+                self.services_table.setItem(row_num, 1, service_item)
+                
+                # Add date column
+                date_item = QTableWidgetItem(date)
+                date_item.setFlags(date_item.flags() & ~Qt.ItemIsEditable)
+                self.services_table.setItem(row_num, 2, date_item)
                 
                 # Add tooltip with full details
-                tooltip = f"Date: {service[0]}\nReason: {service[2]}\nDiagnosis: {service[3]}\nTreatment: {service[4]}\nVeterinarian: {service[5]}"
+                tooltip = f"Date: {date}\nTreatment Type: {service[0]}\nDetails: {service[2]}\nVeterinarian: {service[3]}"
                 service_item.setToolTip(tooltip)
                 
                 # Add quantity field (default to 1)
                 quantity_item = QTableWidgetItem("1")
-                self.services_table.setItem(row_num, 1, quantity_item)
+                self.services_table.setItem(row_num, 3, quantity_item)
                 
                 # Add unit price field with default price based on service type
-                default_price = self.get_default_price(service[1])  # Get default price based on service type
+                default_price = self.get_default_price(service[0])  # Get default price based on service type
                 price_item = QTableWidgetItem(f"{default_price:.2f}")
-                self.services_table.setItem(row_num, 2, price_item)
+                self.services_table.setItem(row_num, 4, price_item)
                 
                 # Add total field (will be calculated)
                 total_item = QTableWidgetItem(f"{default_price:.2f}")  # Initial total same as price
                 total_item.setFlags(total_item.flags() & ~Qt.ItemIsEditable)  # Make read-only
-                self.services_table.setItem(row_num, 3, total_item)
+                self.services_table.setItem(row_num, 5, total_item)
             
             # Set column widths
-            self.services_table.setColumnWidth(0, int(self.services_table.width() * 0.40))  # Service description
-            self.services_table.setColumnWidth(1, int(self.services_table.width() * 0.15))  # Quantity
-            self.services_table.setColumnWidth(2, int(self.services_table.width() * 0.20))  # Unit price
-            self.services_table.setColumnWidth(3, int(self.services_table.width() * 0.25))  # Total
+            self.services_table.setColumnWidth(0, 30)  # Checkbox
+            self.services_table.setColumnWidth(1, int(self.services_table.width() * 0.35))  # Service description
+            self.services_table.setColumnWidth(2, int(self.services_table.width() * 0.15))  # Date
+            self.services_table.setColumnWidth(3, int(self.services_table.width() * 0.10))  # Quantity
+            self.services_table.setColumnWidth(4, int(self.services_table.width() * 0.15))  # Unit price
+            self.services_table.setColumnWidth(5, int(self.services_table.width() * 0.15))  # Total
             
             db.close_connection()
+            print("=== Services loaded successfully ===\n")
             
         except Exception as e:
             print(f"Error loading services: {e}")
+            import traceback
+            traceback.print_exc()
             
     def get_default_price(self, service_type):
         """Get default price based on service type."""
@@ -953,6 +933,11 @@ class InvoiceFormDialog(QDialog):
                 if checkbox != sender:
                     checkbox.setChecked(False)
             
+    def refresh_services(self):
+        """Refresh services when reason for visit changes."""
+        if hasattr(self, 'pet_dropdown') and self.pet_dropdown.currentData():
+            self.load_services_for_pet(self.pet_dropdown.currentData())
+
 def open_invoice_form():
     """Open the invoice form dialog."""
     dialog = InvoiceFormDialog()
