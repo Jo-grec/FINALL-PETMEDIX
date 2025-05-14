@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QTextEdit, QLabel, QHeaderView, QHBoxLayout, QVBoxLayout, QPushButton, QFrame, QLineEdit, QTableWidget, QTableWidgetItem, QAbstractItemView, QScrollBar, QHeaderView, QScrollArea
+from PySide6.QtWidgets import QWidget, QTextEdit, QLabel, QHeaderView, QHBoxLayout, QVBoxLayout, QPushButton, QFrame, QLineEdit, QTableWidget, QTableWidgetItem, QAbstractItemView, QScrollBar, QHeaderView, QScrollArea, QMenu
 from PySide6.QtGui import QPixmap, QIcon
 from PySide6.QtCore import Qt, QTimer
 from modules.home import get_home_widget
@@ -53,6 +53,8 @@ class PetMedix(QWidget):
         self.user_icon_label.setPixmap(user_pixmap)
         self.user_icon_label.setFixedSize(40, 40)
         self.user_icon_label.setScaledContents(True)
+        self.user_icon_label.setCursor(Qt.PointingHandCursor)  # Change cursor to hand when hovering
+        self.user_icon_label.mousePressEvent = self.show_user_menu  # Connect click event
 
         # Mini layout for username + user icon
         user_layout = QHBoxLayout()
@@ -668,6 +670,40 @@ class PetMedix(QWidget):
         settings_widget = get_setting_widget(user_id=self.user_id)
         self.content_layout.addWidget(settings_widget)
         
+    def show_user_menu(self, event):
+        """Show the user menu when clicking the user icon."""
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: white;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                padding: 5px;
+            }
+            QMenu::item {
+                padding: 8px 25px 8px 20px;
+                border-radius: 3px;
+            }
+            QMenu::item:selected {
+                background-color: #f0f0f0;
+            }
+        """)
+        
+        logout_action = menu.addAction("Logout")
+        logout_action.triggered.connect(self.logout)
+        
+        # Show menu at the bottom of the user icon
+        menu.exec_(self.user_icon_label.mapToGlobal(
+            self.user_icon_label.rect().bottomLeft()
+        ))
+
+    def logout(self):
+        """Handle logout action."""
+        from modules.login import LoginWindow
+        self.close()  # Close current window
+        self.login_window = LoginWindow()  # Create new login window
+        self.login_window.showMaximized()  # Show login window in full screen
+
 if __name__ == "__main__":
         from PySide6.QtWidgets import QApplication
         import sys
