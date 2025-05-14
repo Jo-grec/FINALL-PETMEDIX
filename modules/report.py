@@ -72,7 +72,7 @@ class ReportFormDialog(QDialog):
         type_label = QLabel("Type")
         type_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px;")
         self.type_combo = QComboBox()
-        self.type_combo.addItems(["Consultation", "Deworming", "Vaccination", "Surgery", "Grooming", "Other"])
+        self.type_combo.addItems(["Consultation", "Deworming", "Vaccination", "Surgery", "Grooming", "Other Treatments"])
         self.type_combo.setMinimumHeight(40)
         self.type_combo.setStyleSheet("""
             QComboBox {
@@ -107,6 +107,7 @@ class ReportFormDialog(QDialog):
         pet_name_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px;")
         self.pet_name_combo = QComboBox()
         self.pet_name_combo.setMinimumHeight(40)
+        self.pet_name_combo.setPlaceholderText("Select Pet")
         self.pet_name_combo.setStyleSheet("""
             QComboBox {
                 padding: 8px;
@@ -134,74 +135,56 @@ class ReportFormDialog(QDialog):
         pet_name_container.addWidget(self.pet_name_combo)
         form_scroll_layout.addLayout(pet_name_container)
         
-        # Row 3: Reason for Consultation
-        reason_label = QLabel("Reason for Consultation")
-        reason_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px;")
-        self.reason_input = QTextEdit()
-        self.reason_input.setPlaceholderText("Reason for Consultation")
-        self.reason_input.setFixedHeight(60)
-        self.reason_input.setStyleSheet("""
-            QTextEdit {
-                padding: 8px;
-                background-color: #f5f5f5;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-                font-size: 14px;
-                margin-top: 8px;
-            }
-        """)
+        # Dynamic Fields Container
+        self.dynamic_fields_container = QWidget()
+        self.dynamic_fields_layout = QVBoxLayout(self.dynamic_fields_container)
+        self.dynamic_fields_layout.setSpacing(20)
+        form_scroll_layout.addWidget(self.dynamic_fields_container)
         
-        reason_container = QVBoxLayout()
-        reason_container.setSpacing(0)
-        reason_container.addWidget(reason_label)
-        reason_container.addWidget(self.reason_input)
-        form_scroll_layout.addLayout(reason_container)
+        # Create field widgets but don't add them yet
+        self.field_widgets = {}
         
-        # Row 4: Diagnosis
-        diagnosis_label = QLabel("Diagnosis")
-        diagnosis_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px; margin-top: 12px;")
-        self.diagnosis_input = QTextEdit()
-        self.diagnosis_input.setPlaceholderText("Diagnosis")
-        self.diagnosis_input.setFixedHeight(60)
-        self.diagnosis_input.setStyleSheet("""
-            QTextEdit {
-                padding: 8px;
-                background-color: #f5f5f5;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-                font-size: 14px;
-                margin-top: 8px;
-            }
-        """)
+        # Consultation fields
+        self.field_widgets["Consultation"] = {
+            "reason": self.create_text_field("Reason for Consultation", "Reason for Consultation"),
+            "diagnosis": self.create_text_field("Diagnosis", "Diagnosis"),
+            "prescribed": self.create_text_field("Prescribed Treatment/Medication", "Prescribed Treatment/Medication")
+        }
         
-        diagnosis_container = QVBoxLayout()
-        diagnosis_container.setSpacing(0)
-        diagnosis_container.addWidget(diagnosis_label)
-        diagnosis_container.addWidget(self.diagnosis_input)
-        form_scroll_layout.addLayout(diagnosis_container)
+        # Deworming fields
+        self.field_widgets["Deworming"] = {
+            "medication": self.create_text_field("Deworming Medication", "Deworming Medication"),
+            "dosage": self.create_text_field("Dosage Administered", "Dosage Administered"),
+            "next_date": self.create_date_field("Next Scheduled Deworming")
+        }
         
-        # Row 5: Prescribed Treatment/Medication
-        prescribed_label = QLabel("Prescribed Treatment/Medication")
-        prescribed_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px; margin-top: 12px;")
-        self.prescribed_input = QTextEdit()
-        self.prescribed_input.setPlaceholderText("Prescribed Treatment/Medication")
-        self.prescribed_input.setFixedHeight(60)
-        self.prescribed_input.setStyleSheet("""
-            QTextEdit {
-                padding: 8px;
-                background-color: #f5f5f5;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-                font-size: 14px;
-                margin-top: 8px;
-            }
-        """)
+        # Vaccination fields
+        self.field_widgets["Vaccination"] = {
+            "vaccine": self.create_text_field("Vaccine Administered", "Vaccine Administered"),
+            "dosage": self.create_text_field("Dosage Administered", "Dosage Administered"),
+            "next_date": self.create_date_field("Next Scheduled Vaccination")
+        }
         
-        prescribed_container = QVBoxLayout()
-        prescribed_container.setSpacing(0)
-        prescribed_container.addWidget(prescribed_label)
-        prescribed_container.addWidget(self.prescribed_input)
-        form_scroll_layout.addLayout(prescribed_container)
+        # Surgery fields
+        self.field_widgets["Surgery"] = {
+            "surgery_type": self.create_text_field("Type of Surgery", "Type of Surgery"),
+            "anesthesia": self.create_text_field("Anesthesia Used", "Anesthesia Used"),
+            "next_followup": self.create_date_field("Next Follow-up Date")
+        }
+        
+        # Grooming fields
+        self.field_widgets["Grooming"] = {
+            "services": self.create_text_field("Grooming Service/s Availed", "Grooming Service/s Availed"),
+            "notes": self.create_text_field("Notes", "Notes"),
+            "next_date": self.create_date_field("Next Grooming Date")
+        }
+        
+        # Other Treatments fields
+        self.field_widgets["Other Treatments"] = {
+            "type": self.create_text_field("Treatment Type", "Treatment Type"),
+            "medication": self.create_text_field("Medication/Procedure Used", "Medication/Procedure Used"),
+            "dosage": self.create_text_field("Dosage/Duration", "Dosage/Duration")
+        }
         
         # Row 6: Veterinarian/Staff In Charge
         vet_label = QLabel("Veterinarian/Staff In Charge")
@@ -279,6 +262,121 @@ class ReportFormDialog(QDialog):
         button_layout.setContentsMargins(0, 10, 50, 10)
         
         layout.addLayout(button_layout)
+        
+        # Connect type combo box to update fields
+        self.type_combo.currentTextChanged.connect(self.update_form_fields)
+        
+        # Show initial fields
+        self.update_form_fields(self.type_combo.currentText())
+
+    def create_text_field(self, label_text, placeholder):
+        """Create a text field with label and placeholder."""
+        container = QVBoxLayout()
+        container.setSpacing(0)
+        
+        label = QLabel(label_text)
+        label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px;")
+        
+        text_edit = QTextEdit()
+        text_edit.setPlaceholderText(placeholder)
+        text_edit.setFixedHeight(60)
+        text_edit.setStyleSheet("""
+            QTextEdit {
+                padding: 8px;
+                background-color: #f5f5f5;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                font-size: 14px;
+                margin-top: 8px;
+            }
+        """)
+        
+        container.addWidget(label)
+        container.addWidget(text_edit)
+        
+        return container, text_edit
+
+    def create_date_field(self, label_text):
+        """Create a date field with label."""
+        container = QVBoxLayout()
+        container.setSpacing(0)
+        
+        label = QLabel(label_text)
+        label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px;")
+        
+        date_edit = QDateEdit()
+        date_edit.setCalendarPopup(True)
+        date_edit.setDate(QDate.currentDate())
+        date_edit.setDisplayFormat("dd/MM/yyyy")
+        date_edit.setMinimumHeight(40)
+        date_edit.setStyleSheet("""
+            QDateEdit {
+                padding: 8px;
+                background-color: #f5f5f5;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                font-size: 14px;
+                margin-top: 8px;
+            }
+        """)
+        
+        container.addWidget(label)
+        container.addWidget(date_edit)
+        
+        return container, date_edit
+
+    def update_form_fields(self, treatment_type):
+        """Update form fields based on selected treatment type."""
+        # Clear existing fields
+        while self.dynamic_fields_layout.count():
+            item = self.dynamic_fields_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+            elif item.layout():
+                # Clear all widgets in the layout
+                while item.layout().count():
+                    sub_item = item.layout().takeAt(0)
+                    if sub_item.widget():
+                        sub_item.widget().deleteLater()
+                # Delete the layout itself
+                QWidget().setLayout(item.layout())
+        
+        # Add new fields based on treatment type
+        if treatment_type in self.field_widgets:
+            for field_container, _ in self.field_widgets[treatment_type].values():
+                # Create a new widget to hold the layout
+                field_widget = QWidget()
+                field_widget.setLayout(field_container)
+                self.dynamic_fields_layout.addWidget(field_widget)
+
+    def get_form_data(self):
+        """Get all form data as a dictionary."""
+        treatment_type = self.type_combo.currentText()
+        data = {
+            "date": self.date_edit.date().toString("yyyy-MM-dd"),
+            "type": treatment_type,
+            "pet_name": self.pet_name_combo.currentText().strip(),
+            "veterinarian": self.vet_combo.currentText().strip()
+        }
+        
+        # Get dynamic field values
+        if treatment_type in self.field_widgets:
+            for field_name, (_, widget) in self.field_widgets[treatment_type].items():
+                if isinstance(widget, QTextEdit):
+                    if treatment_type == "Other Treatments":
+                        # Map Other Treatments fields to the correct names
+                        if field_name == "type":
+                            data["treatment_type"] = widget.toPlainText().strip()
+                        elif field_name == "medication":
+                            data["medication"] = widget.toPlainText().strip()
+                        elif field_name == "dosage":
+                            data["dosage"] = widget.toPlainText().strip()
+                    else:
+                        data[field_name] = widget.toPlainText().strip()
+                elif isinstance(widget, QDateEdit):
+                    data[field_name] = widget.date().toString("yyyy-MM-dd")
+        
+        return data
 
     def load_pet_names(self):
         """Load pet names grouped by their owners into the pet_name_combo."""
@@ -402,7 +500,7 @@ class ViewReportDialog(QDialog):
         type_label = QLabel("Type")
         type_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px;")
         self.type_combo = QComboBox()
-        self.type_combo.addItems(["Consultation", "Deworming", "Vaccination", "Surgery", "Grooming", "Other"])
+        self.type_combo.addItems(["Consultation", "Deworming", "Vaccination", "Surgery", "Grooming", "Other Treatments"])
         self.type_combo.setMinimumHeight(40)
         self.type_combo.setEnabled(False)
         self.type_combo.setStyleSheet("""
@@ -745,23 +843,21 @@ def get_report_widget():
 
     # Define treatments and create tables
     treatments = [
-        "All",
         "Consultation",
         "Deworming",
         "Vaccination",
         "Surgery",
         "Grooming",
-        "Other"
+        "Other Treatments"
     ]
 
     treatment_widths = {
-        "All": 70,
         "Consultation": 100,
         "Deworming": 100,
         "Vaccination": 100,
         "Surgery": 100,
         "Grooming": 100,
-        "Other": 100
+        "Other Treatments": 150
     }
 
     for treatment in treatments:
@@ -778,6 +874,7 @@ def get_report_widget():
                 font-size: 15px;
                 padding-left: 10px;
                 padding-right: 10px;
+                min-width: """ + str(treatment_widths[treatment]) + """px;
             }
             QPushButton:hover {
                 background-color: #FED766;
@@ -799,18 +896,43 @@ def get_report_widget():
     tables = {}
     for treatment in treatments:
         table = QTableWidget()
-        if treatment == "All":
-            table.setColumnCount(8)  # Removed Action column
-            table.setHorizontalHeaderLabels([
-                "Date", "Type", "Pet Name", "Owner/Client", "Reason",
-                "Diagnosis", "Prescribed Treatment", "Veterinarian"
-            ])
-        else:
+        if treatment == "Consultation":
             table.setColumnCount(8)
             table.setHorizontalHeaderLabels([
-                "Date", "Pet Name", "Owner/Client", "Reason",
-                "Diagnosis", "Prescribed Treatment", "Veterinarian", "Action"
+                "Consultation Date", "Pet Name", "Owner/Client", "Reason for Consultation",
+                "Diagnosis", "Prescribed Treatment/Medication", "Veterinarian", "Action"
             ])
+        elif treatment == "Deworming":
+            table.setColumnCount(8)
+            table.setHorizontalHeaderLabels([
+                "Deworming Date", "Pet Name", "Owner/Client", "Deworming Medication",
+                "Dosage Administered", "Next Scheduled Deworming", "Veterinarian", "Action"
+            ])
+        elif treatment == "Vaccination":
+            table.setColumnCount(8)
+            table.setHorizontalHeaderLabels([
+                "Vaccination Date", "Pet Name", "Owner/Client", "Vaccine Administered",
+                "Dosage Administered", "Next Scheduled Vaccination", "Veterinarian", "Action"
+            ])
+        elif treatment == "Surgery":
+            table.setColumnCount(8)
+            table.setHorizontalHeaderLabels([
+                "Surgery Date", "Pet Name", "Owner/Client", "Type of Surgery",
+                "Anesthesia Used", "Next Follow-up Date", "Veterinarian", "Action"
+            ])
+        elif treatment == "Grooming":
+            table.setColumnCount(8)
+            table.setHorizontalHeaderLabels([
+                "Grooming Date", "Pet Name", "Owner/Client", "Grooming Service/s Availed",
+                "Notes", "Next Grooming Date", "Veterinarian", "Action"
+            ])
+        elif treatment == "Other Treatments":
+            table.setColumnCount(8)
+            table.setHorizontalHeaderLabels([
+                "Treatment Date", "Pet Name", "Owner/Client", "Treatment Type",
+                "Medication/Procedure Used", "Dosage/Duration", "Veterinarian", "Action"
+            ])
+            
         table.horizontalHeader().setStretchLastSection(True)
         table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
         table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -825,23 +947,56 @@ def get_report_widget():
                 color: #000;
                 font-weight: bold;
                 height: 40px;
+                padding: 5px;
+                text-align: center;
             }
         """)
         table.verticalHeader().setVisible(False)
         table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
-        # Set column widths
-        if treatment == "All":
-            for i, width in enumerate([150, 120, 120, 150, 200, 180, 200, 150]):
+        # Set column widths based on treatment type
+        if treatment == "Consultation":
+            for i, width in enumerate([150, 120, 150, 180, 150, 200, 150, 100]):
                 table.setColumnWidth(i, width)
-        else:
-            for i, width in enumerate([150, 120, 150, 200, 180, 200, 150, 100]):
+                # Center align the header
+                header_item = table.horizontalHeaderItem(i)
+                if header_item:
+                    header_item.setTextAlignment(Qt.AlignCenter)
+        elif treatment == "Deworming":
+            for i, width in enumerate([150, 120, 150, 180, 150, 180, 150, 100]):
                 table.setColumnWidth(i, width)
+                header_item = table.horizontalHeaderItem(i)
+                if header_item:
+                    header_item.setTextAlignment(Qt.AlignCenter)
+        elif treatment == "Vaccination":
+            for i, width in enumerate([150, 120, 150, 180, 150, 180, 150, 100]):
+                table.setColumnWidth(i, width)
+                header_item = table.horizontalHeaderItem(i)
+                if header_item:
+                    header_item.setTextAlignment(Qt.AlignCenter)
+        elif treatment == "Surgery":
+            for i, width in enumerate([150, 120, 150, 180, 180, 180, 150, 100]):
+                table.setColumnWidth(i, width)
+                header_item = table.horizontalHeaderItem(i)
+                if header_item:
+                    header_item.setTextAlignment(Qt.AlignCenter)
+        elif treatment == "Grooming":
+            for i, width in enumerate([150, 120, 150, 200, 180, 180, 150, 100]):
+                table.setColumnWidth(i, width)
+                header_item = table.horizontalHeaderItem(i)
+                if header_item:
+                    header_item.setTextAlignment(Qt.AlignCenter)
+        elif treatment == "Other Treatments":
+            for i, width in enumerate([150, 120, 150, 180, 200, 180, 150, 100]):
+                table.setColumnWidth(i, width)
+                header_item = table.horizontalHeaderItem(i)
+                if header_item:
+                    header_item.setTextAlignment(Qt.AlignCenter)
 
         tables[treatment] = table
         layout.addWidget(table)
-        if treatment != "All":
+        if treatment != "Consultation":
             table.hide()
 
     def show_table(table_to_show):
@@ -870,8 +1025,8 @@ def get_report_widget():
         ])
 
     # Show All table by default
-    tables["All"].show()
-    select_treatment(treatment_buttons["All"])
+    tables["Consultation"].show()
+    select_treatment(treatment_buttons["Consultation"])
 
     def handle_row_selection():
         """Handle row selection and show/hide action buttons accordingly."""
@@ -939,7 +1094,7 @@ def get_report_widget():
             
             # Ensure the data is in the correct order for the view dialog
             try:
-                if treatment == "All":
+                if treatment == "Consultation":
                     # Reorder the data to match the expected format
                     reordered_record = [
                         date,  # Date
@@ -1029,19 +1184,18 @@ def get_report_widget():
                 """)
                 header.setToolTip("")
 
-    def open_report_form():
+    def open_report_form(treatment_type):
+        """Open the report form dialog."""
         dialog = ReportFormDialog()
-        if dialog.exec():
+        if dialog.exec_() == QDialog.Accepted:
             # Get form data
-            date = dialog.date_edit.date().toString("yyyy-MM-dd")
-            report_type = dialog.type_combo.currentText()
-            pet_name_display = dialog.pet_name_combo.currentText().strip()
-            reason = dialog.reason_input.toPlainText().strip()
-            diagnosis = dialog.diagnosis_input.toPlainText().strip()
-            prescribed = dialog.prescribed_input.toPlainText().strip()
-            veterinarian = dialog.vet_combo.currentText().strip()
-
-            # Extract actual pet name and client name
+            form_data = dialog.get_form_data()
+            print("\n=== Debug: Form Data ===")
+            print(f"Treatment Type: {treatment_type}")
+            print(f"Form Data: {form_data}")
+            
+            # Extract pet name and client name
+            pet_name_display = form_data["pet_name"]
             parts = pet_name_display.split(" - ")
             if len(parts) >= 2:
                 client_name = parts[0].strip()
@@ -1050,9 +1204,13 @@ def get_report_widget():
                 pet_name = pet_name_display.strip()
                 client_name = ""
 
+            print(f"\n=== Debug: Extracted Names ===")
+            print(f"Pet Name: {pet_name}")
+            print(f"Client Name: {client_name}")
+
             # Validate data
-            if not (pet_name and reason and veterinarian):
-                show_message(dialog, "All fields are required!", QMessageBox.Warning)
+            if not (pet_name and form_data["veterinarian"]):
+                show_message(dialog, "Pet name and veterinarian are required!", QMessageBox.Warning)
                 return
 
             # Save to database
@@ -1072,27 +1230,135 @@ def get_report_widget():
                     return
 
                 pet_id, client_id, client_name = result
+                print(f"\n=== Debug: Database IDs ===")
+                print(f"Pet ID: {pet_id}")
+                print(f"Client ID: {client_id}")
 
+                # Prepare the data based on treatment type
+                treatment_type = form_data["type"]
+                reason = ""
+                diagnosis = ""
+                prescribed = ""
+
+                # Print all form data for debugging
+                print("\n=== Debug: Processing Form Data ===")
+                print(f"Treatment Type: {treatment_type}")
+                print("Form Data:", form_data)
+
+                if treatment_type == "Consultation":
+                    reason = form_data.get("reason", "")
+                    diagnosis = form_data.get("diagnosis", "")
+                    prescribed = form_data.get("prescribed", "")
+                elif treatment_type == "Deworming":
+                    reason = form_data.get("medication", "")
+                    diagnosis = form_data.get("dosage", "")
+                    prescribed = form_data.get("next_date", "")
+                elif treatment_type == "Vaccination":
+                    reason = form_data.get("vaccine", "")
+                    diagnosis = form_data.get("dosage", "")
+                    prescribed = form_data.get("next_date", "")
+                elif treatment_type == "Surgery":
+                    print("\n=== Debug: Processing Surgery Data ===")
+                    reason = form_data.get("surgery_type", "")  # Changed from "type" to "surgery_type"
+                    diagnosis = form_data.get("anesthesia", "")
+                    prescribed = form_data.get("next_followup", "")  # Changed from "next_date" to "next_followup"
+                    print(f"Surgery Type: {reason}")
+                    print(f"Anesthesia: {diagnosis}")
+                    print(f"Next Follow-up: {prescribed}")
+                elif treatment_type == "Grooming":
+                    reason = form_data.get("services", "")
+                    diagnosis = form_data.get("notes", "")
+                    prescribed = form_data.get("next_date", "")
+                elif treatment_type == "Other Treatments":
+                    print("\n=== Debug: Processing Other Treatments Data ===")
+                    reason = form_data.get("treatment_type", "")  # Treatment Type
+                    diagnosis = form_data.get("medication", "")  # Medication/Procedure
+                    prescribed = form_data.get("dosage", "")  # Dosage/Duration
+                    print(f"Treatment Type: {reason}")
+                    print(f"Medication: {diagnosis}")
+                    print(f"Dosage: {prescribed}")
+                    print(f"Form Data Keys: {list(form_data.keys())}")
+                    print(f"Form Data Values: {list(form_data.values())}")
+
+                # Print debug information
+                print(f"\n=== Debug: Mapped Fields ===")
+                print(f"Treatment Type: {treatment_type}")
+                print(f"Reason: {reason}")
+                print(f"Diagnosis: {diagnosis}")
+                print(f"Prescribed: {prescribed}")
+
+                # Validate required fields with specific messages
+                missing_fields = []
+                if treatment_type == "Surgery":
+                    if not reason:
+                        missing_fields.append("Type of Surgery")
+                    if not diagnosis:
+                        missing_fields.append("Anesthesia Used")
+                    if not prescribed:
+                        missing_fields.append("Next Follow-up Date")
+                elif treatment_type == "Consultation":
+                    if not reason:
+                        missing_fields.append("Reason for Consultation")
+                    if not diagnosis:
+                        missing_fields.append("Diagnosis")
+                    if not prescribed:
+                        missing_fields.append("Prescribed Treatment")
+                elif treatment_type == "Deworming":
+                    if not reason:
+                        missing_fields.append("Deworming Medication")
+                    if not diagnosis:
+                        missing_fields.append("Dosage Administered")
+                    if not prescribed:
+                        missing_fields.append("Next Scheduled Deworming")
+                elif treatment_type == "Vaccination":
+                    if not reason:
+                        missing_fields.append("Vaccine Administered")
+                    if not diagnosis:
+                        missing_fields.append("Dosage Administered")
+                    if not prescribed:
+                        missing_fields.append("Next Scheduled Vaccination")
+                elif treatment_type == "Grooming":
+                    if not reason:
+                        missing_fields.append("Grooming Services")
+                    if not diagnosis:
+                        missing_fields.append("Notes")
+                    if not prescribed:
+                        missing_fields.append("Next Grooming Date")
+                elif treatment_type == "Other Treatments":
+                    if not reason:
+                        missing_fields.append("Treatment Type")
+                    if not diagnosis:
+                        missing_fields.append("Medication/Procedure")
+                    if not prescribed:
+                        missing_fields.append("Dosage/Duration")
+
+                if not form_data["veterinarian"]:
+                    missing_fields.append("Veterinarian")
+
+                if missing_fields:
+                    show_message(dialog, f"Please fill in the following fields:\n{', '.join(missing_fields)}", QMessageBox.Warning)
+                    return
+
+                print("\n=== Debug: Saving to Database ===")
                 # Save medical record
                 if db.save_medical_record(
-                    pet_id, client_id, date, report_type, reason, diagnosis,
-                    prescribed, veterinarian
+                    pet_id, client_id, form_data["date"], treatment_type, 
+                    reason, diagnosis, prescribed, form_data["veterinarian"]
                 ):
                     # Refresh all tables with new data
                     refresh_tables()
                     
                     # Show the appropriate table based on the report type
-                    if report_type in tables:
-                        show_table(tables[report_type])
-                        select_treatment(treatment_buttons[report_type])
-                    else:
-                        show_table(tables["All"])
-                        select_treatment(treatment_buttons["All"])
+                    if treatment_type in tables:
+                        show_table(tables[treatment_type])
+                        select_treatment(treatment_buttons[treatment_type])
                     
                     show_message(dialog, "Report added successfully!")
                 else:
                     show_message(dialog, "Failed to save report!", QMessageBox.Critical)
             except Exception as e:
+                print(f"\n=== Debug: Error ===")
+                print(f"Error: {e}")
                 show_message(dialog, f"Failed to save report: {e}", QMessageBox.Critical)
             finally:
                 db.close_connection()
@@ -1109,7 +1375,7 @@ def get_report_widget():
 
             # Fetch and populate data for each treatment type
             for treatment in treatments:
-                records = db.fetch_medical_records(treatment if treatment != "All" else None)
+                records = db.fetch_medical_records(treatment)
                 target_table = tables[treatment]
                 
                 for record in records:
@@ -1125,74 +1391,62 @@ def get_report_widget():
                         if not vet_name.startswith("Dr. "):
                             vet_name = f"Dr. {vet_name}"
                         
-                        # Add items to table
-                        target_table.setItem(row_position, 0, QTableWidgetItem(date))  # Date
-                        if treatment == "All":
-                            target_table.setItem(row_position, 1, QTableWidgetItem(record[1]))  # Type
-                            target_table.setItem(row_position, 2, QTableWidgetItem(record[2]))  # Pet Name
-                            target_table.setItem(row_position, 3, QTableWidgetItem(record[3]))  # Client Name
-                            target_table.setItem(row_position, 4, QTableWidgetItem(record[4]))  # Reason
-                            target_table.setItem(row_position, 5, QTableWidgetItem(record[5]))  # Diagnosis
-                            target_table.setItem(row_position, 6, QTableWidgetItem(record[6]))  # Prescribed
-                            target_table.setItem(row_position, 7, QTableWidgetItem(vet_name))  # Vet
-                        else:
-                            target_table.setItem(row_position, 0, QTableWidgetItem(date))  # Date
-                            target_table.setItem(row_position, 1, QTableWidgetItem(record[2]))  # Pet Name
-                            target_table.setItem(row_position, 2, QTableWidgetItem(record[3]))  # Client Name
-                            target_table.setItem(row_position, 3, QTableWidgetItem(record[4]))  # Reason
-                            target_table.setItem(row_position, 4, QTableWidgetItem(record[5]))  # Diagnosis
-                            target_table.setItem(row_position, 5, QTableWidgetItem(record[6]))  # Prescribed
-                            target_table.setItem(row_position, 6, QTableWidgetItem(vet_name))  # Vet
+                        # Add items to table with center alignment
+                        for i, value in enumerate([date, record[2], record[3], record[4], record[5], record[6], vet_name]):
+                            item = QTableWidgetItem(str(value))
+                            item.setTextAlignment(Qt.AlignCenter)
+                            target_table.setItem(row_position, i, item)
 
-                            # Add action buttons for non-All tables
-                            action_widget = QWidget()
-                            action_layout = QHBoxLayout(action_widget)
-                            action_layout.setContentsMargins(0, 0, 0, 0)
-                            action_layout.setSpacing(5)
+                        # Add action buttons
+                        action_widget = QWidget()
+                        action_layout = QHBoxLayout(action_widget)
+                        action_layout.setContentsMargins(0, 0, 0, 0)
+                        action_layout.setSpacing(5)
+                        action_layout.setAlignment(Qt.AlignCenter)  # Center the buttons
 
-                            edit_button = QPushButton("Edit")
-                            edit_button.setFixedWidth(70)
-                            edit_button.setStyleSheet("""
-                                QPushButton {
-                                    background-color: #FED766;
-                                    border: none;
-                                    border-radius: 5px;
-                                    font-size: 10px;
-                                    padding: 2px 8px;
-                                    min-height: 10px;
-                                    min-width: 30px;
-                                }
-                                QPushButton:hover {
-                                    background-color: #FFC107;
-                                }
-                            """)
+                        edit_button = QPushButton("Edit")
+                        edit_button.setFixedWidth(70)
+                        edit_button.setStyleSheet("""
+                            QPushButton {
+                                background-color: #FED766;
+                                border: none;
+                                border-radius: 5px;
+                                font-size: 10px;
+                                padding: 2px 8px;
+                                min-height: 10px;
+                                min-width: 30px;
+                            }
+                            QPushButton:hover {
+                                background-color: #FFC107;
+                            }
+                        """)
 
-                            delete_button = QPushButton("Delete")
-                            delete_button.setFixedWidth(70)
-                            delete_button.setStyleSheet("""
-                                QPushButton {
-                                    background-color: #FF6F61;
-                                    border: none;
-                                    border-radius: 5px;
-                                    font-size: 10px;
-                                    color: white;
-                                    padding: 2px 8px;
-                                    min-height: 10px;
-                                    min-width: 30px;
-                                }
-                                QPushButton:hover {
-                                    background-color: #E53935;
-                                }
-                            """)
+                        delete_button = QPushButton("Delete")
+                        delete_button.setFixedWidth(70)
+                        delete_button.setStyleSheet("""
+                            QPushButton {
+                                background-color: #FF6F61;
+                                border: none;
+                                border-radius: 5px;
+                                font-size: 10px;
+                                color: white;
+                                padding: 2px 8px;
+                                min-height: 10px;
+                                min-width: 30px;
+                            }
+                            QPushButton:hover {
+                                background-color: #E53935;
+                            }
+                        """)
 
-                            # Connect button signals
-                            edit_button.clicked.connect(lambda checked, r=row_position, t=treatment: handle_edit_action(r, t))
-                            delete_button.clicked.connect(lambda checked, r=row_position, t=treatment: handle_delete_action(r, t))
+                        # Connect button signals
+                        edit_button.clicked.connect(lambda checked, r=row_position, t=treatment: handle_edit_action(r, t))
+                        delete_button.clicked.connect(lambda checked, r=row_position, t=treatment: handle_delete_action(r, t))
 
-                            action_layout.addWidget(edit_button)
-                            action_layout.addWidget(delete_button)
-                            action_widget.setLayout(action_layout)
-                            target_table.setCellWidget(row_position, 7, action_widget)
+                        action_layout.addWidget(edit_button)
+                        action_layout.addWidget(delete_button)
+                        action_widget.setLayout(action_layout)
+                        target_table.setCellWidget(row_position, 7, action_widget)
 
                     except Exception as e:
                         print(f"Error adding row to table: {e}")
@@ -1314,7 +1568,7 @@ def get_report_widget():
     # Initial load of data
     refresh_tables()
 
-    add_report_button.clicked.connect(open_report_form)
+    add_report_button.clicked.connect(lambda: open_report_form(treatment_buttons["Consultation"].text()))
 
     # Store the filter function in the content widget for external access
     content.filter_tables = filter_tables
@@ -1322,7 +1576,7 @@ def get_report_widget():
     def save_pdf():
         # Detect which table is visible
         table = None
-        table_type = "All"
+        table_type = "Consultation"
         for treatment, t in tables.items():
             if t.isVisible():
                 table = t
