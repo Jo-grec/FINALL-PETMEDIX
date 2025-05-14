@@ -240,13 +240,16 @@ class Database:
                 client_id INT NOT NULL,
                 pet_id INT NOT NULL,
                 date_issued DATE NOT NULL,
+                subtotal DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+                vat DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
                 total_amount DECIMAL(10, 2) NOT NULL,
-                payment_status ENUM('Paid', 'Unpaid', 'Partial') NOT NULL,
-                payment_method ENUM('Cash', 'Credit Card', 'GCash', 'Bank Transfer'),
+                payment_status ENUM('PAID', 'UNPAID', 'PARTIAL') NOT NULL,
+                partial_amount DECIMAL(10, 2) DEFAULT 0.00,
+                payment_method ENUM('CASH', 'CREDIT CARD', 'GCASH', 'BANK TRANSFER'),
                 received_by VARCHAR(100),
                 reason VARCHAR(200),
                 veterinarian VARCHAR(100),
-                notes VARCHAR(200),
+                notes TEXT,
                 FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE,
                 FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE
             );
@@ -262,6 +265,7 @@ class Database:
                 quantity INT NOT NULL,
                 unit_price DECIMAL(10, 2) NOT NULL,
                 line_total DECIMAL(10, 2) NOT NULL,
+                service_date DATE,
                 FOREIGN KEY (billing_id) REFERENCES billing(billing_id) ON DELETE CASCADE
             );
             """)
@@ -620,17 +624,20 @@ class Database:
             return []
         
     def save_billing(self, client_id, pet_id, date_issued, total_amount, payment_status, 
-                    payment_method, received_by, invoice_no, reason, veterinarian, notes):
+                    payment_method, received_by, invoice_no, reason, veterinarian, notes,
+                    subtotal=0.00, vat=0.00, partial_amount=0.00):
         """Save billing information to database."""
         try:
             self.cursor.execute("""
                 INSERT INTO billing (
                     client_id, pet_id, date_issued, total_amount, payment_status, 
-                    payment_method, received_by, invoice_no, reason, veterinarian, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    payment_method, received_by, invoice_no, reason, veterinarian, notes,
+                    subtotal, vat, partial_amount
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 client_id, pet_id, date_issued, total_amount, payment_status,
-                payment_method, received_by, invoice_no, reason, veterinarian, notes
+                payment_method, received_by, invoice_no, reason, veterinarian, notes,
+                subtotal, vat, partial_amount
             ))
             self.conn.commit()
             return self.cursor.lastrowid
