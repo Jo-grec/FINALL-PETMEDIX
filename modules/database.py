@@ -96,7 +96,122 @@ class Database:
                 color VARCHAR(50),
                 birthdate DATE,
                 age INT,
+                weight DECIMAL(10,2),
+                height DECIMAL(10,2),
                 photo_path VARCHAR(255),
+                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Consultation Table
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS consultations (
+                consultation_id INT AUTO_INCREMENT PRIMARY KEY,
+                pet_id INT NOT NULL,
+                client_id INT NOT NULL,
+                date DATE NOT NULL,
+                reason TEXT NOT NULL,
+                diagnosis TEXT NOT NULL,
+                prescribed_treatment TEXT NOT NULL,
+                veterinarian VARCHAR(100) NOT NULL,
+                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
+                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Deworming Table
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS deworming (
+                deworming_id INT AUTO_INCREMENT PRIMARY KEY,
+                pet_id INT NOT NULL,
+                client_id INT NOT NULL,
+                date DATE NOT NULL,
+                medication TEXT NOT NULL,
+                dosage TEXT NOT NULL,
+                next_scheduled DATE NOT NULL,
+                veterinarian VARCHAR(100) NOT NULL,
+                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
+                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Vaccination Table
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS vaccinations (
+                vaccination_id INT AUTO_INCREMENT PRIMARY KEY,
+                pet_id INT NOT NULL,
+                client_id INT NOT NULL,
+                date DATE NOT NULL,
+                vaccine TEXT NOT NULL,
+                dosage TEXT NOT NULL,
+                next_scheduled DATE NOT NULL,
+                veterinarian VARCHAR(100) NOT NULL,
+                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
+                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Surgery Table
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS surgeries (
+                surgery_id INT AUTO_INCREMENT PRIMARY KEY,
+                pet_id INT NOT NULL,
+                client_id INT NOT NULL,
+                date DATE NOT NULL,
+                surgery_type TEXT NOT NULL,
+                anesthesia TEXT NOT NULL,
+                next_followup DATE NOT NULL,
+                veterinarian VARCHAR(100) NOT NULL,
+                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
+                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Grooming Table
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS grooming (
+                grooming_id INT AUTO_INCREMENT PRIMARY KEY,
+                pet_id INT NOT NULL,
+                client_id INT NOT NULL,
+                date DATE NOT NULL,
+                services TEXT NOT NULL,
+                notes TEXT NOT NULL,
+                next_scheduled DATE NOT NULL,
+                veterinarian VARCHAR(100) NOT NULL,
+                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
+                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Other Treatments Table
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS other_treatments (
+                treatment_id INT AUTO_INCREMENT PRIMARY KEY,
+                pet_id INT NOT NULL,
+                client_id INT NOT NULL,
+                date DATE NOT NULL,
+                treatment_type TEXT NOT NULL,
+                medication TEXT NOT NULL,
+                dosage TEXT NOT NULL,
+                veterinarian VARCHAR(100) NOT NULL,
+                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
+                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Keep the medical_records table for backward compatibility
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS medical_records (
+                record_id INT AUTO_INCREMENT PRIMARY KEY,
+                pet_id INT NOT NULL,
+                client_id INT NOT NULL,
+                date DATE NOT NULL,
+                type ENUM('Consultation', 'Deworming', 'Vaccination', 'Surgery', 'Grooming', 'Other Treatments') NOT NULL,
+                reason TEXT,
+                diagnosis TEXT,
+                prescribed_treatment TEXT,
+                veterinarian VARCHAR(100),
+                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
                 FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
             );
             """)
@@ -111,23 +226,6 @@ class Database:
                 status ENUM('Scheduled', 'Completed', 'Cancelled', 'No-Show', 'Rescheduled', 'Urgent') NOT NULL,
                 payment_status ENUM('Pending', 'Paid', 'Unpaid') NOT NULL,
                 reason TEXT,
-                veterinarian VARCHAR(100),
-                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
-                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
-            );
-            """)
-
-            # Medical Records Table
-            self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS medical_records (
-                record_id INT AUTO_INCREMENT PRIMARY KEY,
-                pet_id INT NOT NULL,
-                client_id INT NOT NULL,
-                date DATE NOT NULL,
-                type ENUM('Consultation', 'Deworming', 'Vaccination', 'Surgical Operation', 'Grooming', 'Other Treatments') NOT NULL,
-                reason TEXT,
-                diagnosis TEXT,
-                prescribed_treatment TEXT,
                 veterinarian VARCHAR(100),
                 FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
                 FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
@@ -239,6 +337,9 @@ class Database:
             
             # Ensure the billing table has all required columns
             self._ensure_billing_columns()
+            
+            # After creating all tables, migrate any existing records
+            self.migrate_medical_records()
             
             self.conn.commit()
             print("✅ Tables created successfully.")
@@ -403,15 +504,38 @@ class Database:
             self.cursor.execute("SELECT COUNT(*) FROM clients")
             clients_count = self.cursor.fetchone()[0]
 
-            # Count medical records
-            self.cursor.execute("SELECT COUNT(*) FROM medical_records")
-            medical_records_count = self.cursor.fetchone()[0]
+            # Count medical records from all treatment tables
+            total_medical_records = 0
+            
+            # Count consultations
+            self.cursor.execute("SELECT COUNT(*) FROM consultations")
+            total_medical_records += self.cursor.fetchone()[0]
+            
+            # Count deworming records
+            self.cursor.execute("SELECT COUNT(*) FROM deworming")
+            total_medical_records += self.cursor.fetchone()[0]
+            
+            # Count vaccination records
+            self.cursor.execute("SELECT COUNT(*) FROM vaccinations")
+            total_medical_records += self.cursor.fetchone()[0]
+            
+            # Count surgery records
+            self.cursor.execute("SELECT COUNT(*) FROM surgeries")
+            total_medical_records += self.cursor.fetchone()[0]
+            
+            # Count grooming records
+            self.cursor.execute("SELECT COUNT(*) FROM grooming")
+            total_medical_records += self.cursor.fetchone()[0]
+            
+            # Count other treatments records
+            self.cursor.execute("SELECT COUNT(*) FROM other_treatments")
+            total_medical_records += self.cursor.fetchone()[0]
 
             # Count appointments
             self.cursor.execute("SELECT COUNT(*) FROM appointments")
             appointments_count = self.cursor.fetchone()[0]
 
-            return clients_count, medical_records_count, appointments_count
+            return clients_count, total_medical_records, appointments_count
         except mariadb.Error as e:
             print(f"❌ Error fetching counts: {e}")
             return 0, 0, 0  # Default counts in case of an error
@@ -741,17 +865,82 @@ class Database:
         return None
 
     def save_medical_record(self, pet_id, client_id, date, type, reason, diagnosis, prescribed_treatment, veterinarian):
-        """Save a medical record to the database."""
+        """Save a medical record to the appropriate table based on type."""
         try:
-            self.cursor.execute("""
-                INSERT INTO medical_records (
-                    pet_id, client_id, date, type, reason, diagnosis,
-                    prescribed_treatment, veterinarian
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                pet_id, client_id, date, type, reason, diagnosis,
-                prescribed_treatment, veterinarian
-            ))
+            print(f"\n=== Debug: Saving {type} Record ===")
+            print(f"Pet ID: {pet_id}")
+            print(f"Client ID: {client_id}")
+            print(f"Date: {date}")
+            print(f"Type: {type}")
+            print(f"Reason: {reason}")
+            print(f"Diagnosis: {diagnosis}")
+            print(f"Prescribed: {prescribed_treatment}")
+            print(f"Veterinarian: {veterinarian}")
+
+            if type == "Consultation":
+                self.cursor.execute("""
+                    INSERT INTO consultations (
+                        pet_id, client_id, date, reason, diagnosis, 
+                        prescribed_treatment, veterinarian
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (pet_id, client_id, date, reason, diagnosis, prescribed_treatment, veterinarian))
+            
+            elif type == "Deworming":
+                self.cursor.execute("""
+                    INSERT INTO deworming (
+                        pet_id, client_id, date, medication, dosage, 
+                        next_scheduled, veterinarian
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (pet_id, client_id, date, reason, diagnosis, prescribed_treatment, veterinarian))
+            
+            elif type == "Vaccination":
+                self.cursor.execute("""
+                    INSERT INTO vaccinations (
+                        pet_id, client_id, date, vaccine, dosage, 
+                        next_scheduled, veterinarian
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (pet_id, client_id, date, reason, diagnosis, prescribed_treatment, veterinarian))
+            
+            elif type == "Surgery":
+                print("\n=== Debug: Inserting into surgeries table ===")
+                try:
+                    self.cursor.execute("""
+                        INSERT INTO surgeries (
+                            pet_id, client_id, date, surgery_type, anesthesia, 
+                            next_followup, veterinarian
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (pet_id, client_id, date, reason, diagnosis, prescribed_treatment, veterinarian))
+                    print("✅ Surgery record inserted successfully")
+                except Exception as e:
+                    print(f"❌ Error inserting surgery record: {e}")
+                    raise e
+            
+            elif type == "Grooming":
+                self.cursor.execute("""
+                    INSERT INTO grooming (
+                        pet_id, client_id, date, services, notes, 
+                        next_scheduled, veterinarian
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (pet_id, client_id, date, reason, diagnosis, prescribed_treatment, veterinarian))
+            
+            elif type == "Other Treatments":
+                print("\n=== Debug: Saving Other Treatments Record ===")
+                print(f"Inserting into other_treatments table:")
+                print(f"pet_id: {pet_id}")
+                print(f"client_id: {client_id}")
+                print(f"date: {date}")
+                print(f"treatment_type: {reason}")
+                print(f"medication: {diagnosis}")
+                print(f"dosage: {prescribed_treatment}")
+                print(f"veterinarian: {veterinarian}")
+                self.cursor.execute("""
+                    INSERT INTO other_treatments (
+                        pet_id, client_id, date, treatment_type, medication, 
+                        dosage, veterinarian
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (pet_id, client_id, date, reason, diagnosis, prescribed_treatment, veterinarian))
+                print("✅ Other Treatments record inserted successfully")
+
             self.conn.commit()
             print("✅ Medical record saved successfully.")
             return True
@@ -760,41 +949,105 @@ class Database:
             return False
 
     def fetch_medical_records(self, record_type=None):
-        """Fetch medical records from the database, optionally filtered by type."""
+        """Fetch medical records from the appropriate table based on type."""
         try:
-            if record_type and record_type != "All":
+            if record_type == "Consultation":
                 self.cursor.execute("""
                     SELECT 
-                        DATE_FORMAT(mr.date, '%Y-%m-%d') as date,
-                        mr.type,
+                        DATE_FORMAT(c.date, '%Y-%m-%d') as date,
+                        'Consultation' as type,
                         p.name AS pet_name,
-                        c.name AS client_name,
-                        mr.reason,
-                        mr.diagnosis,
-                        mr.prescribed_treatment,
-                        mr.veterinarian
-                    FROM medical_records mr
-                    JOIN pets p ON mr.pet_id = p.pet_id
-                    JOIN clients c ON mr.client_id = c.client_id
-                    WHERE mr.type = ?
-                    ORDER BY mr.date DESC
-                """, (record_type,))
-            else:
-                self.cursor.execute("""
-                    SELECT 
-                        DATE_FORMAT(mr.date, '%Y-%m-%d') as date,
-                        mr.type,
-                        p.name AS pet_name,
-                        c.name AS client_name,
-                        mr.reason,
-                        mr.diagnosis,
-                        mr.prescribed_treatment,
-                        mr.veterinarian
-                    FROM medical_records mr
-                    JOIN pets p ON mr.pet_id = p.pet_id
-                    JOIN clients c ON mr.client_id = c.client_id
-                    ORDER BY mr.date DESC
+                        cl.name AS client_name,
+                        c.reason,
+                        c.diagnosis,
+                        c.prescribed_treatment,
+                        c.veterinarian
+                    FROM consultations c
+                    JOIN pets p ON c.pet_id = p.pet_id
+                    JOIN clients cl ON c.client_id = cl.client_id
+                    ORDER BY c.date DESC
                 """)
+            elif record_type == "Deworming":
+                self.cursor.execute("""
+                    SELECT 
+                        DATE_FORMAT(d.date, '%Y-%m-%d') as date,
+                        'Deworming' as type,
+                        p.name AS pet_name,
+                        cl.name AS client_name,
+                        d.medication as reason,
+                        d.dosage as diagnosis,
+                        d.next_scheduled as prescribed_treatment,
+                        d.veterinarian
+                    FROM deworming d
+                    JOIN pets p ON d.pet_id = p.pet_id
+                    JOIN clients cl ON d.client_id = cl.client_id
+                    ORDER BY d.date DESC
+                """)
+            elif record_type == "Vaccination":
+                self.cursor.execute("""
+                    SELECT 
+                        DATE_FORMAT(v.date, '%Y-%m-%d') as date,
+                        'Vaccination' as type,
+                        p.name AS pet_name,
+                        cl.name AS client_name,
+                        v.vaccine as reason,
+                        v.dosage as diagnosis,
+                        v.next_scheduled as prescribed_treatment,
+                        v.veterinarian
+                    FROM vaccinations v
+                    JOIN pets p ON v.pet_id = p.pet_id
+                    JOIN clients cl ON v.client_id = cl.client_id
+                    ORDER BY v.date DESC
+                """)
+            elif record_type == "Surgery":
+                self.cursor.execute("""
+                    SELECT 
+                        DATE_FORMAT(s.date, '%Y-%m-%d') as date,
+                        'Surgery' as type,
+                        p.name AS pet_name,
+                        cl.name AS client_name,
+                        s.surgery_type as reason,
+                        s.anesthesia as diagnosis,
+                        s.next_followup as prescribed_treatment,
+                        s.veterinarian
+                    FROM surgeries s
+                    JOIN pets p ON s.pet_id = p.pet_id
+                    JOIN clients cl ON s.client_id = cl.client_id
+                    ORDER BY s.date DESC
+                """)
+            elif record_type == "Grooming":
+                self.cursor.execute("""
+                    SELECT 
+                        DATE_FORMAT(g.date, '%Y-%m-%d') as date,
+                        'Grooming' as type,
+                        p.name AS pet_name,
+                        cl.name AS client_name,
+                        g.services as reason,
+                        g.notes as diagnosis,
+                        g.next_scheduled as prescribed_treatment,
+                        g.veterinarian
+                    FROM grooming g
+                    JOIN pets p ON g.pet_id = p.pet_id
+                    JOIN clients cl ON g.client_id = cl.client_id
+                    ORDER BY g.date DESC
+                """)
+            elif record_type == "Other Treatments":
+                self.cursor.execute("""
+                    SELECT 
+                        DATE_FORMAT(ot.date, '%Y-%m-%d') as date,
+                        'Other Treatments' as type,
+                        p.name AS pet_name,
+                        cl.name AS client_name,
+                        ot.treatment_type as reason,
+                        ot.medication as diagnosis,
+                        ot.dosage as prescribed_treatment,
+                        ot.veterinarian
+                    FROM other_treatments ot
+                    JOIN pets p ON ot.pet_id = p.pet_id
+                    JOIN clients cl ON ot.client_id = cl.client_id
+                    ORDER BY ot.date DESC
+                """)
+            
             records = self.cursor.fetchall()
             print(f"Fetched {len(records)} records from database")
             return records
@@ -880,4 +1133,91 @@ class Database:
             return True
         except mariadb.Error as e:
             print(f"❌ Error updating password: {e}")
+            return False
+
+    def migrate_medical_records(self):
+        """Migrate records from medical_records table to their respective treatment tables."""
+        try:
+            print("\n=== Starting Medical Records Migration ===")
+            
+            # Get all records from medical_records
+            self.cursor.execute("""
+                SELECT pet_id, client_id, date, type, reason, diagnosis, 
+                       prescribed_treatment, veterinarian
+                FROM medical_records
+            """)
+            records = self.cursor.fetchall()
+            
+            print(f"Found {len(records)} records to migrate")
+            
+            # Migrate each record to its respective table
+            for record in records:
+                pet_id, client_id, date, type, reason, diagnosis, prescribed, veterinarian = record
+                
+                try:
+                    if type == "Consultation":
+                        self.cursor.execute("""
+                            INSERT INTO consultations (
+                                pet_id, client_id, date, reason, diagnosis, 
+                                prescribed_treatment, veterinarian
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (pet_id, client_id, date, reason, diagnosis, prescribed, veterinarian))
+                    
+                    elif type == "Deworming":
+                        self.cursor.execute("""
+                            INSERT INTO deworming (
+                                pet_id, client_id, date, medication, dosage, 
+                                next_scheduled, veterinarian
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (pet_id, client_id, date, reason, diagnosis, prescribed, veterinarian))
+                    
+                    elif type == "Vaccination":
+                        self.cursor.execute("""
+                            INSERT INTO vaccinations (
+                                pet_id, client_id, date, vaccine, dosage, 
+                                next_scheduled, veterinarian
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (pet_id, client_id, date, reason, diagnosis, prescribed, veterinarian))
+                    
+                    elif type == "Surgery":
+                        self.cursor.execute("""
+                            INSERT INTO surgeries (
+                                pet_id, client_id, date, surgery_type, anesthesia, 
+                                next_followup, veterinarian
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (pet_id, client_id, date, reason, diagnosis, prescribed, veterinarian))
+                    
+                    elif type == "Grooming":
+                        self.cursor.execute("""
+                            INSERT INTO grooming (
+                                pet_id, client_id, date, services, notes, 
+                                next_scheduled, veterinarian
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (pet_id, client_id, date, reason, diagnosis, prescribed, veterinarian))
+                    
+                    elif type == "Other Treatments":
+                        self.cursor.execute("""
+                            INSERT INTO other_treatments (
+                                pet_id, client_id, date, treatment_type, medication, 
+                                dosage, veterinarian
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (pet_id, client_id, date, reason, diagnosis, prescribed, veterinarian))
+                    
+                    self.conn.commit()
+                    print(f"✅ Migrated record: {type} for pet_id {pet_id}")
+                    
+                except Exception as e:
+                    print(f"❌ Error migrating record: {e}")
+                    self.conn.rollback()
+            
+            # Drop the medical_records table
+            self.cursor.execute("DROP TABLE IF EXISTS medical_records")
+            self.conn.commit()
+            print("✅ Dropped medical_records table")
+            
+            print("=== Migration Complete ===")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error during migration: {e}")
             return False
