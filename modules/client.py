@@ -10,7 +10,7 @@ from modules.database import Database
 from modules.utils import create_styled_message_box, show_message
 from datetime import datetime
 
-class AddPetDialog(QDialog):
+class AddPetDialog(QDialog):                                                
     def __init__(self, client_email, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Add Pet")
@@ -134,17 +134,6 @@ class AddPetDialog(QDialog):
         height_layout.addWidget(self.height_input)
         form_layout.addLayout(height_layout)
 
-        # Blood Type
-        blood_type_layout = QHBoxLayout()
-        blood_type_label = QLabel("Blood Type:")
-        blood_type_label.setStyleSheet("font-size: 16px; font-weight: bold; min-width: 150px;")
-        self.blood_type_combo = QComboBox()
-        self.blood_type_combo.addItems(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"])
-        self.blood_type_combo.setMinimumHeight(35)
-        blood_type_layout.addWidget(blood_type_label)
-        blood_type_layout.addWidget(self.blood_type_combo)
-        form_layout.addLayout(blood_type_layout)
-
         # Photo
         photo_layout = QHBoxLayout()
         photo_label = QLabel("Photo:")
@@ -234,7 +223,6 @@ class AddPetDialog(QDialog):
         age = self.age_input.text().strip()
         weight = self.weight_input.text().strip()
         height = self.height_input.text().strip()
-        blood_type = self.blood_type_combo.currentText()
 
         if not all([name, species, breed, color, age, weight, height]):
             show_message(self, "All fields are required!", QMessageBox.Warning)
@@ -274,9 +262,9 @@ class AddPetDialog(QDialog):
             client_id = result[0]
 
             db.cursor.execute("""
-                INSERT INTO pets (name, gender, species, breed, color, birthdate, age, weight, height, blood_type, photo_path, client_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (name, gender, species, breed, color, birthdate, age, weight_float, height_float, blood_type, self.photo_path, client_id))
+                INSERT INTO pets (name, gender, species, breed, color, birthdate, age, weight, height, photo_path, client_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (name, gender, species, breed, color, birthdate, age, weight_float, height_float, self.photo_path, client_id))
             db.conn.commit()
             show_message(self, "New pet added successfully!")
             self.accept()
@@ -671,7 +659,7 @@ def get_client_widget(main_window):
     row2.addWidget(breed_input)
     pets_fields_layout.addLayout(row2)
 
-    # Row 3: Weight, Height, Blood Type
+    # Row 3: Weight, Height
     row3 = QHBoxLayout()
     
     # Weight input
@@ -686,35 +674,8 @@ def get_client_widget(main_window):
     height_input.setMinimumHeight(35)
     height_input.setStyleSheet(line_edit_style)
     
-    # Blood Type combo
-    blood_type_combo = QComboBox(pets_fields_widget)  # Set parent
-    blood_type_combo.addItem("Select Blood Type")  # Add placeholder as first item
-    blood_type_combo.addItems(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"])
-    blood_type_combo.setMinimumHeight(35)
-    blood_type_combo.setStyleSheet("""
-        QComboBox {
-            padding: 8px;
-            border: 1px solid gray;
-            border-radius: 5px;
-            background-color: #f4f4f8;
-            font-size: 12px;
-        }
-        QComboBox::drop-down {
-            border: none;
-        }
-        QComboBox QAbstractItemView {
-            background-color: white;
-            selection-background-color: #FED766;
-            font-size: 12px;
-        }
-    """)
-    
-    # Make the placeholder item non-selectable
-    blood_type_combo.model().item(0).setEnabled(False)
-    
     row3.addWidget(weight_input)
     row3.addWidget(height_input)
-    row3.addWidget(blood_type_combo)
     pets_fields_layout.addLayout(row3)
 
     # Add other input fields
@@ -978,50 +939,41 @@ def get_client_widget(main_window):
                 return
             client_id = result[0]
             print(f"✅ Retrieved client_id: {client_id}")
+
+            # Fetch pets associated with the client_id, including the photo_path
+            try:
+                db.cursor.execute("""
+                    SELECT name, gender, species, breed, color, birthdate, age, weight, height, photo_path
+                    FROM pets
+                    WHERE client_id = ?
+                """, (client_id,))
+                pets = db.cursor.fetchall()
+
+                # Clear existing widgets in the scroll layout
+                while scroll_layout.count():
+                    child = scroll_layout.takeAt(0)
+                    if child.widget():
+                        child.widget().deleteLater()
+
+                if pets:
+                    # Create cards for all pets and add to scroll area
+                    for index, pet in enumerate(pets):
+                        pet_card = create_pet_card(pet, index)
+                        scroll_layout.addWidget(pet_card)
+                else:
+                    no_pet_label = QLabel("No pets found.")
+                    no_pet_label.setAlignment(Qt.AlignCenter)
+                    scroll_layout.addWidget(no_pet_label)
+
+            except Exception as e:
+                print(f"❌ Error fetching pets: {e}")
+                return
+
         except Exception as e:
             print(f"❌ Error fetching client_id: {e}")
             return
-
-        # Fetch pets associated with the client_id, including the photo_path
-        try:
-            db.cursor.execute("""
-                SELECT name, gender, species, breed, color, birthdate, age, photo_path
-                FROM pets
-                WHERE client_id = ?
-            """, (client_id,))
-            pets = db.cursor.fetchall()
-
-            for i in range(scroll_layout.count()):
-                widget = scroll_layout.itemAt(i).widget()
-                if widget:
-                    widget.deleteLater()
-
-            # Create new pet cards and add them to the layout
-            for idx, pet in enumerate(pets):
-                card = create_pet_card(pet, idx)
-                scroll_layout.addWidget(card)
-
-        except Exception as e:
-            print(f"❌ Error fetching pets: {e}")
-            return
         finally:
             db.close_connection()
-
-        # 🧹 Clear the scroll layout
-        while scroll_layout.count():
-            child = scroll_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
-
-        if pets:
-            # Create cards for all pets and add to scroll area
-            for index, pet in enumerate(pets):
-                pet_card = create_pet_card(pet, index)
-                scroll_layout.addWidget(pet_card)
-        else:
-            no_pet_label = QLabel("No pets found.")
-            no_pet_label.setAlignment(Qt.AlignCenter)
-            scroll_layout.addWidget(no_pet_label)
 
     def handle_update_pet(pet_data, index):
         pets = pet_info_widget.property("pets") or []
@@ -1076,7 +1028,8 @@ def get_client_widget(main_window):
         pet_card_picture.setAlignment(Qt.AlignCenter)
         pet_card_picture.setStyleSheet("background-color: white; border-radius: 10px;")
 
-        photo_path = pet_data[7]
+        # Extract photo path from the last element of pet_data
+        photo_path = pet_data[-1]  # Get the last element which should be the photo path
         if photo_path:
             pet_card_picture.setPixmap(QPixmap(photo_path).scaled(
                 150, 150,
@@ -1086,33 +1039,85 @@ def get_client_widget(main_window):
         else:
             pet_card_picture.setText("No Photo")
 
-        # 📄 Pet info in the middle
+        # 📄 Pet info in the middle (two columns)
         pet_info_widget = QWidget()
-        pet_info_layout = QVBoxLayout(pet_info_widget)
-        pet_info_layout.setContentsMargins(0, 0, 0, 0)
-        pet_info_layout.setSpacing(2)
+        pet_info_main_layout = QHBoxLayout(pet_info_widget)
+        pet_info_main_layout.setContentsMargins(0, 0, 0, 0)
+        pet_info_main_layout.setSpacing(20)
 
-        for label_text, value in zip(
-            ["Name", "Gender", "Species", "Breed", "Color", "Birthdate", "Age"],
-            pet_data[:7]
-        ):
+        left_column = QVBoxLayout()
+        right_column = QVBoxLayout()
+        left_column.setSpacing(2)
+        right_column.setSpacing(2)
+
+        # Define the fields and their corresponding indices in pet_data
+        fields = [
+            ("Name", 0),
+            ("Gender", 1),
+            ("Species", 2),
+            ("Breed", 3),
+            ("Color", 4),
+            ("Birthdate", 5),
+            ("Age", 6),
+            ("Weight", 7),
+            ("Height", 8)
+        ]
+
+        # Split fields into two columns
+        mid = (len(fields) + 1) // 2
+        left_fields = fields[:mid]
+        right_fields = fields[mid:]
+
+        for label_text, index in left_fields:
             row_layout = QHBoxLayout()
-
+            value = pet_data[index]
             label = QLabel(f"{label_text}:")
             label.setStyleSheet("font-weight: bold;")
             label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-
+            if label_text == "Weight" and value is not None:
+                try:
+                    value = f"{float(value):.2f} kg"
+                except (ValueError, TypeError):
+                    value = "N/A"
+            elif label_text == "Height" and value is not None:
+                try:
+                    value = f"{float(value):.2f} m"
+                except (ValueError, TypeError):
+                    value = "N/A"
             value_label = QLabel(str(value))
             value_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-
-            # Optionally set fixed width for label to align values
-            label.setFixedWidth(80)  # adjust width as needed
-
+            label.setFixedWidth(80)
             row_layout.addWidget(label)
             row_layout.addWidget(value_label)
-            row_layout.addStretch()  # Push items to the left
+            row_layout.addStretch()
+            left_column.addLayout(row_layout)
 
-            pet_info_layout.addLayout(row_layout)
+        for label_text, index in right_fields:
+            row_layout = QHBoxLayout()
+            value = pet_data[index]
+            label = QLabel(f"{label_text}:")
+            label.setStyleSheet("font-weight: bold;")
+            label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            if label_text == "Weight" and value is not None:
+                try:
+                    value = f"{float(value):.2f} kg"
+                except (ValueError, TypeError):
+                    value = "N/A"
+            elif label_text == "Height" and value is not None:
+                try:
+                    value = f"{float(value):.2f} m"
+                except (ValueError, TypeError):
+                    value = "N/A"
+            value_label = QLabel(str(value))
+            value_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            label.setFixedWidth(80)
+            row_layout.addWidget(label)
+            row_layout.addWidget(value_label)
+            row_layout.addStretch()
+            right_column.addLayout(row_layout)
+
+        pet_info_main_layout.addLayout(left_column)
+        pet_info_main_layout.addLayout(right_column)
 
         # 🔘 Buttons on the right
         pet_buttons_widget = QWidget()
@@ -1214,7 +1219,6 @@ def get_client_widget(main_window):
         height_input.clear()
         birthdate_input.setDate(datetime.now())
         pet_gender.setCurrentIndex(0)
-        blood_type_combo.setCurrentIndex(0)
         pet_picture.setPixmap(QPixmap())
         pet_picture.setText("No Photo")
         pets_edit_widget.setProperty("mode", "add")
@@ -1241,10 +1245,9 @@ def get_client_widget(main_window):
         age_input.setText(str(pet_data[6]))
         weight_input.setText(str(pet_data[7]))
         height_input.setText(str(pet_data[8]))
-        blood_type_combo.setCurrentText(pet_data[9])
 
         # 🖼️ Set the photo preview in pet_picture
-        photo_path = pet_data[10]
+        photo_path = pet_data[9]
         if photo_path:
             pet_picture.setPixmap(QPixmap(photo_path).scaled(
                 pet_picture.width(), pet_picture.height(),
@@ -1274,7 +1277,6 @@ def get_client_widget(main_window):
         age = age_input.text().strip()
         weight = weight_input.text().strip()
         height = height_input.text().strip()
-        blood_type = blood_type_combo.currentText()
 
         if not all([name, species, breed, color, age, weight, height]):
             show_message(pets_edit_widget, "All fields are required!", QMessageBox.Warning)
@@ -1325,30 +1327,45 @@ def get_client_widget(main_window):
 
             if mode == "add":
                 db.cursor.execute("""
-                    INSERT INTO pets (name, gender, species, breed, color, birthdate, age, weight, height, blood_type, photo_path, client_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (name, gender, species, breed, color, birthdate, age, weight_float, height_float, blood_type, photo_path, client_id))
+                    INSERT INTO pets (name, gender, species, breed, color, birthdate, age, weight, height, photo_path, client_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (name, gender, species, breed, color, birthdate, age, weight_float, height_float, photo_path, client_id))
                 db.conn.commit()
                 show_message(pets_edit_widget, "New pet added successfully!")
             elif mode == "edit":
                 current_pet_name = pet_info_widget.property("pets")[pet_info_widget.property("current_index")][0]
                 db.cursor.execute("""
                     UPDATE pets 
-                    SET name = ?, gender = ?, species = ?, breed = ?, color = ?, birthdate = ?, age = ?, weight = ?, height = ?, blood_type = ?, photo_path = ?
+                    SET name = ?, gender = ?, species = ?, breed = ?, color = ?, birthdate = ?, age = ?, weight = ?, height = ?, photo_path = ?
                     WHERE name = ? AND client_id = ?
-                """, (name, gender, species, breed, color, birthdate, age, weight_float, height_float, blood_type, photo_path, current_pet_name, client_id))
+                """, (name, gender, species, breed, color, birthdate, age, weight_float, height_float, photo_path, current_pet_name, client_id))
                 db.conn.commit()
                 show_message(pets_edit_widget, "Pet updated successfully!")
 
+            # Update the pet info display
             update_pet_info(client_email)
-            pet_info_widget.setProperty("current_index", 0)
+            
+            # Clear the form and switch back to view mode
+            name_input.clear()
+            age_input.clear()
+            species_input.clear()
+            breed_input.clear()
+            color_input.clear()
+            weight_input.clear()
+            height_input.clear()
+            birthdate_input.setDate(datetime.now())
+            pet_gender.setCurrentIndex(0)
+            pet_picture.setPixmap(QPixmap())
+            pet_picture.setText("No Photo")
+            
             client_info_stack.setCurrentIndex(0)
 
         except Exception as e:
             show_message(pets_edit_widget, f"Failed to save pet data: {e}", QMessageBox.Critical)
         finally:
             db.close_connection()
-                
+
+    # Connect the save button to the save_pet_data function
     pets_save_btn.clicked.connect(save_pet_data)
 
     def delete_pet():
