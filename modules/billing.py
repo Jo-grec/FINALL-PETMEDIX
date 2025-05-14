@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate, QGroupBox, QRadioButton, QTableWidgetItem, QHeaderView, QAbstractScrollArea, 
     QAbstractItemView, QButtonGroup, QMessageBox
 )
-from PySide6.QtCore import Qt, QDate
+from PySide6.QtCore import Qt, QDate, QSize
 from PySide6.QtGui import QDoubleValidator, QIcon
 
 from modules.database import Database
@@ -13,12 +13,21 @@ from modules.utils import show_message
 
 
 class InvoiceFormDialog(QDialog):
-    def __init__(self):
+    def __init__(self, is_view_mode=False):
         super().__init__()
         self.setWindowTitle("PetMedix - Billing")
         self.setFixedSize(800, 600)
         self.setStyleSheet("background: none;")
         
+        # Store signal connection state
+        self.services_table_connected = False
+        self.is_partial_amount_valid = True  # Track partial amount validity
+        self.is_view_mode = is_view_mode
+        
+        # Create the UI
+        self.setup_ui()
+        
+    def setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -247,9 +256,9 @@ class InvoiceFormDialog(QDialog):
         self.services_table = QTableWidget(8, 6)  # 6 columns now
         self.services_table.setHorizontalHeaderLabels([
             "",  # For the checkbox
-            "SERVICE(S) RENDERED & CHARGES",
+            "SERVICES",
             "DATE",
-            "QUANTITY",
+            "QTY",
             "UNIT PRICE",
             "TOTAL"
         ])
@@ -292,23 +301,29 @@ class InvoiceFormDialog(QDialog):
         # Subtotal
         subtotal_label = QLabel("SUBTOTAL:")
         subtotal_label.setStyleSheet("font-size: 10px; font-weight: bold;")
-        subtotal_field = QLineEdit()
-        subtotal_field.setFixedHeight(20)
-        payment_layout.addRow(subtotal_label, subtotal_field)
+        self.subtotal_field = QLineEdit()
+        self.subtotal_field.setFixedHeight(20)
+        self.subtotal_field.setReadOnly(True)  # Make subtotal read-only
+        self.subtotal_field.setText("0.00")  # Initialize to zero
+        payment_layout.addRow(subtotal_label, self.subtotal_field)
         
         # VAT
         vat_label = QLabel("VAT (if applicable):")
         vat_label.setStyleSheet("font-size: 10px;")
-        vat_field = QLineEdit()
-        vat_field.setFixedHeight(20)
-        payment_layout.addRow(vat_label, vat_field)
+        self.vat_field = QLineEdit()
+        self.vat_field.setFixedHeight(20)
+        self.vat_field.setReadOnly(True)  # Make VAT read-only
+        self.vat_field.setText("0.00")  # Initialize to zero
+        payment_layout.addRow(vat_label, self.vat_field)
         
         # Total amount
         total_label = QLabel("TOTAL AMOUNT:")
         total_label.setStyleSheet("font-size: 10px; font-weight: bold;")
-        total_field = QLineEdit()
-        total_field.setFixedHeight(20)
-        payment_layout.addRow(total_label, total_field)
+        self.total_field = QLineEdit()
+        self.total_field.setFixedHeight(20)
+        self.total_field.setReadOnly(True)  # Make total read-only
+        self.total_field.setText("0.00")  # Initialize to zero
+        payment_layout.addRow(total_label, self.total_field)
         
         # Payment status
         status_label = QLabel("PAYMENT STATUS:")
@@ -318,6 +333,9 @@ class InvoiceFormDialog(QDialog):
         status_layout.setContentsMargins(0, 0, 0, 0)
         status_layout.setSpacing(10)
         
+        # Create button group for payment status
+        self.payment_status_group = QButtonGroup(self)
+        
         paid_radio = QRadioButton("PAID")
         paid_radio.setStyleSheet("font-size: 10px;")
         unpaid_radio = QRadioButton("UNPAID")
@@ -325,12 +343,37 @@ class InvoiceFormDialog(QDialog):
         partial_radio = QRadioButton("PARTIAL")
         partial_radio.setStyleSheet("font-size: 10px;")
         
+        # Add radio buttons to button group
+        self.payment_status_group.addButton(paid_radio)
+        self.payment_status_group.addButton(unpaid_radio)
+        self.payment_status_group.addButton(partial_radio)
+        
         status_layout.addWidget(paid_radio)
         status_layout.addWidget(unpaid_radio)
         status_layout.addWidget(partial_radio)
         status_layout.addStretch()
         
         payment_layout.addRow(status_label, status_widget)
+        
+        # Partial payment amount field (initially hidden)
+        self.partial_amount_label = QLabel("PARTIAL PAYMENT AMOUNT:")
+        self.partial_amount_label.setStyleSheet("font-size: 10px;")
+        self.partial_amount_field = QLineEdit()
+        self.partial_amount_field.setFixedHeight(20)
+        self.partial_amount_field.setValidator(QDoubleValidator(0.0, 999999.99, 2))
+        self.partial_amount_field.setPlaceholderText("Enter partial payment amount")
+        
+        # Hide partial payment field initially
+        self.partial_amount_label.hide()
+        self.partial_amount_field.hide()
+        
+        # Add partial payment field to layout
+        payment_layout.addRow(self.partial_amount_label, self.partial_amount_field)
+        
+        # Connect radio button signals
+        partial_radio.toggled.connect(self.on_payment_status_changed)
+        paid_radio.toggled.connect(self.on_payment_status_changed)
+        unpaid_radio.toggled.connect(self.on_payment_status_changed)
         
         # Payment method
         method_label = QLabel("PAYMENT METHOD:")
@@ -482,7 +525,8 @@ class InvoiceFormDialog(QDialog):
         save_btn.clicked.connect(self.accept)
         
         button_layout.addWidget(download_btn)
-        button_layout.addWidget(save_btn)
+        if not self.is_view_mode:
+            button_layout.addWidget(save_btn)
         
         layout.addWidget(button_container)
         
@@ -495,6 +539,10 @@ class InvoiceFormDialog(QDialog):
         # Connect reason dropdown to refresh services
         self.reason_dropdown.currentTextChanged.connect(self.refresh_services)
         
+        # If in view mode, make all fields read-only
+        if self.is_view_mode:
+            self.make_fields_readonly()
+
     def _create_section(self, title):
         container = QGroupBox(title)
         container.setStyleSheet("""
@@ -514,25 +562,38 @@ class InvoiceFormDialog(QDialog):
         """)
         return container
 
-        
     def update_total(self, item):
-        """Update the total amount when quantity or unit price changes."""
-        row = item.row()
-        col = item.column()
-
-        if col not in [3, 4]:  # Only process quantity and unit price columns
-            return
-
+        """Update the total amount when quantity or unit price changes or when checkbox state changes."""
         try:
+            # Block signals to prevent recursive updates
+            self.services_table.blockSignals(True)
+            
+            row = item.row()
+            col = item.column()
+
+            # Get checkbox state
+            checkbox_item = self.services_table.item(row, 0)
+            if not checkbox_item:
+                return
+                
+            is_checked = checkbox_item.checkState() == Qt.Checked
+
             # Get quantity and unit price values
             quantity_item = self.services_table.item(row, 3)
             unit_price_item = self.services_table.item(row, 4)
 
-            quantity = float(quantity_item.text()) if quantity_item and quantity_item.text() else 0.0
-            unit_price = float(unit_price_item.text()) if unit_price_item and unit_price_item.text() else 0.0
+            if not quantity_item or not unit_price_item:
+                return
+
+            try:
+                quantity = float(quantity_item.text()) if quantity_item.text() else 0.0
+                unit_price = float(unit_price_item.text()) if unit_price_item.text() else 0.0
+            except ValueError:
+                quantity = 0.0
+                unit_price = 0.0
             
             # Calculate row total
-            total = quantity * unit_price
+            total = quantity * unit_price if is_checked else 0.0
 
             # Update row total
             total_item = QTableWidgetItem(f"{total:.2f}")
@@ -542,58 +603,76 @@ class InvoiceFormDialog(QDialog):
             # Calculate and update subtotal
             subtotal = 0.0
             for r in range(self.services_table.rowCount()):
-                total_item = self.services_table.item(r, 5)
-                if total_item and total_item.text():
-                    subtotal += float(total_item.text())
+                checkbox = self.services_table.item(r, 0)
+                if checkbox and checkbox.checkState() == Qt.Checked:
+                    total_item = self.services_table.item(r, 5)
+                    if total_item and total_item.text():
+                        try:
+                            subtotal += float(total_item.text())
+                        except ValueError:
+                            continue
 
             # Update subtotal field
-            subtotal_field = self.findChild(QLineEdit, "subtotal_field")
-            if subtotal_field:
-                subtotal_field.setText(f"{subtotal:.2f}")
+            self.subtotal_field.setText(f"{subtotal:.2f}")
 
-            # Calculate and update VAT (assuming 12% VAT)
+            # Calculate and update VAT (12%)
             vat = subtotal * 0.12
-            vat_field = self.findChild(QLineEdit, "vat_field")
-            if vat_field:
-                vat_field.setText(f"{vat:.2f}")
+            self.vat_field.setText(f"{vat:.2f}")
 
             # Update total amount
             total_amount = subtotal + vat
-            total_field = self.findChild(QLineEdit, "total_amount_field")
-            if total_field:
-                total_field.setText(f"{total_amount:.2f}")
+            self.total_field.setText(f"{total_amount:.2f}")
 
-        except ValueError:
-            pass  # Ignore invalid input
+        except Exception as e:
+            print(f"Error updating total: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            # Always re-enable signals
+            self.services_table.blockSignals(False)
 
     def get_invoice_data(self):
         """Get all form data as a dictionary."""
-        data = {
-            "client_id": self.client_dropdown.currentData(),
-            "pet_id": self.pet_dropdown.currentData(),
-            "date_issued": self.date_field.text(),
-            "reason": self.reason_dropdown.currentText(),
-            "veterinarian": self.vet_dropdown.currentText(),
-            "payment_method": self.get_selected_payment_method(),
-            "received_by": self.received_by_dropdown.currentText(),
-            "notes": self.notes_edit.toPlainText().strip(),
-            "services": []
-        }
-        
-        # Get selected services
-        for row in range(self.services_table.rowCount()):
-            checkbox = self.services_table.item(row, 0)
-            if checkbox and checkbox.checkState() == Qt.Checked:
-                service = {
-                    "description": self.services_table.item(row, 1).text(),
-                    "date": self.services_table.item(row, 2).text(),
-                    "quantity": self.services_table.item(row, 3).text(),
-                    "unit_price": self.services_table.item(row, 4).text(),
-                    "total": self.services_table.item(row, 5).text()
-                }
-                data["services"].append(service)
-        
-        return data
+        try:
+            total_amount = float(self.total_field.text()) if self.total_field.text() else 0.0
+            subtotal = float(self.subtotal_field.text()) if self.subtotal_field.text() else 0.0
+            vat = float(self.vat_field.text()) if self.vat_field.text() else 0.0
+            
+            data = {
+                "client_id": self.client_dropdown.currentData(),
+                "pet_id": self.pet_dropdown.currentData(),
+                "date_issued": self.date_field.text(),
+                "reason": self.reason_dropdown.currentText(),
+                "veterinarian": self.vet_dropdown.currentText(),
+                "payment_method": self.get_selected_payment_method(),
+                "received_by": self.received_by_dropdown.currentText(),
+                "notes": self.notes_edit.toPlainText().strip(),
+                "payment_status": self.get_selected_payment_status(),
+                "partial_amount": float(self.partial_amount_field.text()) if self.partial_amount_field.isVisible() and self.partial_amount_field.text() else 0.0,
+                "total_amount": total_amount,
+                "subtotal": subtotal,
+                "vat": vat,
+                "invoice_no": self.invoice_field.text(),
+                "services": []
+            }
+            
+            # Get selected services
+            for row in range(self.services_table.rowCount()):
+                checkbox = self.services_table.item(row, 0)
+                if checkbox and checkbox.checkState() == Qt.Checked:
+                    service = {
+                        "description": self.services_table.item(row, 1).text(),
+                        "date": self.services_table.item(row, 2).text(),
+                        "quantity": float(self.services_table.item(row, 3).text()) if self.services_table.item(row, 3) and self.services_table.item(row, 3).text() else 0.0,
+                        "unit_price": float(self.services_table.item(row, 4).text()) if self.services_table.item(row, 4) and self.services_table.item(row, 4).text() else 0.0,
+                        "total": float(self.services_table.item(row, 5).text()) if self.services_table.item(row, 5) and self.services_table.item(row, 5).text() else 0.0
+                    }
+                    data["services"].append(service)
+            
+            return data
+        except Exception as e:
+            print(f"Error getting invoice data: {e}")
+            raise
         
     def load_clients(self):
         """Load all clients into the client dropdown."""
@@ -762,6 +841,10 @@ class InvoiceFormDialog(QDialog):
         """Load services from medical reports for the selected pet."""
         try:
             print(f"\n=== Debug: Loading services for pet_id {pet_id} ===")
+            
+            # Block signals temporarily
+            self.services_table.blockSignals(True)
+            
             db = Database()
             cursor = db.cursor
 
@@ -894,7 +977,7 @@ class InvoiceFormDialog(QDialog):
                 total_item = QTableWidgetItem(f"{default_price:.2f}")  # Initial total same as price
                 total_item.setFlags(total_item.flags() & ~Qt.ItemIsEditable)  # Make read-only
                 self.services_table.setItem(row_num, 5, total_item)
-            
+
             # Set column widths
             self.services_table.setColumnWidth(0, 30)  # Checkbox
             self.services_table.setColumnWidth(1, int(self.services_table.width() * 0.35))  # Service description
@@ -903,6 +986,12 @@ class InvoiceFormDialog(QDialog):
             self.services_table.setColumnWidth(4, int(self.services_table.width() * 0.15))  # Unit price
             self.services_table.setColumnWidth(5, int(self.services_table.width() * 0.15))  # Total
             
+            # Re-enable signals and connect if needed
+            self.services_table.blockSignals(False)
+            if not self.services_table_connected:
+                self.services_table.itemChanged.connect(self.update_total)
+                self.services_table_connected = True
+            
             db.close_connection()
             print("=== Services loaded successfully ===\n")
             
@@ -910,18 +999,21 @@ class InvoiceFormDialog(QDialog):
             print(f"Error loading services: {e}")
             import traceback
             traceback.print_exc()
-            
+            # Re-enable signals in case of error
+            self.services_table.blockSignals(False)
+
     def get_default_price(self, service_type):
         """Get default price based on service type."""
+        # All prices set to 0.00 as requested
         prices = {
-            "Consultation": 500.00,
-            "Deworming": 300.00,
-            "Vaccination": 800.00,
-            "Surgery": 2000.00,
-            "Grooming": 400.00,
-            "Other": 200.00
+            "Consultation": 0.00,
+            "Deworming": 0.00,
+            "Vaccination": 0.00,
+            "Surgery": 0.00,
+            "Grooming": 0.00,
+            "Other": 0.00
         }
-        return prices.get(service_type, 200.00)  # Default to 200.00 if service type not found
+        return prices.get(service_type, 0.00)  # Default to 0.00 if service type not found
 
     def on_payment_method_changed(self, state):
         """Handle payment method checkbox state changes to ensure only one is checked."""
@@ -937,6 +1029,291 @@ class InvoiceFormDialog(QDialog):
         """Refresh services when reason for visit changes."""
         if hasattr(self, 'pet_dropdown') and self.pet_dropdown.currentData():
             self.load_services_for_pet(self.pet_dropdown.currentData())
+
+    def on_payment_status_changed(self, checked):
+        """Handle payment status radio button changes."""
+        sender = self.sender()
+        if checked and sender.text() == "PARTIAL":
+            self.partial_amount_label.show()
+            self.partial_amount_field.show()
+            # Validate that partial amount is less than total
+            try:
+                total = float(self.total_field.text())
+                self.partial_amount_field.setValidator(QDoubleValidator(0.0, total, 2))
+                # Connect the textChanged signal when showing the field
+                self.partial_amount_field.textChanged.connect(self.validate_partial_amount)
+            except ValueError:
+                pass
+        else:
+            self.partial_amount_label.hide()
+            self.partial_amount_field.hide()
+            self.partial_amount_field.clear()
+            # Reset validation state
+            self.is_partial_amount_valid = True
+            # Disconnect the signal when hiding the field
+            try:
+                self.partial_amount_field.textChanged.disconnect(self.validate_partial_amount)
+            except:
+                pass
+
+    def validate_partial_amount(self, text):
+        """Validate that partial amount doesn't exceed total amount."""
+        try:
+            total = float(self.total_field.text())
+            partial = float(text) if text else 0.0
+            
+            if partial > total:
+                self.partial_amount_field.setStyleSheet("QLineEdit { color: red; }")
+                self.is_partial_amount_valid = False
+            else:
+                self.partial_amount_field.setStyleSheet("")
+                self.is_partial_amount_valid = True
+        except ValueError:
+            # Reset to default state if input is not a valid number
+            self.partial_amount_field.setStyleSheet("")
+            self.is_partial_amount_valid = False
+
+    def accept(self):
+        """Override accept to add validation."""
+        if self.payment_status_group.checkedButton() and \
+           self.payment_status_group.checkedButton().text() == "PARTIAL":
+            if not self.is_partial_amount_valid:
+                show_message(None, "Partial amount cannot exceed total amount", QMessageBox.Warning)
+                return
+            if not self.partial_amount_field.text():
+                show_message(None, "Please enter partial payment amount", QMessageBox.Warning)
+                return
+        super().accept()
+
+    def get_selected_payment_status(self):
+        """Get the selected payment status."""
+        selected_button = self.payment_status_group.checkedButton()
+        return selected_button.text() if selected_button else "UNPAID"
+
+    def get_selected_payment_method(self):
+        """Get the selected payment method."""
+        selected_button = self.payment_method_group.checkedButton()
+        return selected_button.text() if selected_button else None
+
+    def make_fields_readonly(self):
+        """Make all input fields read-only when in view mode."""
+        # Disable all dropdowns but keep them visible
+        self.client_dropdown.setEnabled(False)
+        self.pet_dropdown.setEnabled(False)
+        self.vet_dropdown.setEnabled(False)
+        self.reason_dropdown.setEnabled(False)
+        self.received_by_dropdown.setEnabled(False)
+        
+        # Make sure received_by dropdown is visible
+        self.received_by_dropdown.setVisible(True)
+
+        # Disable all text fields (they're already read-only)
+        self.notes_edit.setReadOnly(True)
+
+        # Disable but keep visible all radio buttons for payment method
+        for radio in self.payment_method_radios.values():
+            radio.setEnabled(False)
+            radio.setVisible(True)
+        
+        # Disable but keep visible payment status radio buttons
+        for button in self.payment_status_group.buttons():
+            button.setEnabled(False)
+            button.setVisible(True)
+
+        # Make sure services table is visible and properly styled
+        self.services_table.setVisible(True)
+        self.services_table.setEnabled(True)  # Keep enabled for scrolling
+        self.services_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.services_table.setSelectionMode(QTableWidget.NoSelection)
+        self.services_table.setFocusPolicy(Qt.NoFocus)
+        self.services_table.setStyleSheet("""
+            QTableWidget {
+                background-color: white;
+                border: 1px solid #CCCCCC;
+            }
+            QTableWidget::item {
+                padding: 5px;
+                border-bottom: 1px solid #EEEEEE;
+            }
+            QHeaderView::section {
+                background-color: #CFDEF3;
+                color: black;
+                padding: 5px;
+                border: none;
+            }
+        """)
+
+        # Make sure payment fields are visible
+        self.subtotal_field.setVisible(True)
+        self.vat_field.setVisible(True)
+        self.total_field.setVisible(True)
+        
+        # Make sure partial payment field is visible if applicable
+        if self.partial_amount_field.text():
+            self.partial_amount_label.setVisible(True)
+            self.partial_amount_field.setVisible(True)
+            self.partial_amount_field.setReadOnly(True)
+
+        # Ensure table columns are properly sized
+        self.services_table.resizeColumnsToContents()
+        self.services_table.setMinimumHeight(200)  # Ensure table is tall enough to be visible
+        
+        # Make sure all amounts are formatted properly
+        try:
+            # Format monetary values
+            subtotal = float(self.subtotal_field.text() or 0)
+            vat = float(self.vat_field.text() or 0)
+            total = float(self.total_field.text() or 0)
+            
+            self.subtotal_field.setText(f"{subtotal:.2f}")
+            self.vat_field.setText(f"{vat:.2f}")
+            self.total_field.setText(f"{total:.2f}")
+        except ValueError:
+            pass
+
+    def load_invoice_data(self, billing_id):
+        """Load invoice data for viewing."""
+        try:
+            # First database connection for billing data
+            db = Database()
+            try:
+                # Fetch main billing data
+                db.cursor.execute("""
+                    SELECT b.billing_id, b.invoice_no, b.date_issued, b.reason, b.veterinarian,
+                           b.payment_method, b.payment_status, b.partial_amount, b.notes,
+                           b.total_amount, b.subtotal, b.vat, b.received_by,
+                           c.name as client_name, c.address, c.contact_number, c.email,
+                           p.name as pet_name, p.species, p.breed, p.age,
+                           c.client_id, p.pet_id
+                    FROM billing b
+                    JOIN clients c ON b.client_id = c.client_id
+                    JOIN pets p ON b.pet_id = p.pet_id
+                    WHERE b.billing_id = ?
+                """, (billing_id,))
+                billing_data = db.cursor.fetchone()
+            finally:
+                db.close_connection()
+
+            if billing_data:
+                # Set the values in the form
+                self.date_field.setText(str(billing_data[2]))  # date_issued
+                self.invoice_field.setText(str(billing_data[1]))  # invoice_no
+                
+                # Set client info
+                client_name = billing_data[13]  # client_name
+                client_id = billing_data[21]  # client_id
+                # First load all clients to populate the dropdown
+                self.load_clients()
+                # Then set the correct client
+                index = self.client_dropdown.findData(client_id)
+                if index >= 0:
+                    self.client_dropdown.setCurrentIndex(index)
+                self.client_address_field.setText(str(billing_data[14] or ""))  # address
+                self.client_contact_field.setText(str(billing_data[15] or ""))  # contact_number
+                self.client_email_field.setText(str(billing_data[16] or ""))  # email
+
+                # Set pet info
+                pet_name = billing_data[17]  # pet_name
+                pet_id = billing_data[22]  # pet_id
+                # Load pets for the selected client
+                self.load_pets_for_client(client_id)
+                # Set the correct pet
+                index = self.pet_dropdown.findData(pet_id)
+                if index >= 0:
+                    self.pet_dropdown.setCurrentIndex(index)
+                self.pet_species_field.setText(str(billing_data[18] or ""))  # species
+                self.pet_breed_field.setText(str(billing_data[19] or ""))  # breed
+                self.pet_age_field.setText(str(billing_data[20] or ""))  # age
+
+                # Set reason and veterinarian
+                self.reason_dropdown.setCurrentText(str(billing_data[3] or ""))  # reason
+                self.vet_dropdown.setCurrentText(str(billing_data[4] or ""))  # veterinarian
+                
+                # Set notes
+                self.notes_edit.setPlainText(str(billing_data[8] or ""))  # notes
+                
+                # Set payment method
+                payment_method = billing_data[5]
+                if payment_method in self.payment_method_radios:
+                    self.payment_method_radios[payment_method].setChecked(True)
+                    self.payment_method_radios[payment_method].setVisible(True)
+
+                # Set payment status
+                payment_status = billing_data[6]
+                for button in self.payment_status_group.buttons():
+                    if button.text() == payment_status:
+                        button.setChecked(True)
+                        button.setVisible(True)
+                        if payment_status == "PARTIAL":
+                            self.partial_amount_field.setText(str(billing_data[7] or "0.00"))
+                            self.partial_amount_label.setVisible(True)
+                            self.partial_amount_field.setVisible(True)
+                        break
+
+                # Set receptionist
+                received_by = billing_data[12]  # received_by
+                self.load_receptionists()  # Load all receptionists
+                index = self.received_by_dropdown.findText(received_by)
+                if index >= 0:
+                    self.received_by_dropdown.setCurrentIndex(index)
+                self.received_by_dropdown.setVisible(True)
+
+                # Set totals
+                self.subtotal_field.setText(f"{float(billing_data[10] or 0):.2f}")  # subtotal
+                self.vat_field.setText(f"{float(billing_data[11] or 0):.2f}")  # vat
+                self.total_field.setText(f"{float(billing_data[9] or 0):.2f}")  # total_amount
+
+                # New database connection for services data
+                db = Database()
+                try:
+                    # Load services
+                    db.cursor.execute("""
+                        SELECT service_description, service_date, quantity, unit_price, line_total 
+                        FROM billing_services 
+                        WHERE billing_id = ?
+                    """, (billing_id,))
+                    services = db.cursor.fetchall()
+
+                    # Clear and populate services table
+                    self.services_table.setRowCount(len(services))
+                    for row, service in enumerate(services):
+                        # Create checkbox (checked by default since these are saved services)
+                        checkbox = QTableWidgetItem()
+                        checkbox.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+                        checkbox.setCheckState(Qt.Checked)
+                        self.services_table.setItem(row, 0, checkbox)
+
+                        # Add service details
+                        description_item = QTableWidgetItem(str(service[0] or ""))
+                        date_item = QTableWidgetItem(str(service[1] or ""))
+                        quantity_item = QTableWidgetItem(str(service[2] or "0"))
+                        unit_price_item = QTableWidgetItem(f"{float(service[3] or 0):.2f}")
+                        total_item = QTableWidgetItem(f"{float(service[4] or 0):.2f}")
+
+                        # Make items read-only
+                        for item in [description_item, date_item, quantity_item, unit_price_item, total_item]:
+                            item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+
+                        # Set items in table
+                        self.services_table.setItem(row, 1, description_item)  # service_description
+                        self.services_table.setItem(row, 2, date_item)  # service_date
+                        self.services_table.setItem(row, 3, quantity_item)  # quantity
+                        self.services_table.setItem(row, 4, unit_price_item)  # unit_price
+                        self.services_table.setItem(row, 5, total_item)  # line_total
+
+                    # Make sure the table is visible and properly sized
+                    self.services_table.setVisible(True)
+                    self.services_table.resizeColumnsToContents()
+                    self.services_table.resizeRowsToContents()
+                    
+                finally:
+                    db.close_connection()
+
+        except Exception as e:
+            print(f"Error loading invoice data: {e}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.critical(self, "Error", f"Failed to load invoice data: {str(e)}")
 
 def open_invoice_form():
     """Open the invoice form dialog."""
@@ -962,22 +1339,34 @@ def open_invoice_form():
                     invoice_no=invoice_data['invoice_no'],
                     reason=invoice_data['reason'],
                     veterinarian=invoice_data['veterinarian'],
-                    notes=invoice_data['notes']
+                    notes=invoice_data['notes'],
+                    subtotal=invoice_data['subtotal'],
+                    vat=invoice_data['vat'],
+                    partial_amount=invoice_data['partial_amount']
                 )
                 
                 if billing_id:
                     # Save the services
-                    for row in range(dialog.services_table.rowCount()):
-                        service_desc = dialog.services_table.item(row, 0).text()
-                        quantity = float(dialog.services_table.item(row, 1).text())
-                        unit_price = float(dialog.services_table.item(row, 2).text())
-                        line_total = float(dialog.services_table.item(row, 3).text())
-                        
+                    for service in invoice_data['services']:
+                        # Convert date from DD/MM/YYYY to YYYY-MM-DD
+                        try:
+                            service_date = datetime.strptime(service['date'], '%d/%m/%Y').strftime('%Y-%m-%d')
+                        except ValueError:
+                            # If date is already in YYYY-MM-DD format or invalid, use as is
+                            service_date = service['date']
+                            
                         db.cursor.execute("""
                             INSERT INTO billing_services 
-                            (billing_id, service_description, quantity, unit_price, line_total)
-                            VALUES (?, ?, ?, ?, ?)
-                        """, (billing_id, service_desc, quantity, unit_price, line_total))
+                            (billing_id, service_description, quantity, unit_price, line_total, service_date)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        """, (
+                            billing_id,
+                            service['description'],
+                            service['quantity'],
+                            service['unit_price'],
+                            service['total'],
+                            service_date
+                        ))
                     
                     db.conn.commit()
                     show_message(None, "Invoice saved successfully!")
@@ -1004,260 +1393,250 @@ def update_billing_widget():
         QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTableWidget,
         QTableWidgetItem, QMessageBox
     )
-    from PySide6.QtCore import Qt
+    from PySide6.QtCore import Qt, QSize
+    from PySide6.QtGui import QIcon
 
-    def get_billing_widget():
-        content = QWidget()
-        layout = QVBoxLayout(content)
-        layout.setSpacing(0)
-        layout.setContentsMargins(0, 0, 0, 30)
+    class BillingWidget(QWidget):
+        def __init__(self):
+            super().__init__()
+            self.setup_ui()
+            
+        def setup_ui(self):
+            layout = QVBoxLayout(self)
+            layout.setSpacing(0)
+            layout.setContentsMargins(0, 0, 0, 30)
 
-        # Header
-        header = QWidget()
-        header.setFixedHeight(50)
-        header.setStyleSheet("background-color: #102547;")
+            # Title
+            header = QWidget()
+            header.setFixedHeight(50)
+            header.setStyleSheet("background-color: #102547;")
 
-        header_layout = QHBoxLayout()
-        header_layout.setContentsMargins(20, 0, 10, 0)
-        header_layout.setSpacing(20)
+            header_layout = QHBoxLayout()
+            header_layout.setContentsMargins(20, 0, 10, 0)
+            header_layout.setSpacing(20)
 
-        billings_label = QLabel("Billing")
-        billings_label.setStyleSheet("color: white; font-size: 24px; font-weight: bold;")
-        billings_label.setAlignment(Qt.AlignVCenter)
+            billings_label = QLabel("Billing")
+            billings_label.setStyleSheet("color: white; font-size: 24px; font-weight: bold;")
+            billings_label.setAlignment(Qt.AlignVCenter)
 
-        add_receipt_button = QPushButton("Add Receipt")
-        add_receipt_button.setObjectName("AddReceiptButton")
-        add_receipt_button.setFixedSize(120, 40)
-        add_receipt_button.setStyleSheet("""
-            QPushButton {
-                background-color: #F4F4F8; 
-                border: none; 
-                border-radius: 20px;
-                font-size: 10px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #E4E4E8;
-            }
-        """)
+            add_receipt_button = QPushButton("Add Receipt")
+            add_receipt_button.setObjectName("AddReceiptButton")
+            add_receipt_button.setFixedSize(120, 40)
+            add_receipt_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #F4F4F8; 
+                    border: none; 
+                    border-radius: 20px;
+                    font-size: 10px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #E4E4E8;
+                }
+            """)
+            add_receipt_button.clicked.connect(self.on_add_receipt)
 
-        # Create the table
-        billings_table = QTableWidget()
-        billings_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        billings_table.setObjectName("BillingsTable")
-        billings_table.setRowCount(0)
-        billings_table.setColumnCount(8)
-        billings_table.setHorizontalHeaderLabels([
-            "Receipt No.", "Date Issued", "Owner/Client",
-            "Pet Name", "Total Amount (Php)", "Payment",
-            "Payment Status", "Action"
-        ])
-        billings_table.horizontalHeader().setStretchLastSection(True)
-        billings_table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)  # Make columns non-resizable
-        billings_table.verticalHeader().setVisible(False)
+            # Create action buttons (initially hidden)
+            self.view_button = QPushButton()
+            self.view_button.setObjectName("ViewButton")
+            self.view_button.setFixedSize(40, 40)
+            self.view_button.setIcon(QIcon("assets/eye open.png"))
+            self.view_button.setIconSize(QSize(20, 20))
+            self.view_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #4CAF50;
+                    border: none;
+                    border-radius: 20px;
+                    margin-bottom: 5px;
+                }
+                QPushButton:hover {
+                    background-color: #45a049;
+                }
+            """)
+            self.view_button.clicked.connect(self.view_invoice)
+            self.view_button.hide()
 
-        billings_table.setStyleSheet("""
-            QTableWidget {
-                background-color: #FFF;
-                gridline-color: #000;
-            }
-            QHeaderView::section {
-                background-color: #FED766;
-                color: #000;
-                font-weight: bold;
-                height: 40px;
-            }
-        """)
-
-        # Set column widths
-        for i, width in enumerate([150, 120, 150, 200, 180, 150, 150, 80]):
-            billings_table.setColumnWidth(i, width)
-
-        def view_invoice_details(row):
-            """Show invoice details in view-only mode."""
-            try:
-                # Get the billing ID from the row
-                receipt_no = billings_table.item(row, 0).text()
-                billing_id = int(receipt_no.split('-')[-1]) if '-' in receipt_no else int(receipt_no)
-
-                # Create a view-only version of the invoice form
-                dialog = InvoiceFormDialog()
-                dialog.setWindowTitle("View Invoice Details")
-                
-                # Make all fields read-only
-                for widget in dialog.findChildren((QLineEdit, QTextEdit, QComboBox)):
-                    if isinstance(widget, QLineEdit):
-                        widget.setReadOnly(True)
-                    elif isinstance(widget, QTextEdit):
-                        widget.setReadOnly(True)
-                    elif isinstance(widget, QComboBox):
-                        widget.setEnabled(False)
-
-                # Disable all radio buttons
-                for radio in dialog.findChildren(QRadioButton):
-                    radio.setEnabled(False)
-
-                # Disable the services table
-                dialog.services_table.setEditTriggers(QTableWidget.NoEditTriggers)
-
-                # Load the invoice data
-                db = Database()
-                try:
-                    # Fetch complete invoice data
-                    db.cursor.execute("""
-                        SELECT b.*, c.name as client_name, p.name as pet_name,
-                               c.address as client_address, c.contact_number as client_contact,
-                               c.email as client_email, p.species, p.breed, p.age
-                        FROM billing b
-                        JOIN clients c ON b.client_id = c.client_id
-                        JOIN pets p ON b.pet_id = p.pet_id
-                        WHERE b.billing_id = ?
-                    """, (billing_id,))
-                    
-                    invoice_data = db.cursor.fetchone()
-                    if invoice_data:
-                        # Populate the form with invoice data
-                        dialog.invoice_field.setText(invoice_data['invoice_no'])
-                        
-                        # Set client info
-                        dialog.client_dropdown.addItem(invoice_data['client_name'])
-                        dialog.client_address_field.setText(invoice_data['client_address'])
-                        dialog.client_contact_field.setText(invoice_data['client_contact'])
-                        dialog.client_email_field.setText(invoice_data['client_email'])
-                        
-                        # Set pet info
-                        dialog.pet_dropdown.addItem(invoice_data['pet_name'])
-                        dialog.pet_species_field.setText(invoice_data['species'])
-                        dialog.pet_breed_field.setText(invoice_data['breed'])
-                        dialog.pet_age_field.setText(str(invoice_data['age']))
-                        
-                        # Set other fields
-                        dialog.notes_edit.setText(invoice_data['notes'] or "")
-                        
-                        # Set payment status
-                        for radio in dialog.findChildren(QRadioButton):
-                            if radio.text().upper() == invoice_data['payment_status'].upper():
-                                radio.setChecked(True)
-                                break
-                        
-                        # Set payment method
-                        for radio in dialog.payment_method_radios.values():
-                            if radio.text() == invoice_data['payment_method']:
-                                radio.setChecked(True)
-                                break
-                        
-                        # Load services for this invoice
-                        db.cursor.execute("""
-                            SELECT service_description, quantity, unit_price, line_total
-                            FROM billing_services
-                            WHERE billing_id = ?
-                        """, (billing_id,))
-                        
-                        services = db.cursor.fetchall()
-                        dialog.services_table.setRowCount(len(services))
-                        
-                        for i, service in enumerate(services):
-                            dialog.services_table.setItem(i, 0, QTableWidgetItem(service[0]))
-                            dialog.services_table.setItem(i, 1, QTableWidgetItem(str(service[1])))
-                            dialog.services_table.setItem(i, 2, QTableWidgetItem(f"{service[2]:.2f}"))
-                            dialog.services_table.setItem(i, 3, QTableWidgetItem(f"{service[3]:.2f}"))
-
-                except Exception as e:
-                    print(f"❌ Error loading invoice details: {e}")
-                finally:
-                    db.close_connection()
-
-                # Show the dialog
-                dialog.exec()
-
-            except Exception as e:
-                print(f"❌ Error viewing invoice details: {e}")
-
-        def edit_invoice(billing_id):
-            print(f"✏️ Edit invoice: {billing_id}")
-            # Open the InvoiceFormDialog in edit mode
-            dialog = InvoiceFormDialog()
-            # TODO: Load the invoice data into the dialog for editing
-            if dialog.exec():
-                # Save changes to the database
-                load_billing_data()
-
-        def delete_invoice(billing_id):
-            confirm = QMessageBox()
-            confirm.setIcon(QMessageBox.Question)
-            confirm.setText("Are you sure you want to delete this invoice?")
-            confirm.setWindowTitle("")
-            confirm.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-            if confirm.exec() == QMessageBox.Yes:
-                try:
-                    db = Database()
-                    db.delete_invoice(billing_id)
-                    load_billing_data()  # Changed from refresh_tables to load_billing_data
-                    show_message(None, "Invoice deleted successfully.")
-                except Exception as e:
-                    show_message(None, f"Error deleting invoice: {str(e)}", QMessageBox.Critical)
-
-        def create_action_buttons(billing_id):
-            action_widget = QWidget()
-            action_layout = QHBoxLayout(action_widget)
-            action_layout.setContentsMargins(0, 0, 0, 0)
-            action_layout.setSpacing(10)
-            action_layout.setAlignment(Qt.AlignCenter)  # Center the buttons
-
-            edit_btn = QPushButton("Edit")
-            edit_btn.setFixedWidth(70)
-            edit_btn.setStyleSheet("""
+            self.edit_button = QPushButton()
+            self.edit_button.setObjectName("EditButton")
+            self.edit_button.setFixedSize(40, 40)
+            self.edit_button.setIcon(QIcon("assets/edit client button.png"))
+            self.edit_button.setIconSize(QSize(20, 20))
+            self.edit_button.setStyleSheet("""
                 QPushButton {
                     background-color: #FED766;
                     border: none;
-                    border-radius: 5px;
-                    font-size: 10px;
-                    padding: 5px 8px;
-                    min-height: 10px;
-                    min-width: 50px
+                    border-radius: 20px;
+                    margin-bottom: 5px;
                 }
                 QPushButton:hover {
                     background-color: #FFC107;
                 }
             """)
-            edit_btn.clicked.connect(lambda _, bid=billing_id: edit_invoice(bid))
+            self.edit_button.clicked.connect(self.edit_invoice)
+            self.edit_button.hide()
 
-            delete_btn = QPushButton("Delete")
-            delete_btn.setFixedWidth(70)
-            delete_btn.setStyleSheet("""
+            self.delete_button = QPushButton()
+            self.delete_button.setObjectName("DeleteButton")
+            self.delete_button.setFixedSize(40, 40)
+            self.delete_button.setIcon(QIcon("assets/trash-can.png"))
+            self.delete_button.setIconSize(QSize(20, 20))
+            self.delete_button.setStyleSheet("""
                 QPushButton {
                     background-color: #FF6F61;
                     border: none;
-                    border-radius: 5px;
-                    font-size: 10px;
-                    padding: 5px 8px;
-                    min-height: 10px;
-                    min-width: 50px
+                    border-radius: 20px;
+                    margin-bottom: 5px;
                 }
                 QPushButton:hover {
                     background-color: #E53935;
                 }
             """)
-            delete_btn.clicked.connect(lambda _, bid=billing_id: delete_invoice(bid))
+            self.delete_button.clicked.connect(self.delete_invoice)
+            self.delete_button.hide()
 
-            action_layout.addWidget(edit_btn)
-            action_layout.addWidget(delete_btn)
+            # Create a container for action buttons
+            action_buttons_container = QWidget()
+            action_buttons_layout = QHBoxLayout(action_buttons_container)
+            action_buttons_layout.setContentsMargins(0, 0, 0, 0)
+            action_buttons_layout.setSpacing(10)
+            action_buttons_layout.addWidget(self.view_button)
+            action_buttons_layout.addWidget(self.edit_button)
+            action_buttons_layout.addWidget(self.delete_button)
 
-            return action_widget
+            header_layout.addWidget(billings_label)
+            header_layout.addWidget(add_receipt_button)
+            header_layout.addWidget(action_buttons_container)
+            header_layout.addStretch()
+            header.setLayout(header_layout)
 
-        # Function to load data into the table
-        def load_billing_data():
+            # Create the table
+            self.billings_table = QTableWidget()
+            self.billings_table.setEditTriggers(QTableWidget.NoEditTriggers)
+            self.billings_table.setObjectName("BillingsTable")
+            self.billings_table.setRowCount(0)
+            self.billings_table.setColumnCount(7)  # Removed Action column
+            self.billings_table.setHorizontalHeaderLabels([
+                "Receipt No.", "Date Issued", "Owner/Client",
+                "Pet Name", "Total Amount (Php)", "Payment",
+                "Payment Status"
+            ])
+            self.billings_table.horizontalHeader().setStretchLastSection(True)
+            self.billings_table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+            self.billings_table.verticalHeader().setVisible(False)
+            self.billings_table.setSelectionBehavior(QTableWidget.SelectRows)
+            self.billings_table.setSelectionMode(QTableWidget.SingleSelection)
+
+            self.billings_table.setStyleSheet("""
+                QTableWidget {
+                    background-color: white;
+                    color: black;
+                    gridline-color: #000;
+                }
+                QHeaderView::section {
+                    background-color: #FED766;
+                    color: #000;
+                    font-weight: bold;
+                    height: 40px;
+                }
+                QTableWidget::item:selected {
+                    background-color: #E3F2FD;
+                    color: black;
+                }
+            """)
+
+            # Set column widths
+            for i, width in enumerate([150, 120, 150, 200, 180, 150, 150]):
+                self.billings_table.setColumnWidth(i, width)
+
+            # Connect selection change signal
+            self.billings_table.selectionModel().selectionChanged.connect(self.handle_row_selection)
+
+            layout.addWidget(header)
+            layout.addWidget(self.billings_table)
+
+            # Load initial data
+            self.load_billing_data()
+
+        def handle_row_selection(self):
+            """Handle row selection and show/hide action buttons accordingly."""
+            selected_rows = self.billings_table.selectionModel().selectedRows()
+            
+            if selected_rows:
+                self.view_button.show()
+                self.edit_button.show()
+                self.delete_button.show()
+            else:
+                self.view_button.hide()
+                self.edit_button.hide()
+                self.delete_button.hide()
+
+        def on_add_receipt(self):
+            """Handle adding a new receipt."""
+            if open_invoice_form():
+                self.load_billing_data()  # Refresh table after successful addition
+
+        def view_invoice(self):
+            """View the selected invoice."""
+            selected_rows = self.billings_table.selectionModel().selectedRows()
+            if selected_rows:
+                row = selected_rows[0].row()
+                billing_id = self.billings_table.item(row, 0).data(Qt.UserRole)  # Get billing_id from hidden data
+                
+                # Create and show the invoice dialog in view mode
+                dialog = InvoiceFormDialog(is_view_mode=True)
+                dialog.load_invoice_data(billing_id)
+                dialog.exec()
+
+        def edit_invoice(self):
+            """Edit the selected invoice."""
+            selected_rows = self.billings_table.selectionModel().selectedRows()
+            if selected_rows:
+                row = selected_rows[0].row()
+                billing_id = self.billings_table.item(row, 0).data(Qt.UserRole)  # Get billing_id from hidden data
+                # TODO: Implement edit functionality
+                QMessageBox.information(self, "Edit Invoice", f"Editing invoice {billing_id}")
+
+        def delete_invoice(self):
+            """Delete the selected invoice."""
+            selected_rows = self.billings_table.selectionModel().selectedRows()
+            if selected_rows:
+                row = selected_rows[0].row()
+                billing_id = self.billings_table.item(row, 0).data(Qt.UserRole)
+                
+                reply = QMessageBox.question(
+                    self,
+                    "Delete Invoice",
+                    "Are you sure you want to delete this invoice?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No
+                )
+                
+                if reply == QMessageBox.Yes:
+                    db = Database()
+                    try:
+                        db.cursor.execute("DELETE FROM billing WHERE billing_id = ?", (billing_id,))
+                        db.conn.commit()
+                        self.load_billing_data()  # Refresh the table
+                        QMessageBox.information(self, "Success", "Invoice deleted successfully!")
+                    except Exception as e:
+                        QMessageBox.critical(self, "Error", f"Failed to delete invoice: {str(e)}")
+                    finally:
+                        db.close_connection()
+
+        def load_billing_data(self):
+            """Load billing data into the table."""
             db = Database()
             try:
                 billing_data = db.fetch_billing_data()
 
-                billings_table.setRowCount(0)  # Clear the table
+                self.billings_table.setRowCount(0)  # Clear the table
 
                 for row_num, data in enumerate(billing_data):
-                    billings_table.insertRow(row_num)
+                    self.billings_table.insertRow(row_num)
 
                     # Create table items
                     receipt_no = QTableWidgetItem(str(data[1] or f"REC-{data[0]}"))
+                    receipt_no.setData(Qt.UserRole, data[0])  # Store billing_id
                     date_issued = QTableWidgetItem(data[2].strftime("%Y-%m-%d") if isinstance(data[2], datetime) else str(data[2]))
                     client_name = QTableWidgetItem(str(data[3]))
                     pet_name = QTableWidgetItem(str(data[4]))
@@ -1265,44 +1644,21 @@ def update_billing_widget():
                     payment_method = QTableWidgetItem(str(data[6] or ""))
                     payment_status = QTableWidgetItem(str(data[7]))
 
-                    # Create action buttons for THIS row
-                    action_widget = create_action_buttons(data[0])
-
                     # Add items to table
-                    billings_table.setItem(row_num, 0, receipt_no)
-                    billings_table.setItem(row_num, 1, date_issued)
-                    billings_table.setItem(row_num, 2, client_name)
-                    billings_table.setItem(row_num, 3, pet_name)
-                    billings_table.setItem(row_num, 4, total_amount)
-                    billings_table.setItem(row_num, 5, payment_method)
-                    billings_table.setItem(row_num, 6, payment_status)
-                    billings_table.setCellWidget(row_num, 7, action_widget)
-
-                # Connect the cellClicked signal to handle row clicks
-                billings_table.cellClicked.connect(lambda row, col: view_invoice_details(row))
+                    self.billings_table.setItem(row_num, 0, receipt_no)
+                    self.billings_table.setItem(row_num, 1, date_issued)
+                    self.billings_table.setItem(row_num, 2, client_name)
+                    self.billings_table.setItem(row_num, 3, pet_name)
+                    self.billings_table.setItem(row_num, 4, total_amount)
+                    self.billings_table.setItem(row_num, 5, payment_method)
+                    self.billings_table.setItem(row_num, 6, payment_status)
 
             except Exception as e:
-                print(f"❌ Error loading billing data: {e}")
+                print(f"Error loading billing data: {e}")
             finally:
                 db.close_connection()
 
-        # Connect button to the function
-        add_receipt_button.clicked.connect(open_invoice_form)
-        
-        header_layout.addWidget(billings_label)
-        header_layout.addWidget(add_receipt_button)
-        header_layout.addStretch()
-
-        header.setLayout(header_layout)
-        layout.addWidget(header)
-        layout.addWidget(billings_table)
-
-        # Load existing billing data when the widget is created
-        load_billing_data()
-
-        return content
-            
-    return get_billing_widget
+    return BillingWidget
 
 class NumericDelegate(QStyledItemDelegate):
     """Delegate for handling numeric input in table cells."""
@@ -1311,8 +1667,3 @@ class NumericDelegate(QStyledItemDelegate):
         validator = QDoubleValidator(0.0, 999999.99, 2, parent)
         editor.setValidator(validator)
         return editor
-
-
-    
-
-
