@@ -126,38 +126,55 @@ class AdminDashboard(QWidget):
         stats_layout = QHBoxLayout()
         
         # Total Users Card
-        users_card = self.create_stat_card("Total Users", "0", "users")
+        self.users_card_value = QLabel("0")
+        users_card = self.create_stat_card("Total Users", self.users_card_value)
         stats_layout.addWidget(users_card)
 
         # Total Vets Card
-        vets_card = self.create_stat_card("Veterinarians", "0", "vets")
+        self.vets_card_value = QLabel("0")
+        vets_card = self.create_stat_card("Veterinarians", self.vets_card_value)
         stats_layout.addWidget(vets_card)
 
         # Total Receptionists Card
-        receptionists_card = self.create_stat_card("Receptionists", "0", "receptionists")
+        self.receptionists_card_value = QLabel("0")
+        receptionists_card = self.create_stat_card("Receptionists", self.receptionists_card_value)
         stats_layout.addWidget(receptionists_card)
 
         layout.addLayout(stats_layout)
         layout.addStretch()
 
-    def create_stat_card(self, title, value, icon):
+    def create_stat_card(self, title, value_label):
         card = QFrame()
-        card.setStyleSheet("""
-            QFrame {
-                background-color: white;
+        
+        # Set different colors based on card title
+        if title == "Total Users":
+            bg_color = "#FF0000"  # Light blue
+            text_color = "#fff"  # Dark blue
+        elif title == "Veterinarians":
+            bg_color = "#008000"  # Light green
+            text_color = "#fff"  # Dark green
+        elif title == "Receptionists":
+            bg_color = "#012547"  # Light orange
+            text_color = "#fff"  # Dark orange
+        else:
+            bg_color = "white"
+            text_color = "#012547"
+            
+        card.setStyleSheet(f"""
+            QFrame {{
+                background-color: {bg_color};
                 border-radius: 10px;
-                padding: 20px;
-            }
+                padding: 10px;
+            }}
         """)
-        card.setMinimumHeight(150)
+        card.setFixedHeight(150)
 
         layout = QVBoxLayout(card)
         
         title_label = QLabel(title)
-        title_label.setStyleSheet("font-size: 16px; color: #666;")
+        title_label.setStyleSheet(f"font-size: 16px; color: {text_color};")
         
-        value_label = QLabel(value)
-        value_label.setStyleSheet("font-size: 32px; font-weight: bold; color: #012547;")
+        value_label.setStyleSheet(f"font-size: 32px; font-weight: bold; color: {text_color};")
         
         layout.addWidget(title_label)
         layout.addWidget(value_label)
@@ -349,29 +366,22 @@ class AdminDashboard(QWidget):
     def update_dashboard_stats(self):
         db = Database()
         try:
-            # Get total users count
-            db.cursor.execute("SELECT COUNT(*) FROM users")
+            # Get total verified users count
+            db.cursor.execute("SELECT COUNT(*) FROM users WHERE status = 'Verified'")
             total_users = db.cursor.fetchone()[0]
 
-            # Get vets count
-            db.cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'Veterinarian'")
+            # Get verified vets count
+            db.cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'Veterinarian' AND status = 'Verified'")
             total_vets = db.cursor.fetchone()[0]
 
-            # Get receptionists count
-            db.cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'Receptionist'")
+            # Get verified receptionists count
+            db.cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'Receptionist' AND status = 'Verified'")
             total_receptionists = db.cursor.fetchone()[0]
 
             # Update the stat cards
-            for i in range(self.dashboard_page.layout().count()):
-                widget = self.dashboard_page.layout().itemAt(i).widget()
-                if isinstance(widget, QFrame):
-                    value_label = widget.findChild(QLabel, "", Qt.FindChildrenRecursively)[1]
-                    if "Total Users" in widget.findChildren(QLabel)[0].text():
-                        value_label.setText(str(total_users))
-                    elif "Veterinarians" in widget.findChildren(QLabel)[0].text():
-                        value_label.setText(str(total_vets))
-                    elif "Receptionists" in widget.findChildren(QLabel)[0].text():
-                        value_label.setText(str(total_receptionists))
+            self.users_card_value.setText(str(total_users))
+            self.vets_card_value.setText(str(total_vets))
+            self.receptionists_card_value.setText(str(total_receptionists))
 
         except Exception as e:
             print(f"❌ Error updating dashboard stats: {e}")
@@ -1030,7 +1040,7 @@ class AddUserDialog(QDialog):
 
             # Create new user with full name
             full_name = f"{first_name} {last_name}"
-            user_id = db.create_user(full_name, "", email, password, role)
+            user_id = db.create_user(full_name, "", email, password, role, status='Verified')
             if user_id:
                 show_message(self, "User created successfully!")
                 # Update dashboard stats after creating new user
