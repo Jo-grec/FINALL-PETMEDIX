@@ -508,6 +508,129 @@ class UpdateClinicInfoDialog(QDialog):
             "employees": self.employees_input.text()
         }
 
+class UpdateSecurityAnswersDialog(QDialog):
+    def __init__(self, user_id=None):
+        super().__init__()
+        self.user_id = user_id
+        self.setWindowTitle("Update Security Answers")
+        self.setFixedSize(650, 500)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 20)
+
+        # Title
+        title_container = QWidget()
+        title_container.setStyleSheet("background-color: #012547;")
+        title_layout = QHBoxLayout(title_container)
+        title_layout.setContentsMargins(20, 10, 20, 10)
+        title_label = QLabel("Security Questions")
+        title_label.setStyleSheet("font-size: 36px; font-weight: bold; color: #FFF;")
+        title_layout.addWidget(title_label)
+        layout.addWidget(title_container)
+        
+        # Form content
+        form_container = QWidget()
+        form_layout = QVBoxLayout(form_container)
+        form_layout.setContentsMargins(40, 30, 40, 30)
+        form_layout.setSpacing(20)
+        
+        # Security questions
+        self.answer_one = QLineEdit()
+        self.answer_one.setPlaceholderText("What is your mother's maiden name?")
+        self.answer_one.setMinimumHeight(40)
+        self.answer_one.setStyleSheet("""
+            QLineEdit {
+                padding: 8px;
+                background-color: #f5f5f5;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                font-size: 14px;
+            }
+        """)
+        
+        self.answer_two = QLineEdit()
+        self.answer_two.setPlaceholderText("What was the name of your first pet?")
+        self.answer_two.setMinimumHeight(40)
+        self.answer_two.setStyleSheet("""
+            QLineEdit {
+                padding: 8px;
+                background-color: #f5f5f5;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                font-size: 14px;
+            }
+        """)
+        
+        self.answer_three = QLineEdit()
+        self.answer_three.setPlaceholderText("What is the name of the street you grew up on?")
+        self.answer_three.setMinimumHeight(40)
+        self.answer_three.setStyleSheet("""
+            QLineEdit {
+                padding: 8px;
+                background-color: #f5f5f5;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                font-size: 14px;
+            }
+        """)
+        
+        form_layout.addWidget(QLabel("Please answer all security questions:"))
+        form_layout.addWidget(self.answer_one)
+        form_layout.addWidget(self.answer_two)
+        form_layout.addWidget(self.answer_three)
+        
+        layout.addWidget(form_container)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setFixedSize(120, 50)
+        cancel_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f5f5f5;
+                border-radius: 25px;
+                font-size: 16px;
+                font-weight: bold;
+                color: #333;
+            }
+            QPushButton:hover {
+                background-color: #e0e0e0;
+            }
+        """)
+        cancel_btn.clicked.connect(self.reject)
+        
+        save_btn = QPushButton("Save")
+        save_btn.setFixedSize(120, 50)
+        save_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #012547;
+                border-radius: 25px;
+                font-size: 16px;
+                font-weight: bold;
+                color: white;
+            }
+            QPushButton:hover {
+                background-color: #01315d;
+            }
+        """)
+        save_btn.clicked.connect(self.accept)
+        
+        button_layout.addWidget(cancel_btn)
+        button_layout.addWidget(save_btn)
+        button_layout.setContentsMargins(0, 0, 50, 0)
+        
+        layout.addLayout(button_layout)
+    
+    def get_answers(self):
+        """Return the security answers"""
+        return {
+            "answer_one": self.answer_one.text().strip(),
+            "answer_two": self.answer_two.text().strip(),
+            "answer_three": self.answer_three.text().strip()
+        }
+
 def get_setting_widget(user_id=None):
     
     db = Database()
@@ -573,9 +696,35 @@ def get_setting_widget(user_id=None):
         """)
     upload_btn.setFixedWidth(100)
         
+    def reload_user_photo():
+        # Fetch the latest photo_path from the database
+        db.cursor.execute("SELECT photo_path FROM user_profiles WHERE user_id = ?", (user_id,))
+        result = db.cursor.fetchone()
+        if result and result[0] and os.path.exists(result[0]):
+            original_pixmap = QPixmap(result[0])
+            size = user_picture.size()
+            rounded_pixmap = QPixmap(size)
+            rounded_pixmap.fill(Qt.transparent)
+
+            painter = QPainter(rounded_pixmap)
+            painter.setRenderHint(QPainter.Antialiasing)
+            path = QPainterPath()
+            path.addEllipse(0, 0, size.width(), size.height())
+            painter.setClipPath(path)
+
+            scaled_pixmap = original_pixmap.scaled(size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            painter.drawPixmap(0, 0, scaled_pixmap)
+            painter.end()
+
+            user_picture.setPixmap(rounded_pixmap)
+            user_picture.setText("")
+        else:
+            user_picture.setPixmap(QPixmap())
+            user_picture.setText("User\nPicture")
+
     def upload_photo():
-        file_path, _ = QFileDialog.getOpenFileName("Select Profile Picture", "", "Images (*.png *.jpg *.jpeg)")
-        if file_path:
+        file_path, _ = QFileDialog.getOpenFileName(widget, "Select Profile Picture", "", "Images (*.png *.jpg *.jpeg)")
+        if file_path and user_id:
             # Save image to profile_photos
             photo_dir = os.path.join("assets", "profile_photos")
             os.makedirs(photo_dir, exist_ok=True)
@@ -583,38 +732,39 @@ def get_setting_widget(user_id=None):
             new_path = os.path.join(photo_dir, filename)
             copyfile(file_path, new_path)
 
+            # Convert birthdate to SQL format (YYYY-MM-DD)
+            birthdate = user_data["birthdate"]
+            if birthdate and "/" in birthdate:
+                try:
+                    day, month, year = birthdate.split("/")
+                    birthdate_sql = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+                except Exception:
+                    birthdate_sql = ""
+            else:
+                birthdate_sql = birthdate
+
             # Save new path in DB
             db.save_user_profile(
                 user_id,
                 user_data["contact"],
                 user_data["address"],
                 user_data["gender"],
-                user_data["birthdate"],
+                birthdate_sql,
                 photo_path=new_path
             )
             db.conn.commit()
 
-            original_pixmap = QPixmap(new_path)
-            size = clinic_logo.size()
-            
-            rounded_pixmap = QPixmap(size)
-            rounded_pixmap.fill(Qt.transparent)
-            
-            painter = QPainter(rounded_pixmap)
-            painter.setRenderHint(QPainter.Antialiasing)
-            path = QPainterPath()
-            path.addEllipse(0, 0, size.width(), size.height())
-            painter.setClipPath(path)
-            
-            scaled_pixmap = original_pixmap.scaled(size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
-            painter.drawPixmap(0, 0, scaled_pixmap)
-            painter.end()
-            
-            user_picture.setPixmap(rounded_pixmap)
-            user_picture.setText("")
+            # Debug print: confirm photo_path in DB
+            db.cursor.execute("SELECT photo_path FROM user_profiles WHERE user_id = ?", (user_id,))
+            print("Photo path in DB after upload:", db.cursor.fetchone())
+
+            # Reload the user photo from the database
+            reload_user_photo()
 
             user_data["photo_path"] = new_path  # ensure future calls use correct path
-
+        else:
+            show_message(widget, "User ID not found or no file selected!", QMessageBox.Warning)
+    
     upload_btn.clicked.connect(upload_photo)
     
     picture_column.addWidget(user_picture)
@@ -738,18 +888,21 @@ def get_setting_widget(user_id=None):
     """)
     update_btn.setFixedWidth(120)
     
-    permission_btn = QPushButton("See Permission")
-    permission_btn.setIcon(QIcon("permission_icon.png"))
-    permission_btn.setIconSize(QSize(10, 10))
-    permission_btn.setStyleSheet("""
-        background-color: #012547;
-        color: #fff;
-        font-size: 12px;
-        padding: 8px;
-        border-radius: 20;
-        text-align: center;
-    """)
-    permission_btn.setFixedWidth(120)
+    # Only create and show security button if user hasn't answered security questions
+    security_btn = None
+    if user_id and not db.has_security_questions(user_id):
+        security_btn = QPushButton("Update Security")
+        security_btn.setIcon(QIcon("security_icon.png"))
+        security_btn.setIconSize(QSize(10, 10))
+        security_btn.setStyleSheet("""
+            background-color: #012547;
+            color: #fff;
+            font-size: 12px;
+            padding: 8px;
+            border-radius: 20px;
+            text-align: center;
+        """)
+        security_btn.setFixedWidth(120)
     
     # Connect the update button to open the dialog
     def open_update_info_dialog():
@@ -806,10 +959,46 @@ def get_setting_widget(user_id=None):
         else:
             print("Update cancelled")
     
+    def open_security_dialog():
+        if user_id:
+            dialog = UpdateSecurityAnswersDialog(user_id)
+            if dialog.exec():
+                answers = dialog.get_answers()
+                if not all(answers.values()):
+                    show_message(dialog, "Please answer all security questions!", QMessageBox.Warning)
+                    return
+                
+                db = Database()
+                try:
+                    # Save security questions
+                    if db.save_security_questions(
+                        user_id,
+                        "What is your mother's maiden name?",
+                        answers["answer_one"],
+                        "What was the name of your first pet?",
+                        answers["answer_two"],
+                        "What is the name of the street you grew up on?",
+                        answers["answer_three"]
+                    ):
+                        show_message(dialog, "Security answers updated successfully!")
+                        # Hide the security button after successful update
+                        security_btn.hide()
+                    else:
+                        show_message(dialog, "Failed to update security answers!", QMessageBox.Critical)
+                except Exception as e:
+                    show_message(dialog, f"Error updating security answers: {e}", QMessageBox.Critical)
+                finally:
+                    db.close_connection()
+        else:
+            show_message(None, "User ID not found!", QMessageBox.Warning)
+    
     update_btn.clicked.connect(open_update_info_dialog)
+    if security_btn:
+        security_btn.clicked.connect(open_security_dialog)
     
     button_column.addWidget(update_btn)
-    button_column.addWidget(permission_btn)
+    if security_btn:
+        button_column.addWidget(security_btn)
     button_column.addStretch()
     
     # Add all columns to the profile content
