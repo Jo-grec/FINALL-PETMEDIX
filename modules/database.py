@@ -22,6 +22,43 @@ class Database:
     def create_tables(self):
         """Create all necessary tables if they don't exist."""
         try:
+            # Create billing table if it doesn't exist
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS billing (
+                billing_id INT AUTO_INCREMENT PRIMARY KEY,
+                invoice_no VARCHAR(50),
+                client_id INT NOT NULL,
+                pet_id INT NOT NULL,
+                date_issued DATE NOT NULL,
+                subtotal DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+                vat DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+                total_amount DECIMAL(10, 2) NOT NULL,
+                payment_status ENUM('PAID', 'UNPAID', 'PARTIAL') NOT NULL,
+                partial_amount DECIMAL(10, 2) DEFAULT 0.00,
+                payment_method ENUM('CASH', 'CREDIT CARD', 'GCASH', 'BANK TRANSFER'),
+                received_by VARCHAR(100),
+                reason VARCHAR(200),
+                veterinarian VARCHAR(100),
+                notes TEXT,
+                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE,
+                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE
+            );
+            """)
+            
+            # Create billing_services table if it doesn't exist
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS billing_services (
+                service_id INT AUTO_INCREMENT PRIMARY KEY,
+                billing_id INT NOT NULL,
+                service_description VARCHAR(255) NOT NULL,
+                quantity INT NOT NULL,
+                unit_price DECIMAL(10, 2) NOT NULL,
+                line_total DECIMAL(10, 2) NOT NULL,
+                service_date DATE,
+                FOREIGN KEY (billing_id) REFERENCES billing(billing_id) ON DELETE CASCADE
+            );
+            """)
+
             # Users Table
             self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
@@ -232,44 +269,6 @@ class Database:
             );
             """)
 
-            # Billing Table - UPDATED: Using a single definition with all required columns
-            self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS billing (
-                billing_id INT AUTO_INCREMENT PRIMARY KEY,
-                invoice_no VARCHAR(50),
-                client_id INT NOT NULL,
-                pet_id INT NOT NULL,
-                date_issued DATE NOT NULL,
-                subtotal DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
-                vat DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
-                total_amount DECIMAL(10, 2) NOT NULL,
-                payment_status ENUM('PAID', 'UNPAID', 'PARTIAL') NOT NULL,
-                partial_amount DECIMAL(10, 2) DEFAULT 0.00,
-                payment_method ENUM('CASH', 'CREDIT CARD', 'GCASH', 'BANK TRANSFER'),
-                received_by VARCHAR(100),
-                reason VARCHAR(200),
-                veterinarian VARCHAR(100),
-                notes TEXT,
-                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE,
-                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE
-            );
-            """)
-            
-            # Drop and recreate billing_services table to ensure correct structure
-            self.cursor.execute("DROP TABLE IF EXISTS billing_services")
-            self.cursor.execute("""
-            CREATE TABLE billing_services (
-                service_id INT AUTO_INCREMENT PRIMARY KEY,
-                billing_id INT NOT NULL,
-                service_description VARCHAR(255) NOT NULL,
-                quantity INT NOT NULL,
-                unit_price DECIMAL(10, 2) NOT NULL,
-                line_total DECIMAL(10, 2) NOT NULL,
-                service_date DATE,
-                FOREIGN KEY (billing_id) REFERENCES billing(billing_id) ON DELETE CASCADE
-            );
-            """)
-
             # Clinic Information Table
             self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS clinic_info (
@@ -406,8 +405,8 @@ class Database:
             print(f"❌ Error generating USER_ID: {e}")
             return None
 
-    def create_user(self, name, last_name, email, password, role):
-        """Insert a user with a generated USER_ID."""
+    def create_user(self, name, last_name, email, password, role, status='Pending'):
+        """Insert a user with a generated USER_ID. Status can be set (default 'Pending')."""
         if not self.cursor:
             print("❌ Database not connected.")
             return None
@@ -420,8 +419,8 @@ class Database:
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
         try:
             self.cursor.execute(
-                "INSERT INTO users (USER_ID, NAME, LAST_NAME, EMAIL, HASHED_PASSWORD, ROLE) VALUES (?, ?, ?, ?, ?, ?)",
-                (user_id, name, last_name, email, hashed_password, role)
+                "INSERT INTO users (USER_ID, NAME, LAST_NAME, EMAIL, HASHED_PASSWORD, ROLE, STATUS) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (user_id, name, last_name, email, hashed_password, role, status)
             )
             self.conn.commit()
             print(f"✅ User created with USER_ID: {user_id}")
@@ -628,21 +627,91 @@ class Database:
                     subtotal=0.00, vat=0.00, partial_amount=0.00):
         """Save billing information to database."""
         try:
-            self.cursor.execute("""
+            print(f"\n=== Debug: Saving Billing ===")
+            print(f"client_id: {client_id}")
+            print(f"pet_id: {pet_id}")
+            print(f"date_issued: {date_issued}")
+            print(f"total_amount: {total_amount}")
+            print(f"payment_status: {payment_status}")
+            print(f"payment_method: {payment_method}")
+            print(f"received_by: {received_by}")
+            print(f"invoice_no: {invoice_no}")
+            print(f"reason: {reason}")
+            print(f"veterinarian: {veterinarian}")
+            print(f"notes: {notes}")
+            print(f"subtotal: {subtotal}")
+            print(f"vat: {vat}")
+            print(f"partial_amount: {partial_amount}")
+
+            # Validate required fields
+            if not client_id or not pet_id or not date_issued or not total_amount or not payment_status:
+                print("❌ Missing required fields")
+                return None
+
+            # Check if client_id exists
+            self.cursor.execute("SELECT 1 FROM clients WHERE client_id = ?", (client_id,))
+            if not self.cursor.fetchone():
+                print(f"❌ Client ID {client_id} does not exist")
+                return None
+
+            # Check if pet_id exists
+            self.cursor.execute("SELECT 1 FROM pets WHERE pet_id = ?", (pet_id,))
+            if not self.cursor.fetchone():
+                print(f"❌ Pet ID {pet_id} does not exist")
+                return None
+
+            # Print the SQL query for debugging
+            query = """
                 INSERT INTO billing (
                     client_id, pet_id, date_issued, total_amount, payment_status, 
                     payment_method, received_by, invoice_no, reason, veterinarian, notes,
                     subtotal, vat, partial_amount
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                client_id, pet_id, date_issued, total_amount, payment_status,
-                payment_method, received_by, invoice_no, reason, veterinarian, notes,
-                subtotal, vat, partial_amount
-            ))
-            self.conn.commit()
-            return self.cursor.lastrowid
+            """
+            print(f"\nExecuting query:\n{query}")
+            print(f"With values: {client_id}, {pet_id}, {date_issued}, {total_amount}, {payment_status}, {payment_method}, {received_by}, {invoice_no}, {reason}, {veterinarian}, {notes}, {subtotal}, {vat}, {partial_amount}")
+
+            # Start transaction
+            print("\nStarting transaction...")
+            self.conn.begin()
+
+            try:
+                self.cursor.execute(query, (
+                    client_id, pet_id, date_issued, total_amount, payment_status,
+                    payment_method, received_by, invoice_no, reason, veterinarian, notes,
+                    subtotal, vat, partial_amount
+                ))
+                
+                # Get the inserted ID
+                billing_id = self.cursor.lastrowid
+                print(f"\nInserted billing_id: {billing_id}")
+                
+                # Verify the record was actually inserted
+                self.cursor.execute("SELECT * FROM billing WHERE billing_id = ?", (billing_id,))
+                inserted_record = self.cursor.fetchone()
+                if inserted_record:
+                    print(f"✅ Verified record in database: {inserted_record}")
+                else:
+                    print("❌ Record not found in database after insert!")
+                
+                # Commit the transaction
+                print("\nCommitting transaction...")
+                self.conn.commit()
+                print("✅ Transaction committed successfully")
+                
+                print(f"✅ Billing saved successfully with ID: {billing_id}")
+                return billing_id
+                
+            except Exception as e:
+                print(f"❌ Error during transaction: {e}")
+                print("Rolling back transaction...")
+                self.conn.rollback()
+                raise e
+                
         except Exception as e:
             print(f"❌ Database error saving billing: {e}")
+            import traceback
+            traceback.print_exc()
             return None
         
     def generate_invoice_no(self):
@@ -883,6 +952,12 @@ class Database:
             print(f"Diagnosis: {diagnosis}")
             print(f"Prescribed: {prescribed_treatment}")
             print(f"Veterinarian: {veterinarian}")
+
+            # Convert empty strings to None for date fields
+            if not date or date.strip() == "":
+                date = datetime.now().strftime("%Y-%m-%d")
+            if not prescribed_treatment or prescribed_treatment.strip() == "":
+                prescribed_treatment = datetime.now().strftime("%Y-%m-%d")
 
             if type == "Consultation":
                 self.cursor.execute("""
@@ -1227,4 +1302,21 @@ class Database:
             
         except Exception as e:
             print(f"❌ Error during migration: {e}")
+            return False
+
+    def has_security_questions(self, user_id):
+        """Check if a user has already set up security questions."""
+        if not self.cursor:
+            print("❌ Database not connected.")
+            return False
+
+        try:
+            self.cursor.execute("""
+                SELECT 1 FROM security_questions 
+                WHERE user_id = ?
+            """, (user_id,))
+            
+            return self.cursor.fetchone() is not None
+        except mariadb.Error as e:
+            print(f"❌ Error checking security questions: {e}")
             return False
