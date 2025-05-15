@@ -53,14 +53,39 @@ class PetMedix(QWidget):
         self.user_icon_label.setPixmap(user_pixmap)
         self.user_icon_label.setFixedSize(40, 40)
         self.user_icon_label.setScaledContents(True)
-        self.user_icon_label.setCursor(Qt.PointingHandCursor)  # Change cursor to hand when hovering
-        self.user_icon_label.mousePressEvent = self.show_user_menu  # Connect click event
 
-        # Mini layout for username + user icon
+        # Dropdown icon
+        self.dropdown_icon = QLabel()
+        dropdown_pixmap = QPixmap("assets/dropdown.png")
+        self.dropdown_icon.setPixmap(dropdown_pixmap)
+        self.dropdown_icon.setFixedSize(30, 30)  # Increased size to 30x30
+        self.dropdown_icon.setScaledContents(True)
+        self.dropdown_icon.setCursor(Qt.PointingHandCursor)  # Change cursor to hand when hovering
+        self.dropdown_icon.mousePressEvent = self.show_user_menu  # Connect click event
+        self.dropdown_icon.setStyleSheet("QLabel { background-color: transparent; } QLabel:hover { background-color: rgba(255, 255, 255, 0.1); }")
+
+        # Apply color to the pixmap
+        # Convert the pixmap to image to apply color overlay
+        image = dropdown_pixmap.toImage()
+        for x in range(image.width()):
+            for y in range(image.height()):
+                color = image.pixelColor(x, y)
+                if color.alpha() > 0:  # If pixel is not transparent
+                    color.setRed(255)
+                    color.setGreen(255)
+                    color.setBlue(255)
+                    image.setPixelColor(x, y, color)
+        
+        white_pixmap = QPixmap.fromImage(image)
+        self.dropdown_icon.setPixmap(white_pixmap)
+
+        # Mini layout for username + user icon + dropdown
         user_layout = QHBoxLayout()
         user_layout.addWidget(self.username_label)
         user_layout.addWidget(self.user_icon_label)
-        user_layout.setSpacing(8)
+        user_layout.addSpacing(5)  # Add 5 pixels of space between user icon and dropdown
+        user_layout.addWidget(self.dropdown_icon)
+        user_layout.setSpacing(0)  # Keep other spacing at 0
 
         user_widget = QWidget()
         user_widget.setLayout(user_layout)
@@ -111,7 +136,6 @@ class PetMedix(QWidget):
         self.button3 = QPushButton("Reports")
         self.button4 = QPushButton("Appointments")
         self.button5 = QPushButton("Billings")
-        self.button6 = QPushButton("Settings")
 
         # Add to layout
         navbar_layout.addWidget(self.button1)
@@ -119,10 +143,9 @@ class PetMedix(QWidget):
         navbar_layout.addWidget(self.button3)
         navbar_layout.addWidget(self.button4)
         navbar_layout.addWidget(self.button5)
-        navbar_layout.addWidget(self.button6)
 
         # Optional: Make flat
-        for btn in [self.button1, self.button2, self.button3, self.button4, self.button5, self.button6]:
+        for btn in [self.button1, self.button2, self.button3, self.button4, self.button5]:
             btn.setFlat(True)
             btn.setObjectName("navbarButton")  # Give all nav buttons the same object name
             btn.setCheckable(True)
@@ -130,7 +153,7 @@ class PetMedix(QWidget):
         # Store in a list for logic
         self.nav_buttons = [
             self.button1, self.button2, self.button3,
-            self.button4, self.button5, self.button6
+            self.button4, self.button5
         ]
 
         # Connect for active highlight
@@ -167,7 +190,6 @@ class PetMedix(QWidget):
         self.button3.clicked.connect(self.show_report_content)
         self.button4.clicked.connect(self.show_appointments_content)
         self.button5.clicked.connect(self.show_billings_content)
-        self.button6.clicked.connect(self.show_settings_content)
         
         self.show_home_content()
         
@@ -187,7 +209,7 @@ class PetMedix(QWidget):
     def get_greeting(self, role, last_name):
         """Generate a greeting based on the user's role and last name."""
         if role.lower() == "receptionist":
-            return f"Hello, Ma'am/Sir {last_name}"
+            return f"Hello, Mr./Mrs. {last_name}"
         elif role.lower() == "veterinarian":
             return f"Hello, Doctor {last_name}"
         else:
@@ -688,10 +710,12 @@ class PetMedix(QWidget):
                 background-color: #f0f0f0;
             }
         """)
-        
+
+        settings_action = menu.addAction("Settings")
+        settings_action.triggered.connect(self.show_settings_content)
         logout_action = menu.addAction("Logout")
         logout_action.triggered.connect(self.logout)
-        
+
         # Show menu at the bottom of the user icon
         menu.exec_(self.user_icon_label.mapToGlobal(
             self.user_icon_label.rect().bottomLeft()
