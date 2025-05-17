@@ -3,7 +3,7 @@ import hashlib
 from datetime import datetime
 
 class Database:
-    def __init__(self, host="localhost", user="root", password="joelmar123", database="petmedix"):
+    def __init__(self, host="localhost", user="root", password="", database="petmedix"):
         try:
             self.conn = mariadb.connect(
                 host=host,
@@ -22,7 +22,51 @@ class Database:
     def create_tables(self):
         """Create all necessary tables if they don't exist."""
         try:
-            # Create billing table if it doesn't exist
+            # Users Table (No foreign key dependencies)
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                user_id VARCHAR(10) PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                last_name VARCHAR(100),
+                email VARCHAR(100) NOT NULL UNIQUE,
+                hashed_password VARCHAR(64) NOT NULL,
+                role VARCHAR(50) NOT NULL,
+                status VARCHAR(20) DEFAULT 'Pending',
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """)
+
+            # Clients Table (No foreign key dependencies)
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS clients (
+                client_id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                address VARCHAR(255),
+                contact_number VARCHAR(15),
+                email VARCHAR(100) UNIQUE
+            );
+            """)
+
+            # Pets Table (Depends on clients)
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pets (
+                pet_id INT AUTO_INCREMENT PRIMARY KEY,
+                client_id INT NOT NULL,
+                name VARCHAR(100) NOT NULL,
+                gender ENUM('Male', 'Female'),
+                species VARCHAR(50),
+                breed VARCHAR(50),
+                color VARCHAR(50),
+                birthdate DATE,
+                age INT,
+                weight DECIMAL(10,2),
+                height DECIMAL(10,2),
+                photo_path VARCHAR(255),
+                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Billing Table (Depends on clients and pets)
             self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS billing (
                 billing_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -45,7 +89,7 @@ class Database:
             );
             """)
             
-            # Create billing_services table if it doesn't exist
+            # Billing Services Table (Depends on billing)
             self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS billing_services (
                 service_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -59,21 +103,173 @@ class Database:
             );
             """)
 
-            # Users Table
+            # Clinic Information Table (No foreign key dependencies)
             self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                user_id VARCHAR(10) PRIMARY KEY,
+            CREATE TABLE IF NOT EXISTS clinic_info (
+                clinic_id INT AUTO_INCREMENT PRIMARY KEY,
                 name VARCHAR(100) NOT NULL,
-                last_name VARCHAR(100),
-                email VARCHAR(100) NOT NULL UNIQUE,
-                hashed_password VARCHAR(64) NOT NULL,
-                role VARCHAR(50) NOT NULL,
-                status VARCHAR(20) DEFAULT 'Pending',
-                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                address VARCHAR(255),
+                contact_number VARCHAR(15),
+                email VARCHAR(100),
+                employees_count INT,
+                photo_path VARCHAR(255),
+                logo_path VARCHAR(255)
             );
             """)
 
-            # Ensure the status column exists
+            # User Profiles Table (Depends on users)
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS user_profiles (
+                profile_id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id VARCHAR(10) NOT NULL,
+                contact_number VARCHAR(15),
+                address VARCHAR(255),
+                gender VARCHAR(20),
+                birthdate DATE,
+                photo_path VARCHAR(255),
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Security Questions Table (Depends on users)
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS security_questions (
+                question_id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id VARCHAR(10) NOT NULL,
+                question_one VARCHAR(255) NOT NULL,
+                answer_one VARCHAR(255) NOT NULL,
+                question_two VARCHAR(255) NOT NULL,
+                answer_two VARCHAR(255) NOT NULL,
+                question_three VARCHAR(255) NOT NULL,
+                answer_three VARCHAR(255) NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Password History Table (Depends on users)
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS password_history (
+                history_id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id VARCHAR(10) NOT NULL,
+                hashed_password VARCHAR(64) NOT NULL,
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Consultations Table (Depends on pets and clients)
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS consultations (
+                consultation_id INT AUTO_INCREMENT PRIMARY KEY,
+                pet_id INT NOT NULL,
+                client_id INT NOT NULL,
+                date DATE NOT NULL,
+                reason TEXT NOT NULL,
+                diagnosis TEXT NOT NULL,
+                prescribed_treatment TEXT NOT NULL,
+                veterinarian VARCHAR(100) NOT NULL,
+                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
+                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Deworming Table (Depends on pets and clients)
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS deworming (
+                deworming_id INT AUTO_INCREMENT PRIMARY KEY,
+                pet_id INT NOT NULL,
+                client_id INT NOT NULL,
+                date DATE NOT NULL,
+                medication TEXT NOT NULL,
+                dosage TEXT NOT NULL,
+                next_scheduled DATE NOT NULL,
+                veterinarian VARCHAR(100) NOT NULL,
+                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
+                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Vaccination Table (Depends on pets and clients)
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS vaccinations (
+                vaccination_id INT AUTO_INCREMENT PRIMARY KEY,
+                pet_id INT NOT NULL,
+                client_id INT NOT NULL,
+                date DATE NOT NULL,
+                vaccine TEXT NOT NULL,
+                dosage TEXT NOT NULL,
+                next_scheduled DATE NOT NULL,
+                veterinarian VARCHAR(100) NOT NULL,
+                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
+                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Surgery Table (Depends on pets and clients)
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS surgeries (
+                surgery_id INT AUTO_INCREMENT PRIMARY KEY,
+                pet_id INT NOT NULL,
+                client_id INT NOT NULL,
+                date DATE NOT NULL,
+                surgery_type TEXT NOT NULL,
+                anesthesia TEXT NOT NULL,
+                next_followup DATE NOT NULL,
+                veterinarian VARCHAR(100) NOT NULL,
+                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
+                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Grooming Table (Depends on pets and clients)
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS grooming (
+                grooming_id INT AUTO_INCREMENT PRIMARY KEY,
+                pet_id INT NOT NULL,
+                client_id INT NOT NULL,
+                date DATE NOT NULL,
+                services TEXT NOT NULL,
+                notes TEXT NOT NULL,
+                next_scheduled DATE NOT NULL,
+                veterinarian VARCHAR(100) NOT NULL,
+                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
+                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Other Treatments Table (Depends on pets and clients)
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS other_treatments (
+                treatment_id INT AUTO_INCREMENT PRIMARY KEY,
+                pet_id INT NOT NULL,
+                client_id INT NOT NULL,
+                date DATE NOT NULL,
+                treatment_type TEXT NOT NULL,
+                medication TEXT NOT NULL,
+                dosage TEXT NOT NULL,
+                veterinarian VARCHAR(100) NOT NULL,
+                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
+                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Appointments Table (Depends on pets and clients)
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS appointments (
+                appointment_id INT AUTO_INCREMENT PRIMARY KEY,
+                pet_id INT NOT NULL,
+                client_id INT NOT NULL,
+                date DATE NOT NULL,
+                status ENUM('Scheduled', 'Completed', 'Cancelled', 'No-Show', 'Rescheduled', 'Urgent') NOT NULL,
+                payment_status ENUM('Pending', 'Paid', 'Unpaid') NOT NULL,
+                reason TEXT,
+                veterinarian VARCHAR(100),
+                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
+                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Ensure the status column exists in users table
             try:
                 self.cursor.execute("SHOW COLUMNS FROM users LIKE 'status'")
                 if not self.cursor.fetchone():
@@ -110,254 +306,11 @@ class Database:
                         self.conn.commit()
                         print("✅ Admin account updated")
 
-            # Clients Table
-            self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS clients (
-                client_id INT AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(100) NOT NULL,
-                address VARCHAR(255),
-                contact_number VARCHAR(15),
-                email VARCHAR(100) UNIQUE
-            );
-            """)
-
-            # Pets Table
-            self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS pets (
-                pet_id INT AUTO_INCREMENT PRIMARY KEY,
-                client_id INT NOT NULL,
-                name VARCHAR(100) NOT NULL,
-                gender ENUM('Male', 'Female'),
-                species VARCHAR(50),
-                breed VARCHAR(50),
-                color VARCHAR(50),
-                birthdate DATE,
-                age INT,
-                weight DECIMAL(10,2),
-                height DECIMAL(10,2),
-                photo_path VARCHAR(255),
-                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
-            );
-            """)
-
-            # Consultation Table
-            self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS consultations (
-                consultation_id INT AUTO_INCREMENT PRIMARY KEY,
-                pet_id INT NOT NULL,
-                client_id INT NOT NULL,
-                date DATE NOT NULL,
-                reason TEXT NOT NULL,
-                diagnosis TEXT NOT NULL,
-                prescribed_treatment TEXT NOT NULL,
-                veterinarian VARCHAR(100) NOT NULL,
-                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
-                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
-            );
-            """)
-
-            # Deworming Table
-            self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS deworming (
-                deworming_id INT AUTO_INCREMENT PRIMARY KEY,
-                pet_id INT NOT NULL,
-                client_id INT NOT NULL,
-                date DATE NOT NULL,
-                medication TEXT NOT NULL,
-                dosage TEXT NOT NULL,
-                next_scheduled DATE NOT NULL,
-                veterinarian VARCHAR(100) NOT NULL,
-                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
-                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
-            );
-            """)
-
-            # Vaccination Table
-            self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS vaccinations (
-                vaccination_id INT AUTO_INCREMENT PRIMARY KEY,
-                pet_id INT NOT NULL,
-                client_id INT NOT NULL,
-                date DATE NOT NULL,
-                vaccine TEXT NOT NULL,
-                dosage TEXT NOT NULL,
-                next_scheduled DATE NOT NULL,
-                veterinarian VARCHAR(100) NOT NULL,
-                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
-                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
-            );
-            """)
-
-            # Surgery Table
-            self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS surgeries (
-                surgery_id INT AUTO_INCREMENT PRIMARY KEY,
-                pet_id INT NOT NULL,
-                client_id INT NOT NULL,
-                date DATE NOT NULL,
-                surgery_type TEXT NOT NULL,
-                anesthesia TEXT NOT NULL,
-                next_followup DATE NOT NULL,
-                veterinarian VARCHAR(100) NOT NULL,
-                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
-                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
-            );
-            """)
-
-            # Grooming Table
-            self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS grooming (
-                grooming_id INT AUTO_INCREMENT PRIMARY KEY,
-                pet_id INT NOT NULL,
-                client_id INT NOT NULL,
-                date DATE NOT NULL,
-                services TEXT NOT NULL,
-                notes TEXT NOT NULL,
-                next_scheduled DATE NOT NULL,
-                veterinarian VARCHAR(100) NOT NULL,
-                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
-                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
-            );
-            """)
-
-            # Other Treatments Table
-            self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS other_treatments (
-                treatment_id INT AUTO_INCREMENT PRIMARY KEY,
-                pet_id INT NOT NULL,
-                client_id INT NOT NULL,
-                date DATE NOT NULL,
-                treatment_type TEXT NOT NULL,
-                medication TEXT NOT NULL,
-                dosage TEXT NOT NULL,
-                veterinarian VARCHAR(100) NOT NULL,
-                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
-                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
-            );
-            """)
-
-            # Keep the medical_records table for backward compatibility
-            self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS medical_records (
-                record_id INT AUTO_INCREMENT PRIMARY KEY,
-                pet_id INT NOT NULL,
-                client_id INT NOT NULL,
-                date DATE NOT NULL,
-                type ENUM('Consultation', 'Deworming', 'Vaccination', 'Surgery', 'Grooming', 'Other Treatments') NOT NULL,
-                reason TEXT,
-                diagnosis TEXT,
-                prescribed_treatment TEXT,
-                veterinarian VARCHAR(100),
-                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
-                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
-            );
-            """)
-
-            # Appointments Table
-            self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS appointments (
-                appointment_id INT AUTO_INCREMENT PRIMARY KEY,
-                pet_id INT NOT NULL,
-                client_id INT NOT NULL,
-                date DATE NOT NULL,
-                status ENUM('Scheduled', 'Completed', 'Cancelled', 'No-Show', 'Rescheduled', 'Urgent') NOT NULL,
-                payment_status ENUM('Pending', 'Paid', 'Unpaid') NOT NULL,
-                reason TEXT,
-                veterinarian VARCHAR(100),
-                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE,
-                FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
-            );
-            """)
-
-            # Clinic Information Table
-            self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS clinic_info (
-                clinic_id INT AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(100) NOT NULL,
-                address VARCHAR(255),
-                contact_number VARCHAR(15),
-                email VARCHAR(100),
-                employees_count INT,
-                photo_path VARCHAR(255)
-            );
-            """)
-            
-            try:
-                self.cursor.execute("SHOW COLUMNS FROM clinic_info LIKE 'logo_path'")
-                if not self.cursor.fetchone():
-                    self.cursor.execute("ALTER TABLE clinic_info ADD COLUMN logo_path VARCHAR(255)")
-                    print("✅ 'logo_path' column added to clinic_info.")
-            except mariadb.Error as e:
-                print(f"❌ Error checking/adding 'logo_path' column: {e}")
-
-            
-            self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS user_profiles (
-                profile_id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id VARCHAR(10) NOT NULL,
-                contact_number VARCHAR(15),
-                address VARCHAR(255),
-                gender VARCHAR(20),
-                birthdate DATE,
-                photo_path VARCHAR(255),
-                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-            );
-            """)
-            
-            try:
-                self.cursor.execute("SHOW COLUMNS FROM user_profiles LIKE 'photo_path'")
-                if not self.cursor.fetchone():
-                    self.cursor.execute("ALTER TABLE user_profiles ADD COLUMN photo_path VARCHAR(255)")
-                    print("✅ 'photo_path' column added to user_profiles.")
-            except mariadb.Error as e:
-                print(f"❌ Error checking/adding 'photo_path' column: {e}")
-            
-            # Security Questions Table
-            self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS security_questions (
-                question_id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id VARCHAR(10) NOT NULL,
-                question_one VARCHAR(255) NOT NULL,
-                answer_one VARCHAR(255) NOT NULL,
-                question_two VARCHAR(255) NOT NULL,
-                answer_two VARCHAR(255) NOT NULL,
-                question_three VARCHAR(255) NOT NULL,
-                answer_three VARCHAR(255) NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-            );
-            """)
-
-            # Password History Table
-            self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS password_history (
-                history_id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id VARCHAR(10) NOT NULL,
-                hashed_password VARCHAR(64) NOT NULL,
-                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-            );
-            """)
-            
-            # Ensure the billing table has all required columns
-            self._ensure_billing_columns()
-            
-            # After creating all tables, migrate any existing records
-            self.migrate_medical_records()
-            
             self.conn.commit()
             print("✅ Tables created successfully.")
         except mariadb.Error as e:
             print(f"❌ Error creating tables: {e}")
-            
-            # Ensure 'logo_path' column exists in clinic_info
-            try:
-                self.cursor.execute("SHOW COLUMNS FROM clinic_info LIKE 'logo_path'")
-                if not self.cursor.fetchone():
-                    self.cursor.execute("ALTER TABLE clinic_info ADD COLUMN logo_path VARCHAR(255)")
-                    print("✅ 'logo_path' column added to clinic_info.")
-            except mariadb.Error as e:
-                print(f"❌ Error adding 'logo_path' column: {e}")
-            
+
     def _ensure_billing_columns(self):
         """Make sure the billing table has all required columns."""
         try:
@@ -1320,3 +1273,199 @@ class Database:
         except mariadb.Error as e:
             print(f"❌ Error checking security questions: {e}")
             return False
+
+    def fetch_vet_appointments(self, veterinarian, filter_type='all'):
+        """Fetch appointments for a specific veterinarian with filtering options."""
+        try:
+            base_query = """
+                SELECT a.date, p.name AS pet_name, c.name AS client_name, 
+                       a.reason, a.status, a.payment_status
+                FROM appointments a
+                JOIN pets p ON a.pet_id = p.pet_id
+                JOIN clients c ON a.client_id = c.client_id
+                WHERE a.veterinarian = ?
+            """
+            
+            if filter_type == 'today':
+                base_query += " AND DATE(a.date) = CURDATE()"
+            elif filter_type == 'upcoming':
+                base_query += " AND DATE(a.date) >= CURDATE()"
+            
+            base_query += " ORDER BY a.date ASC"
+            
+            self.cursor.execute(base_query, (veterinarian,))
+            return self.cursor.fetchall()
+        except Exception as e:
+            print(f"❌ Error fetching vet appointments: {e}")
+            return []
+
+    def fetch_unpaid_reports(self, filter_type='all'):
+        """Fetch reports that haven't been billed yet."""
+        try:
+            base_query = """
+                SELECT 
+                    COALESCE(c.date, d.date, v.date, s.date, g.date, o.date) as treatment_date,
+                    p.name AS pet_name,
+                    cl.name AS client_name,
+                    CASE
+                        WHEN c.consultation_id IS NOT NULL THEN 'Consultation'
+                        WHEN d.deworming_id IS NOT NULL THEN 'Deworming'
+                        WHEN v.vaccination_id IS NOT NULL THEN 'Vaccination'
+                        WHEN s.surgery_id IS NOT NULL THEN 'Surgery'
+                        WHEN g.grooming_id IS NOT NULL THEN 'Grooming'
+                        WHEN o.treatment_id IS NOT NULL THEN 'Other Treatment'
+                    END as treatment_type,
+                    COALESCE(c.veterinarian, d.veterinarian, v.veterinarian, s.veterinarian, g.veterinarian, o.veterinarian) as veterinarian
+                FROM pets p
+                JOIN clients cl ON p.client_id = cl.client_id
+                LEFT JOIN consultations c ON p.pet_id = c.pet_id
+                LEFT JOIN deworming d ON p.pet_id = d.pet_id
+                LEFT JOIN vaccinations v ON p.pet_id = v.pet_id
+                LEFT JOIN surgeries s ON p.pet_id = s.pet_id
+                LEFT JOIN grooming g ON p.pet_id = g.pet_id
+                LEFT JOIN other_treatments o ON p.pet_id = o.pet_id
+                LEFT JOIN billing b ON (
+                    p.pet_id = b.pet_id AND 
+                    (
+                        DATE(c.date) = b.date_issued OR
+                        DATE(d.date) = b.date_issued OR
+                        DATE(v.date) = b.date_issued OR
+                        DATE(s.date) = b.date_issued OR
+                        DATE(g.date) = b.date_issued OR
+                        DATE(o.date) = b.date_issued
+                    )
+                )
+                WHERE b.billing_id IS NULL
+            """
+            
+            if filter_type == 'today':
+                base_query += " AND DATE(COALESCE(c.date, d.date, v.date, s.date, g.date, o.date)) = CURDATE()"
+            elif filter_type == 'upcoming':
+                base_query += " AND DATE(COALESCE(c.date, d.date, v.date, s.date, g.date, o.date)) >= CURDATE()"
+            
+            base_query += " ORDER BY treatment_date DESC"
+            
+            self.cursor.execute(base_query)
+            return self.cursor.fetchall()
+        except Exception as e:
+            print(f"❌ Error fetching unpaid reports: {e}")
+            return []
+
+    def fetch_recent_reports(self, filter_type='all'):
+        """Fetch recent reports from all treatment tables."""
+        try:
+            base_query = """
+                SELECT 
+                    COALESCE(c.date, d.date, v.date, s.date, g.date, o.date) as treatment_date,
+                    p.name AS pet_name,
+                    cl.name AS client_name,
+                    CASE
+                        WHEN c.consultation_id IS NOT NULL THEN 'Consultation'
+                        WHEN d.deworming_id IS NOT NULL THEN 'Deworming'
+                        WHEN v.vaccination_id IS NOT NULL THEN 'Vaccination'
+                        WHEN s.surgery_id IS NOT NULL THEN 'Surgery'
+                        WHEN g.grooming_id IS NOT NULL THEN 'Grooming'
+                        WHEN o.treatment_id IS NOT NULL THEN 'Other Treatment'
+                    END as treatment_type,
+                    COALESCE(c.veterinarian, d.veterinarian, v.veterinarian, s.veterinarian, g.veterinarian, o.veterinarian) as veterinarian
+                FROM pets p
+                JOIN clients cl ON p.client_id = cl.client_id
+                LEFT JOIN consultations c ON p.pet_id = c.pet_id
+                LEFT JOIN deworming d ON p.pet_id = d.pet_id
+                LEFT JOIN vaccinations v ON p.pet_id = v.pet_id
+                LEFT JOIN surgeries s ON p.pet_id = s.pet_id
+                LEFT JOIN grooming g ON p.pet_id = g.pet_id
+                LEFT JOIN other_treatments o ON p.pet_id = o.pet_id
+                WHERE COALESCE(c.date, d.date, v.date, s.date, g.date, o.date) IS NOT NULL
+            """
+            
+            if filter_type == 'today':
+                base_query += " AND DATE(COALESCE(c.date, d.date, v.date, s.date, g.date, o.date)) = CURDATE()"
+            elif filter_type == 'upcoming':
+                base_query += " AND DATE(COALESCE(c.date, d.date, v.date, s.date, g.date, o.date)) >= CURDATE()"
+            
+            base_query += " ORDER BY treatment_date DESC LIMIT 50"  # Show only the 50 most recent reports
+            
+            self.cursor.execute(base_query)
+            return self.cursor.fetchall()
+        except Exception as e:
+            print(f"❌ Error fetching recent reports: {e}")
+            return []
+
+    def fetch_recent_reports_summary(self):
+        """Fetch recent reports with only consultation date, pet name, owner name, and veterinarian."""
+        try:
+            print("\n=== Debug: Starting fetch_recent_reports_summary ===")
+            # Union query to combine all treatment types
+            query = """
+                SELECT * FROM (
+                    SELECT date, p.name as pet_name, cl.name as client_name, veterinarian, 'Consultation' as type
+                    FROM consultations c
+                    JOIN pets p ON c.pet_id = p.pet_id
+                    JOIN clients cl ON c.client_id = cl.client_id
+                    UNION ALL
+                    SELECT date, p.name as pet_name, cl.name as client_name, veterinarian, 'Deworming' as type
+                    FROM deworming d
+                    JOIN pets p ON d.pet_id = p.pet_id
+                    JOIN clients cl ON d.client_id = cl.client_id
+                    UNION ALL
+                    SELECT date, p.name as pet_name, cl.name as client_name, veterinarian, 'Vaccination' as type
+                    FROM vaccinations v
+                    JOIN pets p ON v.pet_id = p.pet_id
+                    JOIN clients cl ON v.client_id = cl.client_id
+                    UNION ALL
+                    SELECT date, p.name as pet_name, cl.name as client_name, veterinarian, 'Surgery' as type
+                    FROM surgeries s
+                    JOIN pets p ON s.pet_id = p.pet_id
+                    JOIN clients cl ON s.client_id = cl.client_id
+                    UNION ALL
+                    SELECT date, p.name as pet_name, cl.name as client_name, veterinarian, 'Grooming' as type
+                    FROM grooming g
+                    JOIN pets p ON g.pet_id = p.pet_id
+                    JOIN clients cl ON g.client_id = cl.client_id
+                    UNION ALL
+                    SELECT date, p.name as pet_name, cl.name as client_name, veterinarian, 'Other Treatment' as type
+                    FROM other_treatments o
+                    JOIN pets p ON o.pet_id = p.pet_id
+                    JOIN clients cl ON o.client_id = cl.client_id
+                ) AS combined_reports
+                ORDER BY date DESC
+                LIMIT 20;
+            """
+            
+            print("Executing query...")
+            self.cursor.execute(query)
+            results = self.cursor.fetchall()
+            print(f"Query executed. Found {len(results)} records")
+            
+            if len(results) == 0:
+                print("No records found. Checking individual tables...")
+                
+                # Check each table individually
+                tables = ['consultations', 'deworming', 'vaccinations', 'surgeries', 'grooming', 'other_treatments']
+                for table in tables:
+                    self.cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                    count = self.cursor.fetchone()[0]
+                    print(f"Records in {table}: {count}")
+                
+                # Check if there are any pets and clients
+                self.cursor.execute("SELECT COUNT(*) FROM pets")
+                pets_count = self.cursor.fetchone()[0]
+                self.cursor.execute("SELECT COUNT(*) FROM clients")
+                clients_count = self.cursor.fetchone()[0]
+                print(f"Total pets: {pets_count}")
+                print(f"Total clients: {clients_count}")
+            else:
+                print("\nFirst few records:")
+                for i, record in enumerate(results[:3]):
+                    print(f"Record {i + 1}: {record}")
+            
+            return results
+        except Exception as e:
+            print(f"\n❌ Error in fetch_recent_reports_summary:")
+            print(f"Error type: {type(e).__name__}")
+            print(f"Error message: {str(e)}")
+            import traceback
+            print("Traceback:")
+            print(traceback.format_exc())
+            return []
