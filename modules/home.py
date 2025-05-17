@@ -1,12 +1,13 @@
 from PySide6.QtWidgets import QWidget, QLabel, QHBoxLayout, QVBoxLayout, QPushButton, QFrame, QHeaderView, QTableWidget, QTableWidgetItem, QAbstractItemView, QScrollBar, QSizePolicy
-from PySide6.QtGui import QPixmap, QIcon
+from PySide6.QtGui import QPixmap, QIcon, QColor
 from PySide6.QtCore import Qt
 from modules.database import Database  # Import the Database class
+from datetime import datetime
 
 def get_home_widget():
         content = QWidget()
         layout = QVBoxLayout(content)
-        layout.setContentsMargins(0, 0, 0, 30)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
         boxes_layout = QHBoxLayout()
@@ -126,68 +127,196 @@ def get_home_widget():
 
         # Add boxes layout to the content layout
         layout.addLayout(boxes_layout)
+        layout.setSpacing(0)  # Ensure no spacing between main layout items
 
-            # Create the text label "Recent Reports" and align it with the first box
-        recent_reports_label = QLabel("Recent Reports")
-        recent_reports_label.setMaximumHeight(80)  # Set a maximum height for the label
-        recent_reports_label.setStyleSheet("background-color: #012547;")  # Set background color
-        recent_reports_label.setAlignment(Qt.AlignLeft)  # Align to the left
-        recent_reports_label.setObjectName("RecentReportsLabel")
+        # Create container for title and table
+        container = QWidget()
+        container_layout = QVBoxLayout(container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.setSpacing(0)
+        container.setStyleSheet("QWidget { margin: 0; padding: 0; }")
 
-        # Add the label below the boxes, aligned with the first box
-        layout.addWidget(recent_reports_label)
-        
+        # Create title label
+        title_label = QLabel("Recent Reports")
+        title_label.setStyleSheet("""
+            background-color: #012547;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            font-family: Poppins;
+            padding: 8px;
+            padding-bottom: 0;
+            margin: 0;
+            border: none;
+        """)
+        title_label.setFixedHeight(40)
+        title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        container_layout.addWidget(title_label)
 
-        # Create the table for Consultation Data
-        table_widget = QTableWidget(20, 4)
+        # Create the table for Recent Reports
+        table_widget = QTableWidget()
         table_widget.setContentsMargins(0, 0, 0, 0)
-        table_widget.setObjectName("ConsultationTable")        
-        table_widget.setHorizontalHeaderLabels(["Consultation Date", "Pet", "Owner/Client", "Veterinarian/Staff in Charge"])
+        table_widget.setObjectName("RecentReportsTable")
+        table_widget.setStyleSheet("""
+            QTableWidget {
+                margin: 0;
+                padding: 0;
+                border: none;
+            }
+            QHeaderView::section {
+                margin: 0;
+                padding: 8px;
+                border: none;
+                background-color: #012547;
+            }
+            QHeaderView {
+                margin: 0;
+                padding: 0;
+                border: none;
+            }
+        """)
+        table_widget.setColumnCount(5)
+
+        # Set column headers
+        table_widget.setHorizontalHeaderLabels([
+            "Consultation Date", 
+            "Type",
+            "Pet", 
+            "Owner/Client", 
+            "Veterinarian/Staff in Charge"
+        ])
         table_widget.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        table_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
-    
-            
-        header = table_widget.horizontalHeader()
-        header.setStyleSheet("""
+        table_widget.horizontalHeader().setFixedHeight(40)  # Set fixed height for column headers
+        table_widget.horizontalHeader().setStyleSheet("""
+            QHeaderView::section:horizontal {
                 background-color: #012547;
                 font-family: Poppins;
                 color: white;
                 font-weight: bold;
-                font-size: 16px;
-                font-style: normal;
-                line-height: 20px;
-            """)
-            
-            # Column widths
-        table_widget.setColumnWidth(0, 318)
-        table_widget.setColumnWidth(1, 318)
-        table_widget.setColumnWidth(2, 318)
-        table_widget.setColumnWidth(3, 320)
+                font-size: 14px;
+                padding: 8px;
+                margin: 0;
+                border: none;
+            }
+        """)
+        table_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
+    
+        # Column widths - adjusted for 5 columns
+        table_widget.setColumnWidth(0, 200)  # Consultation Date
+        table_widget.setColumnWidth(1, 250)  # Type
+        table_widget.setColumnWidth(2, 250)  # Pet
+        table_widget.setColumnWidth(3, 300)  # Owner/Client
+        table_widget.setColumnWidth(4, 300)  # Veterinarian
 
-        # 🛠️ Hide vertical header (row numbers)
+        # Hide vertical header (row numbers)
         table_widget.verticalHeader().setVisible(False)
 
-        # 🛠️ Disable the visible scrollbars but keep scrolling functionality
+        # Disable the visible scrollbars but keep scrolling functionality
         table_widget.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         table_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
-            # 🛠️ Allow scrolling with mouse wheel
+        # Allow scrolling with mouse wheel
         table_widget.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         table_widget.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
 
-        table_widget.setShowGrid(True)  # Optional: hide cell grid lines
-        table_widget.setEditTriggers(QAbstractItemView.NoEditTriggers)  # Optional: make it read-only
-        table_widget.setFocusPolicy(Qt.NoFocus)  # Optional: remove ugly blue selection rectangle
+        table_widget.setShowGrid(True)
+        table_widget.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        table_widget.setFocusPolicy(Qt.NoFocus)
 
         table_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         table_widget.setFixedHeight(300)
 
-        table_container = QWidget()
-        table_container_layout = QHBoxLayout(table_container)
-        table_container_layout.setContentsMargins(0, 0, 0, 0)
-        table_container_layout.addWidget(table_widget)
+        # Add table to container
+        container_layout.addWidget(table_widget)
 
-        layout.addWidget(table_container)
+        # Add container to main layout
+        layout.addWidget(container)
+
+        # Fetch and populate recent reports
+        db = Database()
+        try:
+            print("\n=== Fetching Recent Reports for Home Page ===")
+            recent_reports = db.fetch_recent_reports_summary()
+            print(f"Received {len(recent_reports)} reports from database")
+            
+            if len(recent_reports) == 0:
+                print("No reports found to display")
+                # Add a message to the table
+                table_widget.setRowCount(1)
+                no_data_item = QTableWidgetItem("No recent reports found")
+                no_data_item.setTextAlignment(Qt.AlignCenter)
+                table_widget.setSpan(0, 0, 1, 5)  # Merge all columns
+                table_widget.setItem(0, 0, no_data_item)
+            else:
+                # Populate the table
+                print("\nPopulating table with data...")
+                table_widget.setRowCount(len(recent_reports))
+                for row, report in enumerate(recent_reports):
+                    try:
+                        print(f"\nProcessing row {row}:")
+                        print(f"Raw data: {report}")
+                        
+                        # Format date to dd/MM/yyyy
+                        try:
+                            date = datetime.strptime(str(report[0]), "%Y-%m-%d").strftime("%d/%m/%Y")
+                        except Exception as date_error:
+                            print(f"Error formatting date: {date_error}")
+                            date = str(report[0])
+                        
+                        # Get other values, using empty string if None
+                        pet_name = str(report[1]) if report[1] is not None else ""
+                        client_name = str(report[2]) if report[2] is not None else ""
+                        vet_name = str(report[3]) if report[3] is not None else ""
+                        report_type = str(report[4]) if report[4] is not None else ""
+                        
+                        # Add items to table with center alignment
+                        for col, value in enumerate([date, report_type, pet_name, client_name, vet_name]):
+                            item = QTableWidgetItem(value)
+                            item.setTextAlignment(Qt.AlignCenter)
+                            
+                            # Add background color based on report type
+                            if col == 1:  # Type column
+                                if value == "Consultation":
+                                    item.setBackground(QColor("#E3F2FD"))  # Light Blue
+                                elif value == "Vaccination":
+                                    item.setBackground(QColor("#E8F5E9"))  # Light Green
+                                elif value == "Surgery":
+                                    item.setBackground(QColor("#FFEBEE"))  # Light Red
+                                elif value == "Grooming":
+                                    item.setBackground(QColor("#F3E5F5"))  # Light Purple
+                                elif value == "Deworming":
+                                    item.setBackground(QColor("#FFF3E0"))  # Light Orange
+                                elif value == "Other Treatment":
+                                    item.setBackground(QColor("#FAFAFA"))  # Light Gray
+                            
+                            table_widget.setItem(row, col, item)
+                            print(f"Column {col}: {value}")
+                            
+                    except Exception as row_error:
+                        print(f"Error processing row {row}:")
+                        print(f"Error type: {type(row_error).__name__}")
+                        print(f"Error message: {str(row_error)}")
+                        continue
+                
+                print("\nFinished populating table")
+                    
+        except Exception as e:
+            print(f"\nError fetching recent reports:")
+            print(f"Error type: {type(e).__name__}")
+            print(f"Error message: {str(e)}")
+            import traceback
+            print("Traceback:")
+            print(traceback.format_exc())
+            
+            # Show error message in table
+            table_widget.setRowCount(1)
+            error_item = QTableWidgetItem("Error loading recent reports")
+            error_item.setTextAlignment(Qt.AlignCenter)
+            table_widget.setSpan(0, 0, 1, 5)  # Merge all 5 columns
+            table_widget.setItem(0, 0, error_item)
+        finally:
+            db.close_connection()
+            print("=== Finished loading recent reports ===\n")
         
         return content
 
