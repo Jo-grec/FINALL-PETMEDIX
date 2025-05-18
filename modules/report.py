@@ -472,7 +472,10 @@ class ReportFormDialog(QDialog):
                 return
 
             for row in rows:
-                self.vet_combo.addItem(row[0])
+                vet_name = row[0]
+                if not vet_name.startswith("Dr. "):
+                    vet_name = f"Dr. {vet_name}"
+                self.vet_combo.addItem(vet_name)
 
             db.close_connection()
         except Exception as e:
@@ -1515,32 +1518,37 @@ def get_report_widget(user_role):
             date = datetime.strptime(record[0], "%d/%m/%Y").strftime("%Y-%m-%d")
             record[0] = date
 
-            # Store the original key field for DELETE
-            original_key_field = record[3]  # This is the unique field per treatment
-
             # Show the edit dialog
             dialog = ReportFormDialog()
+            
+            # Disable type combo box and set the treatment type
+            dialog.type_combo.setEnabled(False)
+            dialog.type_combo.setCurrentText(treatment)
+            
+            # Load veterinarian names first
+            dialog.load_vet_names()
+            
+            # Get the original veterinarian name and ensure it has "Dr." prefix
+            original_vet = record[6]
+            if not original_vet.startswith("Dr. "):
+                original_vet = f"Dr. {original_vet}"
+            
             # Set the form data based on correct indices for each treatment type
             if treatment == "Consultation":
                 dialog.date_edit.setDate(QDate.fromString(record[0], "yyyy-MM-dd"))
-                dialog.type_combo.setCurrentText(treatment)
                 dialog.set_pet_name_for_edit(record[2].strip(), record[1].strip())
-                dialog.load_vet_names()
-                dialog.vet_combo.setCurrentText(record[6])
+                dialog.vet_combo.setCurrentText(original_vet)
                 dialog.update_form_fields(treatment)
                 dialog.field_widgets[treatment]["reason"][1].setPlainText(record[3])
                 dialog.field_widgets[treatment]["diagnosis"][1].setPlainText(record[4])
                 dialog.field_widgets[treatment]["prescribed"][1].setPlainText(record[5])
             elif treatment == "Deworming":
                 dialog.date_edit.setDate(QDate.fromString(record[0], "yyyy-MM-dd"))
-                dialog.type_combo.setCurrentText(treatment)
                 dialog.set_pet_name_for_edit(record[2].strip(), record[1].strip())
-                dialog.load_vet_names()
-                dialog.vet_combo.setCurrentText(record[6])
+                dialog.vet_combo.setCurrentText(original_vet)
                 dialog.update_form_fields(treatment)
                 dialog.field_widgets[treatment]["medication"][1].setPlainText(record[3])
                 dialog.field_widgets[treatment]["dosage"][1].setPlainText(record[4])
-                # Set next_date safely
                 if record[5]:
                     date_val = QDate.fromString(record[5], "yyyy-MM-dd")
                     if date_val.isValid():
@@ -1551,14 +1559,11 @@ def get_report_widget(user_role):
                     dialog.field_widgets[treatment]["next_date"][1].setDate(QDate.currentDate())
             elif treatment == "Vaccination":
                 dialog.date_edit.setDate(QDate.fromString(record[0], "yyyy-MM-dd"))
-                dialog.type_combo.setCurrentText(treatment)
                 dialog.set_pet_name_for_edit(record[2].strip(), record[1].strip())
-                dialog.load_vet_names()
-                dialog.vet_combo.setCurrentText(record[6])
+                dialog.vet_combo.setCurrentText(original_vet)
                 dialog.update_form_fields(treatment)
                 dialog.field_widgets[treatment]["vaccine"][1].setPlainText(record[3])
                 dialog.field_widgets[treatment]["dosage"][1].setPlainText(record[4])
-                # Set next_date safely
                 if record[5]:
                     date_val = QDate.fromString(record[5], "yyyy-MM-dd")
                     if date_val.isValid():
@@ -1569,14 +1574,11 @@ def get_report_widget(user_role):
                     dialog.field_widgets[treatment]["next_date"][1].setDate(QDate.currentDate())
             elif treatment == "Surgery":
                 dialog.date_edit.setDate(QDate.fromString(record[0], "yyyy-MM-dd"))
-                dialog.type_combo.setCurrentText(treatment)
                 dialog.set_pet_name_for_edit(record[2].strip(), record[1].strip())
-                dialog.load_vet_names()
-                dialog.vet_combo.setCurrentText(record[6])
+                dialog.vet_combo.setCurrentText(original_vet)
                 dialog.update_form_fields(treatment)
                 dialog.field_widgets[treatment]["surgery_type"][1].setPlainText(record[3])
                 dialog.field_widgets[treatment]["anesthesia"][1].setPlainText(record[4])
-                # Set next_followup safely
                 if record[5]:
                     date_val = QDate.fromString(record[5], "yyyy-MM-dd")
                     if date_val.isValid():
@@ -1587,14 +1589,11 @@ def get_report_widget(user_role):
                     dialog.field_widgets[treatment]["next_followup"][1].setDate(QDate.currentDate())
             elif treatment == "Grooming":
                 dialog.date_edit.setDate(QDate.fromString(record[0], "yyyy-MM-dd"))
-                dialog.type_combo.setCurrentText(treatment)
                 dialog.set_pet_name_for_edit(record[2].strip(), record[1].strip())
-                dialog.load_vet_names()
-                dialog.vet_combo.setCurrentText(record[6])
+                dialog.vet_combo.setCurrentText(original_vet)
                 dialog.update_form_fields(treatment)
                 dialog.field_widgets[treatment]["services"][1].setPlainText(record[3])
                 dialog.field_widgets[treatment]["notes"][1].setPlainText(record[4])
-                # Set next_date safely
                 if record[5]:
                     date_val = QDate.fromString(record[5], "yyyy-MM-dd")
                     if date_val.isValid():
@@ -1605,10 +1604,8 @@ def get_report_widget(user_role):
                     dialog.field_widgets[treatment]["next_date"][1].setDate(QDate.currentDate())
             elif treatment == "Other Treatments":
                 dialog.date_edit.setDate(QDate.fromString(record[0], "yyyy-MM-dd"))
-                dialog.type_combo.setCurrentText(treatment)
                 dialog.set_pet_name_for_edit(record[2].strip(), record[1].strip())
-                dialog.load_vet_names()
-                dialog.vet_combo.setCurrentText(record[6])
+                dialog.vet_combo.setCurrentText(original_vet)
                 dialog.update_form_fields(treatment)
                 dialog.field_widgets[treatment]["type"][1].setPlainText(record[3])
                 dialog.field_widgets[treatment]["medication"][1].setPlainText(record[4])
@@ -1616,6 +1613,9 @@ def get_report_widget(user_role):
 
             if dialog.exec():
                 form_data = dialog.get_form_data()
+                # Keep the original treatment type
+                form_data["type"] = treatment
+                
                 pet_name_display = form_data["pet_name"]
                 parts = pet_name_display.split(" - ")
                 if len(parts) >= 2:
@@ -1627,6 +1627,7 @@ def get_report_widget(user_role):
 
                 db = Database()
                 try:
+                    # Get pet and client IDs
                     db.cursor.execute("""
                         SELECT p.pet_id, c.client_id
                         FROM pets p
@@ -1639,42 +1640,94 @@ def get_report_widget(user_role):
                         return
                     pet_id, client_id = result
 
-                    # Delete the old record using the original key field
+                    # Get the record ID first
+                    record_id = None
                     if treatment == "Consultation":
                         db.cursor.execute("""
-                            DELETE FROM consultations
+                            SELECT consultation_id FROM consultations 
                             WHERE pet_id = ? AND client_id = ? AND date = ? AND reason = ?
-                        """, (pet_id, client_id, date, original_key_field))
+                        """, (pet_id, client_id, date, record[3]))
                     elif treatment == "Deworming":
                         db.cursor.execute("""
-                            DELETE FROM deworming
+                            SELECT deworming_id FROM deworming 
                             WHERE pet_id = ? AND client_id = ? AND date = ? AND medication = ?
-                        """, (pet_id, client_id, date, original_key_field))
+                        """, (pet_id, client_id, date, record[3]))
                     elif treatment == "Vaccination":
                         db.cursor.execute("""
-                            DELETE FROM vaccinations
+                            SELECT vaccination_id FROM vaccinations 
                             WHERE pet_id = ? AND client_id = ? AND date = ? AND vaccine = ?
-                        """, (pet_id, client_id, date, original_key_field))
+                        """, (pet_id, client_id, date, record[3]))
                     elif treatment == "Surgery":
                         db.cursor.execute("""
-                            DELETE FROM surgeries
+                            SELECT surgery_id FROM surgeries 
                             WHERE pet_id = ? AND client_id = ? AND date = ? AND surgery_type = ?
-                        """, (pet_id, client_id, date, original_key_field))
+                        """, (pet_id, client_id, date, record[3]))
                     elif treatment == "Grooming":
                         db.cursor.execute("""
-                            DELETE FROM grooming
+                            SELECT grooming_id FROM grooming 
                             WHERE pet_id = ? AND client_id = ? AND date = ? AND services = ?
-                        """, (pet_id, client_id, date, original_key_field))
+                        """, (pet_id, client_id, date, record[3]))
                     elif treatment == "Other Treatments":
                         db.cursor.execute("""
-                            DELETE FROM other_treatments
+                            SELECT treatment_id FROM other_treatments 
                             WHERE pet_id = ? AND client_id = ? AND date = ? AND treatment_type = ?
-                        """, (pet_id, client_id, date, original_key_field))
+                        """, (pet_id, client_id, date, record[3]))
+
+                    record_result = db.cursor.fetchone()
+                    if not record_result:
+                        QMessageBox.warning(None, "Error", "Could not find the record to update!")
+                        return
+                    record_id = record_result[0]
+
+                    # Update the record using the record ID
+                    if treatment == "Consultation":
+                        db.cursor.execute("""
+                            UPDATE consultations 
+                            SET date = ?, reason = ?, diagnosis = ?, prescribed_treatment = ?, veterinarian = ?
+                            WHERE consultation_id = ?
+                        """, (form_data["date"], form_data["reason"], form_data["diagnosis"], 
+                             form_data["prescribed"], form_data["veterinarian"], record_id))
+                    elif treatment == "Deworming":
+                        db.cursor.execute("""
+                            UPDATE deworming 
+                            SET date = ?, medication = ?, dosage = ?, next_scheduled = ?, veterinarian = ?
+                            WHERE deworming_id = ?
+                        """, (form_data["date"], form_data["reason"], form_data["diagnosis"], 
+                             form_data["prescribed"], form_data["veterinarian"], record_id))
+                    elif treatment == "Vaccination":
+                        db.cursor.execute("""
+                            UPDATE vaccinations 
+                            SET date = ?, vaccine = ?, dosage = ?, next_scheduled = ?, veterinarian = ?
+                            WHERE vaccination_id = ?
+                        """, (form_data["date"], form_data["reason"], form_data["diagnosis"], 
+                             form_data["prescribed"], form_data["veterinarian"], record_id))
+                    elif treatment == "Surgery":
+                        db.cursor.execute("""
+                            UPDATE surgeries 
+                            SET date = ?, surgery_type = ?, anesthesia = ?, next_followup = ?, veterinarian = ?
+                            WHERE surgery_id = ?
+                        """, (form_data["date"], form_data["reason"], form_data["diagnosis"], 
+                             form_data["prescribed"], form_data["veterinarian"], record_id))
+                    elif treatment == "Grooming":
+                        db.cursor.execute("""
+                            UPDATE grooming 
+                            SET date = ?, services = ?, notes = ?, next_scheduled = ?, veterinarian = ?
+                            WHERE grooming_id = ?
+                        """, (form_data["date"], form_data["reason"], form_data["diagnosis"], 
+                             form_data["prescribed"], form_data["veterinarian"], record_id))
+                    elif treatment == "Other Treatments":
+                        db.cursor.execute("""
+                            UPDATE other_treatments 
+                            SET date = ?, treatment_type = ?, medication = ?, dosage = ?, veterinarian = ?
+                            WHERE treatment_id = ?
+                        """, (form_data["date"], form_data["reason"], form_data["diagnosis"], 
+                             form_data["prescribed"], form_data["veterinarian"], record_id))
                     
                     db.conn.commit()
                     QMessageBox.information(None, "Success", "Report updated successfully!")
                     refresh_tables()
                 except Exception as e:
+                    db.conn.rollback()
                     QMessageBox.critical(None, "Error", f"Failed to update report: {e}")
                 finally:
                     db.close_connection()
