@@ -320,7 +320,7 @@ class UpdateClinicInfoDialog(QDialog):
     def __init__(self, clinic_data=None):
         super().__init__()
         self.setWindowTitle("Update Clinic Information")
-        self.setFixedSize(650, 500)
+        self.setFixedSize(650, 620)
         
         self.clinic_data = clinic_data
         
@@ -768,14 +768,14 @@ def get_setting_widget(user_id=None):
     upload_btn.clicked.connect(upload_photo)
     
     picture_column.addWidget(user_picture)
-    picture_column.setSpacing(0) 
+    picture_column.setSpacing(15) 
     picture_column.addWidget(upload_btn)
     picture_column.addStretch()
     
     # Right side - User info
     info_column = QGridLayout()
     info_column.setVerticalSpacing(10)
-    info_column.setHorizontalSpacing(10)
+    info_column.setHorizontalSpacing(30)
     
     # Create info label pairs and store them in a dictionary for easy update later
     info_labels = {}
@@ -1004,7 +1004,7 @@ def get_setting_widget(user_id=None):
     # Add all columns to the profile content
     profile_content.addLayout(picture_column)
     profile_content.addSpacing(40)
-    profile_content.addLayout(info_column, 1)  # Give it stretch factor
+    profile_content.addLayout(info_column, 1)  
     profile_content.addLayout(button_column)
     
     profile_layout.addLayout(profile_content)
@@ -1015,7 +1015,7 @@ def get_setting_widget(user_id=None):
     clinic_section.setStyleSheet("background-color: white; border-radius: 5px;")
     clinic_layout = QVBoxLayout(clinic_section)
     clinic_layout.setContentsMargins(10, 10, 10, 10)
-    clinic_layout.setSpacing(25)
+    clinic_layout.setSpacing(0)
     
     # Section Header
     clinic_header = QLabel("VET CLINIC INFORMATION")
@@ -1038,74 +1038,17 @@ def get_setting_widget(user_id=None):
     # Left side - Clinic logo
     clinic_picture_column = QVBoxLayout()
     clinic_picture_column.setAlignment(Qt.AlignTop | Qt.AlignCenter)
-
     clinic_logo = QLabel()
     clinic_logo.setFixedSize(200, 200)
     clinic_logo.setAlignment(Qt.AlignCenter)
     clinic_logo.setText("Clinic\nLogo")
-
-    clinic_upload_btn = QPushButton("Upload Photo")
-    clinic_upload_btn.setStyleSheet("""
-        background-color: #dfe4ea;
-        color: #000;
-        font-size: 12px;
-        padding: 3px;
-        border-radius: 3px;
-        margin-left:50px;
-    """)
-    clinic_upload_btn.setFixedWidth(100)
-    
-    def upload_logo():
-        file_path, _ = QFileDialog.getOpenFileName("Select Clinic Logo", "", "Images (*.png *.jpg *.jpeg)")
-        if file_path:
-            logo_dir = os.path.join("assets", "clinic_logos")
-            os.makedirs(logo_dir, exist_ok=True)
-
-            filename = "clinic_logo.jpg"
-            new_path = os.path.join(logo_dir, filename)
-            copyfile(file_path, new_path)
-
-            original_pixmap = QPixmap(new_path)
-            size = clinic_logo.size()
-
-            # Resize and round the image
-            rounded_pixmap = QPixmap(size)
-            rounded_pixmap.fill(Qt.transparent)
-
-            painter = QPainter(rounded_pixmap)
-            painter.setRenderHint(QPainter.Antialiasing)
-            path = QPainterPath()
-            path.addEllipse(0, 0, size.width(), size.height())
-            painter.setClipPath(path)
-
-            scaled_pixmap = original_pixmap.scaled(size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
-            painter.drawPixmap(0, 0, scaled_pixmap)
-            painter.end()
-
-            clinic_logo.setPixmap(rounded_pixmap)
-            clinic_logo.setText("")  # remove placeholder
-
-            # Save path to DB
-            db.save_clinic_info(
-                clinic_data["name"],
-                clinic_data["address"],
-                clinic_data["contact"],
-                clinic_data["email"],
-                clinic_data["employees"],
-                logo_path=new_path
-            )
-            clinic_data["logo_path"] = new_path
-
-    clinic_upload_btn.clicked.connect(upload_logo)
-
     clinic_picture_column.addWidget(clinic_logo)
-    clinic_picture_column.addWidget(clinic_upload_btn)
     clinic_picture_column.addStretch()
     
     # Right side - Clinic info
     clinic_info_column = QGridLayout()
     clinic_info_column.setVerticalSpacing(10)
-    clinic_info_column.setHorizontalSpacing(10)
+    clinic_info_column.setHorizontalSpacing(20)
     
     # Load clinic info from database
     try:
@@ -1176,64 +1119,10 @@ def get_setting_widget(user_id=None):
         clinic_labels[label_text.replace(":", "")] = value
         row += 1
         
-    # Clinic update button
-    clinic_button_column = QVBoxLayout()
-    clinic_button_column.setAlignment(Qt.AlignTop)
-    
-    update_clinic_btn = QPushButton("Update Info")
-    update_clinic_btn.setIcon(QIcon("edit_icon.png"))
-    update_clinic_btn.setIconSize(QSize(10, 10))
-    update_clinic_btn.setStyleSheet("""
-        background-color: #012547;
-        color: #fff;
-        font-size: 12px;
-        padding: 8px;
-        border-radius: 20px;
-        text-align: center;
-    """)
-    update_clinic_btn.setFixedWidth(120)
-    
-        # Connect the clinic update button to open the clinic update dialog
-    def open_update_clinic_dialog():
-        dialog = UpdateClinicInfoDialog(clinic_data)
-        if dialog.exec():
-            # Get updated data from the dialog first
-            updated_data = dialog.get_updated_data()
-            
-            db.save_clinic_info(
-                updated_data["name"],
-                updated_data["address"],
-                updated_data["contact"],
-                updated_data["email"],
-                int(updated_data["employees"]),
-                logo_path=clinic_data.get("logo_path")  # preserve existing logo
-            )
-
-            # Update the labels
-            clinic_labels["Name"].setText(updated_data["name"])
-            clinic_labels["Email Address"].setText(updated_data["email"])
-            clinic_labels["Address"].setText(updated_data["address"])
-            clinic_labels["Contact Number"].setText(updated_data["contact"])
-            clinic_labels["No. of Employees"].setText(updated_data["employees"])
-            
-            # Update the clinic_data dictionary
-            for key, value in updated_data.items():
-                clinic_data[key] = value
-                
-            print("Clinic information updated successfully")
-        else:
-            print("Clinic update cancelled")
-
-    update_clinic_btn.clicked.connect(open_update_clinic_dialog)
-    
-    clinic_button_column.addWidget(update_clinic_btn)
-    clinic_button_column.addStretch()
-    
-    # Add all columns to the clinic content
+    # Only add the info columns and logo to the layout
     clinic_content.addLayout(clinic_picture_column)
     clinic_content.addSpacing(40)
-    clinic_content.addLayout(clinic_info_column, 1)  # Give it stretch factor
-    clinic_content.addLayout(clinic_button_column)
+    clinic_content.addLayout(clinic_info_column, 1)
     
     clinic_layout.addLayout(clinic_content)
     main_layout.addWidget(clinic_section)
