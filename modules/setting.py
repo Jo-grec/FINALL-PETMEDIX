@@ -27,15 +27,16 @@ class UpdateInfoDialog(QDialog):
         title_layout = QHBoxLayout(title_container)
         title_layout.setContentsMargins(20, 10, 20, 10)
         title_label = QLabel("Personal Information")
-        title_label.setStyleSheet("font-size: 36px; font-weight: bold; color: #FFF;")
+        title_label.setFixedHeight(40)
+        title_label.setStyleSheet("font-family: 'Lato'; font-size: 36px; font-weight: bold; color: #FFF;")
         title_layout.addWidget(title_label)
         layout.addWidget(title_container)
         
         # Form content
         form_container = QWidget()
         form_layout = QVBoxLayout(form_container)
-        form_layout.setContentsMargins(40, 30, 40, 30)
-        form_layout.setSpacing(20)
+        form_layout.setContentsMargins(20, 20, 20, 20)
+        form_layout.setSpacing(10)
         
         # First row: First Name, Last Name
         row1_layout = QHBoxLayout()
@@ -43,7 +44,7 @@ class UpdateInfoDialog(QDialog):
         
         # First Name
         fname_label = QLabel("First Name")
-        fname_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        fname_label.setStyleSheet("font-family: 'Lato'; font-size: 14px; font-weight: bold; margin-bottom: 2px;")
         self.fname_input = QLineEdit()
         # Extract first and last name from full name
         name_parts = self.user_data["name"].split()
@@ -57,6 +58,7 @@ class UpdateInfoDialog(QDialog):
         self.fname_input.setMinimumHeight(40)
         self.fname_input.setStyleSheet("""
             QLineEdit {
+                font-family: 'Lato';
                 padding: 8px;
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
@@ -66,17 +68,19 @@ class UpdateInfoDialog(QDialog):
         """)
         
         fname_container = QVBoxLayout()
+        fname_container.setSpacing(2)
         fname_container.addWidget(fname_label)
         fname_container.addWidget(self.fname_input)
         
         # Last Name
         lname_label = QLabel("Last Name")
-        lname_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        lname_label.setStyleSheet("font-family: 'Lato'; font-size: 14px; font-weight: bold; margin-bottom: 2px;")
         self.lname_input = QLineEdit()
         self.lname_input.setText(self.lname_input_text)
         self.lname_input.setMinimumHeight(40)
         self.lname_input.setStyleSheet("""
             QLineEdit {
+                font-family: 'Lato';
                 padding: 8px;
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
@@ -86,6 +90,7 @@ class UpdateInfoDialog(QDialog):
         """)
         
         lname_container = QVBoxLayout()
+        lname_container.setSpacing(2)
         lname_container.addWidget(lname_label)
         lname_container.addWidget(self.lname_input)
         
@@ -95,12 +100,13 @@ class UpdateInfoDialog(QDialog):
         
         # Address
         address_label = QLabel("Address")
-        address_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        address_label.setStyleSheet("font-family: 'Lato'; font-size: 14px; font-weight: bold; margin-bottom: 2px;")
         self.address_input = QLineEdit()
         self.address_input.setText(self.user_data["address"])
         self.address_input.setMinimumHeight(40)
         self.address_input.setStyleSheet("""
             QLineEdit {
+                font-family: 'Lato';
                 padding: 8px;
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
@@ -110,6 +116,7 @@ class UpdateInfoDialog(QDialog):
         """)
         
         address_container = QVBoxLayout()
+        address_container.setSpacing(2)
         address_container.addWidget(address_label)
         address_container.addWidget(self.address_input)
         form_layout.addLayout(address_container)
@@ -120,12 +127,13 @@ class UpdateInfoDialog(QDialog):
         
         # Email
         email_label = QLabel("Email Address")
-        email_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        email_label.setStyleSheet("font-family: 'Lato'; font-size: 14px; font-weight: bold; margin-bottom: 2px;")
         self.email_input = QLineEdit()
         self.email_input.setText(self.user_data["email"])
         self.email_input.setMinimumHeight(40)
         self.email_input.setStyleSheet("""
             QLineEdit {
+                font-family: 'Lato';
                 padding: 8px;
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
@@ -135,18 +143,20 @@ class UpdateInfoDialog(QDialog):
         """)
         
         email_container = QVBoxLayout()
+        email_container.setSpacing(2)
         email_container.addWidget(email_label)
         email_container.addWidget(self.email_input)
         
         # Role
         role_label = QLabel("Role")
-        role_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        role_label.setStyleSheet("font-family: 'Lato'; font-size: 14px; font-weight: bold; margin-bottom: 2px;")
         self.role_combo = QComboBox()
-        self.role_combo.addItems(["Veterinarian", "Veterinary Technician", "Receptionist", "Practice Manager", "Animal Care Assistant"])
+        self.role_combo.addItems(["Veterinarian", "Receptionist"])
         self.role_combo.setCurrentText(self.user_data["role"])
         self.role_combo.setMinimumHeight(40)
         self.role_combo.setStyleSheet("""
             QComboBox {
+                font-family: 'Lato';
                 padding: 8px;
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
@@ -157,9 +167,14 @@ class UpdateInfoDialog(QDialog):
                 width: 30px;
                 border: none;
             }
+            QComboBox QAbstractItemView {
+                font-family: 'Lato';
+                font-size: 14px;
+            }
         """)
         
         role_container = QVBoxLayout()
+        role_container.setSpacing(2)
         role_container.addWidget(role_label)
         role_container.addWidget(self.role_combo)
         
@@ -173,12 +188,13 @@ class UpdateInfoDialog(QDialog):
         
         # Contact Number
         contact_label = QLabel("Contact Number")
-        contact_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        contact_label.setStyleSheet("font-family: 'Lato'; font-size: 14px; font-weight: bold; margin-bottom: 2px;")
         self.contact_input = QLineEdit()
         self.contact_input.setText(self.user_data["contact"])
         self.contact_input.setMinimumHeight(40)
         self.contact_input.setStyleSheet("""
             QLineEdit {
+                font-family: 'Lato';
                 padding: 8px;
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
@@ -188,18 +204,20 @@ class UpdateInfoDialog(QDialog):
         """)
         
         contact_container = QVBoxLayout()
+        contact_container.setSpacing(2)
         contact_container.addWidget(contact_label)
         contact_container.addWidget(self.contact_input)
         
         # Gender
         gender_label = QLabel("Gender")
-        gender_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        gender_label.setStyleSheet("font-family: 'Lato'; font-size: 14px; font-weight: bold; margin-bottom: 2px;")
         self.gender_combo = QComboBox()
         self.gender_combo.addItems(["Male", "Female", "Other"])
         self.gender_combo.setCurrentText(self.user_data["gender"])
         self.gender_combo.setMinimumHeight(40)
         self.gender_combo.setStyleSheet("""
             QComboBox {
+                font-family: 'Lato';
                 padding: 8px;
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
@@ -210,9 +228,14 @@ class UpdateInfoDialog(QDialog):
                 width: 30px;
                 border: none;
             }
+            QComboBox QAbstractItemView {
+                font-family: 'Lato';
+                font-size: 14px;
+            }
         """)
         
         gender_container = QVBoxLayout()
+        gender_container.setSpacing(2)
         gender_container.addWidget(gender_label)
         gender_container.addWidget(self.gender_combo)
         
@@ -226,7 +249,7 @@ class UpdateInfoDialog(QDialog):
         
         # Birthdate
         birthdate_label = QLabel("Birthdate")
-        birthdate_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        birthdate_label.setStyleSheet("font-family: 'Lato'; font-size: 14px; font-weight: bold; margin-bottom: 2px;")
         self.birthdate_input = QDateEdit()
         self.birthdate_input.setCalendarPopup(True)
         
@@ -244,15 +267,21 @@ class UpdateInfoDialog(QDialog):
         self.birthdate_input.setMinimumHeight(40)
         self.birthdate_input.setStyleSheet("""
             QDateEdit {
+                font-family: 'Lato';
                 padding: 8px;
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
                 border-radius: 5px;
                 font-size: 14px;
             }
+            QDateEdit::drop-down {
+                width: 30px;
+                border: none;
+            }
         """)
         
         birthdate_container = QVBoxLayout()
+        birthdate_container.setSpacing(2)
         birthdate_container.addWidget(birthdate_label)
         birthdate_container.addWidget(self.birthdate_input)
         
@@ -269,6 +298,7 @@ class UpdateInfoDialog(QDialog):
         cancel_btn.setFixedSize(120, 50)
         cancel_btn.setStyleSheet("""
             QPushButton {
+                font-family: 'Lato';
                 background-color: #f5f5f5;
                 border-radius: 25px;
                 font-size: 16px;
@@ -285,6 +315,7 @@ class UpdateInfoDialog(QDialog):
         save_btn.setFixedSize(120, 50)
         save_btn.setStyleSheet("""
             QPushButton {
+                font-family: 'Lato';
                 background-color: #012547;
                 border-radius: 25px;
                 font-size: 16px;
@@ -333,7 +364,7 @@ class UpdateClinicInfoDialog(QDialog):
         title_layout = QHBoxLayout(title_container)
         title_layout.setContentsMargins(20, 10, 20, 10)
         title_label = QLabel("Veterinary Clinic Information")
-        title_label.setStyleSheet("font-size: 36px; font-weight: bold; color: #FFF;")
+        title_label.setStyleSheet("font-family: 'Lato'; font-size: 36px; font-weight: bold; color: #FFF;")
         title_layout.addWidget(title_label)
         layout.addWidget(title_container)
         
@@ -345,17 +376,19 @@ class UpdateClinicInfoDialog(QDialog):
         
         # Clinic Name
         name_label = QLabel("Clinic Name")
-        name_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        name_label.setStyleSheet("font-family: 'Lato'; font-size: 14px; font-weight: bold;")
         self.name_input = QLineEdit()
         self.name_input.setText(self.clinic_data["name"])
         self.name_input.setMinimumHeight(40)
         self.name_input.setStyleSheet("""
             QLineEdit {
+                font-family: 'Lato';
                 padding: 8px;
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
                 border-radius: 5px;
                 font-size: 14px;
+                font
             }
         """)
         
@@ -366,12 +399,13 @@ class UpdateClinicInfoDialog(QDialog):
         
         # Address
         address_label = QLabel("Address")
-        address_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        address_label.setStyleSheet("font-family: 'Lato'; font-size: 14px; font-weight: bold;")
         self.address_input = QLineEdit()
         self.address_input.setText(self.clinic_data["address"])
         self.address_input.setMinimumHeight(40)
         self.address_input.setStyleSheet("""
             QLineEdit {
+                font-family: 'Lato';
                 padding: 8px;
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
@@ -387,12 +421,13 @@ class UpdateClinicInfoDialog(QDialog):
         
         # Email Address
         email_label = QLabel("Email Address")
-        email_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        email_label.setStyleSheet("font-family: 'Lato'; font-size: 14px; font-weight: bold;")
         self.email_input = QLineEdit()
         self.email_input.setText(self.clinic_data["email"])
         self.email_input.setMinimumHeight(40)
         self.email_input.setStyleSheet("""
             QLineEdit {
+                font-family: 'Lato';
                 padding: 8px;
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
@@ -412,12 +447,13 @@ class UpdateClinicInfoDialog(QDialog):
         
         # Contact Number
         contact_label = QLabel("Contact Number")
-        contact_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        contact_label.setStyleSheet("font-family: 'Lato'; font-size: 14px; font-weight: bold;")
         self.contact_input = QLineEdit()
         self.contact_input.setText(self.clinic_data["contact"])
         self.contact_input.setMinimumHeight(40)
         self.contact_input.setStyleSheet("""
             QLineEdit {
+                font-family: 'Lato';
                 padding: 8px;
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
@@ -432,12 +468,13 @@ class UpdateClinicInfoDialog(QDialog):
         
         # Number of Employees
         employees_label = QLabel("No. of Employees")
-        employees_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        employees_label.setStyleSheet("font-family: 'Lato'; font-size: 14px; font-weight: bold;")
         self.employees_input = QLineEdit()
         self.employees_input.setText(self.clinic_data["employees"])
         self.employees_input.setMinimumHeight(40)
         self.employees_input.setStyleSheet("""
             QLineEdit {
+                font-family: 'Lato';
                 padding: 8px;
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
@@ -464,6 +501,7 @@ class UpdateClinicInfoDialog(QDialog):
         cancel_btn.setFixedSize(120, 50)
         cancel_btn.setStyleSheet("""
             QPushButton {
+                font-family: 'Lato';
                 background-color: #f5f5f5;
                 border-radius: 25px;
                 font-size: 16px;
@@ -480,6 +518,7 @@ class UpdateClinicInfoDialog(QDialog):
         save_btn.setFixedSize(120, 50)
         save_btn.setStyleSheet("""
             QPushButton {
+                font-family: 'Lato';
                 background-color: #012547;
                 border-radius: 25px;
                 font-size: 16px;
@@ -524,7 +563,7 @@ class UpdateSecurityAnswersDialog(QDialog):
         title_layout = QHBoxLayout(title_container)
         title_layout.setContentsMargins(20, 10, 20, 10)
         title_label = QLabel("Security Questions")
-        title_label.setStyleSheet("font-size: 36px; font-weight: bold; color: #FFF;")
+        title_label.setStyleSheet("font-family: 'Lato'; font-size: 36px; font-weight: bold; color: #FFF;")
         title_layout.addWidget(title_label)
         layout.addWidget(title_container)
         
@@ -540,6 +579,7 @@ class UpdateSecurityAnswersDialog(QDialog):
         self.answer_one.setMinimumHeight(40)
         self.answer_one.setStyleSheet("""
             QLineEdit {
+                font-family: 'Lato';
                 padding: 8px;
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
@@ -553,6 +593,7 @@ class UpdateSecurityAnswersDialog(QDialog):
         self.answer_two.setMinimumHeight(40)
         self.answer_two.setStyleSheet("""
             QLineEdit {
+                font-family: 'Lato';
                 padding: 8px;
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
@@ -566,6 +607,7 @@ class UpdateSecurityAnswersDialog(QDialog):
         self.answer_three.setMinimumHeight(40)
         self.answer_three.setStyleSheet("""
             QLineEdit {
+                font-family: 'Lato';
                 padding: 8px;
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
@@ -589,6 +631,7 @@ class UpdateSecurityAnswersDialog(QDialog):
         cancel_btn.setFixedSize(120, 50)
         cancel_btn.setStyleSheet("""
             QPushButton {
+                font-family: 'Lato';
                 background-color: #f5f5f5;
                 border-radius: 25px;
                 font-size: 16px;
@@ -605,6 +648,7 @@ class UpdateSecurityAnswersDialog(QDialog):
         save_btn.setFixedSize(120, 50)
         save_btn.setStyleSheet("""
             QPushButton {
+                font-family: 'Lato';
                 background-color: #012547;
                 border-radius: 25px;
                 font-size: 16px;
@@ -656,7 +700,7 @@ def get_setting_widget(user_id=None):
     # Title
     settings_label = QLabel("Settings")
     settings_label.setObjectName("SettingsLabel")
-    settings_label.setStyleSheet("font-size: 24px; font-weight: bold;")
+    settings_label.setStyleSheet("font-family: 'Lato'; font-size: 24px; font-weight: bold;")
     settings_label.setAlignment(Qt.AlignLeft)
     main_layout.addWidget(settings_label)
 
@@ -669,7 +713,7 @@ def get_setting_widget(user_id=None):
     
     # Section Header
     profile_header = QLabel("PROFILE INFORMATION")
-    profile_header.setStyleSheet("font-weight: bold; font-size: 16px;")
+    profile_header.setStyleSheet("font-family: 'Lato'; font-weight: bold; font-size: 16px;")
     profile_layout.addWidget(profile_header)
     
     # Content layout
@@ -856,11 +900,11 @@ def get_setting_widget(user_id=None):
     for label_text, data_key in info_fields:
         # Create the label key (left column)
         label_key = QLabel(f"{label_text}:")
-        label_key.setStyleSheet("font-weight: bold; color: #222f3e;")
+        label_key.setStyleSheet("font-family: 'Lato'; font-weight: bold; color: #222f3e;")
         
         # Create the label value (right column)
         label_value = QLabel(user_data[data_key])
-        label_value.setStyleSheet("color: #222f3e;")
+        label_value.setStyleSheet("font-family: 'Lato'; color: #222f3e;")
         
         # Add to grid layout
         info_column.addWidget(label_key, row, 0)
@@ -1019,7 +1063,7 @@ def get_setting_widget(user_id=None):
     
     # Section Header
     clinic_header = QLabel("VET CLINIC INFORMATION")
-    clinic_header.setStyleSheet("font-weight: bold; font-size: 16px;")
+    clinic_header.setStyleSheet("font-family: 'Lato'; font-weight: bold; font-size: 16px;")
     clinic_layout.addWidget(clinic_header)
     
     # Content layout
@@ -1109,10 +1153,10 @@ def get_setting_widget(user_id=None):
     row = 0
     for label_text, value_text in clinic_fields.items():
         label = QLabel(label_text)
-        label.setStyleSheet("font-weight: bold; color: #222f3e;")
+        label.setStyleSheet("font-family: 'Lato'; font-weight: bold; color: #222f3e;")
         
         value = QLabel(value_text)
-        value.setStyleSheet("color: #222f3e;")
+        value.setStyleSheet("font-family: 'Lato'; color: #222f3e;")
         
         clinic_info_column.addWidget(label, row, 0)
         clinic_info_column.addWidget(value, row, 1)
