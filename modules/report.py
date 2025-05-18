@@ -42,11 +42,11 @@ class ReportFormDialog(QDialog):
         
         # Row 1: Date, Type
         row1_layout = QHBoxLayout()
-        row1_layout.setSpacing(20)
+        row1_layout.setSpacing(10)
         
         # Date field
         date_label = QLabel("Date")
-        date_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px;")
+        date_label.setStyleSheet("font-size: 16px; font-family: Lato; font-weight: bold; margin-bottom: 5px;")
         self.date_edit = QDateEdit()
         self.date_edit.setCalendarPopup(True)
         self.date_edit.setDate(QDate.currentDate())
@@ -59,7 +59,8 @@ class ReportFormDialog(QDialog):
                 border: 1px solid #ddd;
                 border-radius: 5px;
                 font-size: 14px;
-                margin-top: 8px;
+                margin-top: 2px;
+                font-family: Lato;
             }
         """)
         
@@ -70,7 +71,7 @@ class ReportFormDialog(QDialog):
         
         # Type field
         type_label = QLabel("Type")
-        type_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px;")
+        type_label.setStyleSheet("font-size: 16px;font-family: Lato; font-weight: bold; margin-bottom: 5px;")
         self.type_combo = QComboBox()
         self.type_combo.addItems(["Consultation", "Deworming", "Vaccination", "Surgery", "Grooming", "Other Treatments"])
         self.type_combo.setMinimumHeight(40)
@@ -81,7 +82,8 @@ class ReportFormDialog(QDialog):
                 border: 1px solid #ddd;
                 border-radius: 5px;
                 font-size: 14px;
-                margin-top: 8px;
+                margin-top: 2px;
+                font-family: Lato;
             }
             QComboBox::drop-down {
                 width: 30px;
@@ -104,7 +106,7 @@ class ReportFormDialog(QDialog):
         
         # Row 2: Pet Name
         pet_name_label = QLabel("Pet Name")
-        pet_name_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px;")
+        pet_name_label.setStyleSheet("font-size: 16px; font-family: Lato; font-weight: bold; margin-bottom: 5px;")
         self.pet_name_combo = QComboBox()
         self.pet_name_combo.setMinimumHeight(40)
         self.pet_name_combo.setPlaceholderText("Select Pet")
@@ -115,7 +117,8 @@ class ReportFormDialog(QDialog):
                 border: 1px solid #ddd;
                 border-radius: 5px;
                 font-size: 14px;
-                margin-top: 8px;
+                margin-top: 2px;
+                font-family: Lato;
             }
             QComboBox::drop-down {
                 width: 30px;
@@ -138,7 +141,7 @@ class ReportFormDialog(QDialog):
         # Dynamic Fields Container
         self.dynamic_fields_container = QWidget()
         self.dynamic_fields_layout = QVBoxLayout(self.dynamic_fields_container)
-        self.dynamic_fields_layout.setSpacing(20)
+        self.dynamic_fields_layout.setSpacing(0)
         form_scroll_layout.addWidget(self.dynamic_fields_container)
         
         # Create field widgets but don't add them yet
@@ -188,7 +191,7 @@ class ReportFormDialog(QDialog):
         
         # Row 6: Veterinarian/Staff In Charge
         vet_label = QLabel("Veterinarian/Staff In Charge")
-        vet_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px; margin-top: 12px;")
+        vet_label.setStyleSheet("font-size: 16px; font-family: Lato; font-weight: bold; margin-bottom: 5px; margin-top: 5px;")
         self.vet_combo = QComboBox()
         self.vet_combo.setMinimumHeight(40)
         self.vet_combo.setStyleSheet("""
@@ -199,6 +202,7 @@ class ReportFormDialog(QDialog):
                 border-radius: 5px;
                 font-size: 14px;
                 margin-top: 8px;
+                font-family: Lato;
             }
             QComboBox::drop-down {
                 width: 30px;
@@ -233,6 +237,7 @@ class ReportFormDialog(QDialog):
                 font-size: 16px;
                 font-weight: bold;
                 color: #333;
+                font-family: Lato;
             }
             QPushButton:hover {
                 background-color: #e0e0e0;
@@ -250,6 +255,7 @@ class ReportFormDialog(QDialog):
                 font-size: 16px;
                 font-weight: bold;
                 color: white;
+                font-family: Lato;
             }
             QPushButton:hover {
                 background-color: #01315d;
@@ -275,18 +281,20 @@ class ReportFormDialog(QDialog):
         layout = QVBoxLayout(container)
         layout.setSpacing(0)
         label = QLabel(label_text)
-        label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px;")
+        label.setStyleSheet("font-size: 16px; font-family: Lato; font-weight: bold; margin-bottom: 5px;")
         text_edit = QTextEdit()
         text_edit.setPlaceholderText(placeholder)
-        text_edit.setFixedHeight(60)
+        text_edit.setFixedHeight(50)
         text_edit.setStyleSheet("""
             QTextEdit {
-                padding: 8px;
+                padding: 3px;
                 background-color: #f5f5f5;
                 border: 1px solid #ddd;
                 border-radius: 5px;
-                font-size: 14px;
+                font-size: 15px;
+                color: #000;
                 margin-top: 8px;
+                font-family: Lato;
             }
         """)
         layout.addWidget(label)
@@ -299,7 +307,7 @@ class ReportFormDialog(QDialog):
         layout = QVBoxLayout(container)
         layout.setSpacing(0)
         label = QLabel(label_text)
-        label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px;")
+        label.setStyleSheet("font-size: 16px; font-family: Lato; font-weight: bold; margin-bottom: 5px;")
         date_edit = QDateEdit()
         date_edit.setCalendarPopup(True)
         date_edit.setDate(QDate.currentDate())
@@ -313,6 +321,7 @@ class ReportFormDialog(QDialog):
                 border-radius: 5px;
                 font-size: 14px;
                 margin-top: 8px;
+                font-family: Lato;
             }
         """)
         layout.addWidget(label)
@@ -514,7 +523,7 @@ class ViewReportDialog(QDialog):
         
         # Date field
         date_label = QLabel("Date")
-        date_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px;")
+        date_label.setStyleSheet("font-size: 16px; font-family: Lato; font-weight: bold; margin-bottom: 5px;")
         self.date_edit = QDateEdit()
         self.date_edit.setCalendarPopup(True)
         self.date_edit.setDisplayFormat("dd/MM/yyyy")
@@ -528,6 +537,7 @@ class ViewReportDialog(QDialog):
                 border-radius: 5px;
                 font-size: 14px;
                 margin-top: 8px;
+                font-family: Lato;
             }
         """)
         
@@ -538,7 +548,7 @@ class ViewReportDialog(QDialog):
         
         # Type field
         type_label = QLabel("Type")
-        type_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px;")
+        type_label.setStyleSheet("font-size: 16px; font-family: Lato; font-weight: bold; margin-bottom: 5px;")
         self.type_combo = QComboBox()
         self.type_combo.addItems(["Consultation", "Deworming", "Vaccination", "Surgery", "Grooming", "Other Treatments"])
         self.type_combo.setMinimumHeight(40)
@@ -551,6 +561,7 @@ class ViewReportDialog(QDialog):
                 border-radius: 5px;
                 font-size: 14px;
                 margin-top: 8px;
+                font-family: Lato;
             }
             QComboBox::drop-down {
                 width: 30px;
@@ -573,7 +584,7 @@ class ViewReportDialog(QDialog):
         
         # Row 2: Pet Name
         pet_name_label = QLabel("Pet Name")
-        pet_name_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px;")
+        pet_name_label.setStyleSheet("font-size: 16px; font-family: Lato; font-weight: bold; margin-bottom: 5px;")
         self.pet_name_combo = QComboBox()
         self.pet_name_combo.setMinimumHeight(40)
         self.pet_name_combo.setEnabled(False)
@@ -584,7 +595,8 @@ class ViewReportDialog(QDialog):
                 border: 1px solid #ddd;
                 border-radius: 5px;
                 font-size: 14px;
-                margin-top: 8px;
+                margin-top: 2px;
+                font-family: Lato;
             }
             QComboBox::drop-down {
                 width: 30px;
@@ -602,13 +614,13 @@ class ViewReportDialog(QDialog):
         pet_name_container.addWidget(self.pet_name_combo)
         form_scroll_layout.addLayout(pet_name_container)
         
-        # Row 3: Reason for Consultation
-        reason_label = QLabel("Reason for Consultation")
-        reason_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px;")
-        self.reason_input = QTextEdit()
-        self.reason_input.setReadOnly(True)
-        self.reason_input.setFixedHeight(60)
-        self.reason_input.setStyleSheet("""
+        # Dynamic Fields based on treatment type
+        self.field1_label = QLabel()
+        self.field1_label.setStyleSheet("font-size: 16px; font-family: Lato; font-weight: bold; margin-bottom: 5px;")
+        self.field1_input = QTextEdit()
+        self.field1_input.setReadOnly(True)
+        self.field1_input.setFixedHeight(60)
+        self.field1_input.setStyleSheet("""
             QTextEdit {
                 padding: 8px;
                 background-color: #f5f5f5;
@@ -616,22 +628,22 @@ class ViewReportDialog(QDialog):
                 border-radius: 5px;
                 font-size: 14px;
                 margin-top: 8px;
+                font-family: Lato;
             }
         """)
         
-        reason_container = QVBoxLayout()
-        reason_container.setSpacing(0)
-        reason_container.addWidget(reason_label)
-        reason_container.addWidget(self.reason_input)
-        form_scroll_layout.addLayout(reason_container)
+        field1_container = QVBoxLayout()
+        field1_container.setSpacing(0)
+        field1_container.addWidget(self.field1_label)
+        field1_container.addWidget(self.field1_input)
+        form_scroll_layout.addLayout(field1_container)
         
-        # Row 4: Diagnosis
-        diagnosis_label = QLabel("Diagnosis")
-        diagnosis_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px; margin-top: 12px;")
-        self.diagnosis_input = QTextEdit()
-        self.diagnosis_input.setReadOnly(True)
-        self.diagnosis_input.setFixedHeight(60)
-        self.diagnosis_input.setStyleSheet("""
+        self.field2_label = QLabel()
+        self.field2_label.setStyleSheet("font-size: 16px; font-family: Lato; font-weight: bold; margin-bottom: 5px; margin-top: 5px;")
+        self.field2_input = QTextEdit()
+        self.field2_input.setReadOnly(True)
+        self.field2_input.setFixedHeight(60)
+        self.field2_input.setStyleSheet("""
             QTextEdit {
                 padding: 8px;
                 background-color: #f5f5f5;
@@ -639,22 +651,22 @@ class ViewReportDialog(QDialog):
                 border-radius: 5px;
                 font-size: 14px;
                 margin-top: 8px;
+                font-family: Lato;
             }
         """)
         
-        diagnosis_container = QVBoxLayout()
-        diagnosis_container.setSpacing(0)
-        diagnosis_container.addWidget(diagnosis_label)
-        diagnosis_container.addWidget(self.diagnosis_input)
-        form_scroll_layout.addLayout(diagnosis_container)
+        field2_container = QVBoxLayout()
+        field2_container.setSpacing(0)
+        field2_container.addWidget(self.field2_label)
+        field2_container.addWidget(self.field2_input)
+        form_scroll_layout.addLayout(field2_container)
         
-        # Row 5: Prescribed Treatment/Medication
-        prescribed_label = QLabel("Prescribed Treatment/Medication")
-        prescribed_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px; margin-top: 12px;")
-        self.prescribed_input = QTextEdit()
-        self.prescribed_input.setReadOnly(True)
-        self.prescribed_input.setFixedHeight(60)
-        self.prescribed_input.setStyleSheet("""
+        self.field3_label = QLabel()
+        self.field3_label.setStyleSheet("font-size: 16px; font-family: Lato; font-weight: bold; margin-bottom: 5px; margin-top: 5px;")
+        self.field3_input = QTextEdit()
+        self.field3_input.setReadOnly(True)
+        self.field3_input.setFixedHeight(60)
+        self.field3_input.setStyleSheet("""
             QTextEdit {
                 padding: 8px;
                 background-color: #f5f5f5;
@@ -662,18 +674,19 @@ class ViewReportDialog(QDialog):
                 border-radius: 5px;
                 font-size: 14px;
                 margin-top: 8px;
+                font-family: Lato;
             }
         """)
         
-        prescribed_container = QVBoxLayout()
-        prescribed_container.setSpacing(0)
-        prescribed_container.addWidget(prescribed_label)
-        prescribed_container.addWidget(self.prescribed_input)
-        form_scroll_layout.addLayout(prescribed_container)
+        field3_container = QVBoxLayout()
+        field3_container.setSpacing(0)
+        field3_container.addWidget(self.field3_label)
+        field3_container.addWidget(self.field3_input)
+        form_scroll_layout.addLayout(field3_container)
         
         # Row 6: Veterinarian/Staff In Charge
         vet_label = QLabel("Veterinarian/Staff In Charge")
-        vet_label.setStyleSheet("font-size: 16px; font-weight: bold; margin-bottom: 10px; margin-top: 12px;")
+        vet_label.setStyleSheet("font-size: 16px; font-family: Lato; font-weight: bold; margin-bottom: 5px; margin-top: 5px;")
         self.vet_combo = QComboBox()
         self.vet_combo.setMinimumHeight(40)
         self.vet_combo.setEnabled(False)
@@ -685,6 +698,7 @@ class ViewReportDialog(QDialog):
                 border-radius: 5px;
                 font-size: 14px;
                 margin-top: 8px;
+                font-family: Lato;
             }
             QComboBox::drop-down {
                 width: 30px;
@@ -718,6 +732,7 @@ class ViewReportDialog(QDialog):
                 font-size: 16px;
                 font-weight: bold;
                 color: white;
+                font-family: Lato;
             }
             QPushButton:hover {
                 background-color: #01315d;
@@ -754,6 +769,32 @@ class ViewReportDialog(QDialog):
                 index = self.type_combo.findText(data[1])
                 if index >= 0:
                     self.type_combo.setCurrentIndex(index)
+                    
+                    # Set field labels based on treatment type
+                    if data[1] == "Consultation":
+                        self.field1_label.setText("Reason for Consultation")
+                        self.field2_label.setText("Diagnosis")
+                        self.field3_label.setText("Prescribed Treatment/Medication")
+                    elif data[1] == "Deworming":
+                        self.field1_label.setText("Deworming Medication")
+                        self.field2_label.setText("Dosage Administered")
+                        self.field3_label.setText("Next Scheduled Deworming")
+                    elif data[1] == "Vaccination":
+                        self.field1_label.setText("Vaccine Administered")
+                        self.field2_label.setText("Dosage Administered")
+                        self.field3_label.setText("Next Scheduled Vaccination")
+                    elif data[1] == "Surgery":
+                        self.field1_label.setText("Type of Surgery")
+                        self.field2_label.setText("Anesthesia Used")
+                        self.field3_label.setText("Next Follow-up Date")
+                    elif data[1] == "Grooming":
+                        self.field1_label.setText("Grooming Service/s Availed")
+                        self.field2_label.setText("Notes")
+                        self.field3_label.setText("Next Grooming Date")
+                    elif data[1] == "Other Treatments":
+                        self.field1_label.setText("Treatment Type")
+                        self.field2_label.setText("Medication/Procedure Used")
+                        self.field3_label.setText("Dosage/Duration")
             
             # Set pet name
             if data[2] and data[3]:
@@ -762,11 +803,11 @@ class ViewReportDialog(QDialog):
             
             # Set other fields
             if data[4]:
-                self.reason_input.setText(data[4])
+                self.field1_input.setText(data[4])
             if data[5]:
-                self.diagnosis_input.setText(data[5])
+                self.field2_input.setText(data[5])
             if data[6]:
-                self.prescribed_input.setText(data[6])
+                self.field3_input.setText(data[6])
             
             # Set veterinarian name
             if data[7]:
@@ -783,7 +824,7 @@ class ViewReportDialog(QDialog):
         except Exception as e:
             print(f"Error setting report data: {e}")
 
-def get_report_widget():
+def get_report_widget(user_role):
     content = QWidget()
     layout = QVBoxLayout(content)
     layout.setSpacing(0)
@@ -810,7 +851,7 @@ def get_report_widget():
     add_report_button.setObjectName("AddReportButton")
     add_report_button.setFixedSize(120, 40)
     add_report_button.setStyleSheet(
-        "background-color: #F4F4F8; border: none; border-radius: 20px; margin-bottom: 5px;"
+        "background-color: #F4F4F8; font-family: Lato; border: none; border-radius: 20px; margin-bottom: 5px;"
     )
 
     # Save PDF Button
@@ -818,8 +859,12 @@ def get_report_widget():
     save_pdf_button.setObjectName("SavePDFButton")
     save_pdf_button.setFixedSize(120, 40)
     save_pdf_button.setStyleSheet(
-        "background-color: #F4F4F8; border: none; border-radius: 20px; margin-bottom: 5px;"
+        "background-color: #F4F4F8; font-family: Lato; border: none; border-radius: 20px; margin-bottom: 5px;"
     )
+    
+    # Hide the button if the user is not a receptionist
+    if user_role.lower() != "receptionist":
+        save_pdf_button.hide()
 
     # Edit Button
     edit_button = QPushButton()
@@ -833,6 +878,7 @@ def get_report_widget():
             border: none;
             border-radius: 20px;
             margin-bottom: 5px;
+            font-family: Lato;
         }
         QPushButton:hover {
             background-color: #FFC107;
@@ -852,6 +898,7 @@ def get_report_widget():
             border: none;
             border-radius: 20px;
             margin-bottom: 5px;
+            font-family: Lato;
         }
         QPushButton:hover {
             background-color: #E53935;
@@ -921,6 +968,7 @@ def get_report_widget():
             }
             QPushButton[selected="true"] {
                 background-color: #FED766;
+                outline: none;
             }
         """)
         treatment_layout.addWidget(button)
@@ -989,6 +1037,7 @@ def get_report_widget():
                 height: 40px;
                 padding: 5px;
                 text-align: center;
+                font-family: Lato;
             }
         """)
         table.verticalHeader().setVisible(False)
@@ -1138,25 +1187,25 @@ def get_report_widget():
                     # Reorder the data to match the expected format
                     reordered_record = [
                         date,  # Date
-                        record[1] if len(record) > 1 else "",  # Type
-                        record[2] if len(record) > 2 else "",  # Pet Name
-                        record[3] if len(record) > 3 else "",  # Client Name
-                        record[4] if len(record) > 4 else "",  # Reason
-                        record[5] if len(record) > 5 else "",  # Diagnosis
-                        record[6] if len(record) > 6 else "",  # Prescribed
-                        record[7] if len(record) > 7 else ""   # Vet
+                        treatment,  # Type
+                        record[1],  # Pet Name
+                        record[2],  # Client Name
+                        record[3],  # Reason
+                        record[4],  # Diagnosis
+                        record[5],  # Prescribed
+                        record[6]   # Vet
                     ]
                 else:
                     # Reorder the data to match the expected format
                     reordered_record = [
                         date,  # Date
                         treatment,  # Type
-                        record[1] if len(record) > 1 else "",  # Pet Name
-                        record[2] if len(record) > 2 else "",  # Client Name
-                        record[3] if len(record) > 3 else "",  # Reason
-                        record[4] if len(record) > 4 else "",  # Diagnosis
-                        record[5] if len(record) > 5 else "",  # Prescribed
-                        record[6] if len(record) > 6 else ""   # Vet
+                        record[1],  # Pet Name
+                        record[2],  # Client Name
+                        record[3],  # Reason
+                        record[4],  # Diagnosis
+                        record[5],  # Prescribed
+                        record[6]   # Vet
                     ]
                 
                 # Ensure we have all required fields
@@ -1206,6 +1255,7 @@ def get_report_widget():
                         color: #000;
                         font-weight: bold;
                         height: 40px;
+                        font-family: Lato;
                     }
                 """)
                 # Add search indicator to header
@@ -1220,6 +1270,7 @@ def get_report_widget():
                         color: #000;
                         font-weight: bold;
                         height: 40px;
+                        font-family: Lato;
                     }
                 """)
                 header.setToolTip("")
@@ -1401,6 +1452,7 @@ def get_report_widget():
                                 padding: 2px 8px;
                                 min-height: 10px;
                                 min-width: 30px;
+                                font-family: Lato;
                             }
                             QPushButton:hover {
                                 background-color: #FFC107;
@@ -1419,6 +1471,7 @@ def get_report_widget():
                                 padding: 2px 8px;
                                 min-height: 10px;
                                 min-width: 30px;
+                                font-family: Lato;
                             }
                             QPushButton:hover {
                                 background-color: #E53935;
@@ -1617,17 +1670,10 @@ def get_report_widget():
                             DELETE FROM other_treatments
                             WHERE pet_id = ? AND client_id = ? AND date = ? AND treatment_type = ?
                         """, (pet_id, client_id, date, original_key_field))
-
-                    # Save the updated record
-                    if db.save_medical_record(
-                        pet_id, client_id, form_data["date"], treatment,
-                        form_data.get("reason", ""), form_data.get("diagnosis", ""),
-                        form_data.get("prescribed", ""), form_data["veterinarian"]
-                    ):
-                        QMessageBox.information(None, "Success", "Report updated successfully!")
-                        refresh_tables()
-                    else:
-                        QMessageBox.critical(None, "Error", "Failed to update report!")
+                    
+                    db.conn.commit()
+                    QMessageBox.information(None, "Success", "Report updated successfully!")
+                    refresh_tables()
                 except Exception as e:
                     QMessageBox.critical(None, "Error", f"Failed to update report: {e}")
                 finally:
