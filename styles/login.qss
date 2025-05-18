@@ -1,10 +1,12 @@
 QMainWindow {
     background-color: #ffffff; 
+    font-family: Lato;
 }
 
 QLineEdit {
     padding: 10px;
     font-size: 25px;
+    font-family: Lato;
     border: none;
     line-height: 60;
     padding-left: 20px;
@@ -36,16 +38,28 @@ QPushButton#loginButton {
     min-width: 150px;         
     min-height: 60px;         
     font-size: 20px;
+    font-family: Lato;
     background-color: #4A90E2;
     color: white;
     border-radius: 25px;       
     border: none;
+    outline: none;
 }
 
 QPushButton#loginButton:hover {
     background-color: #012547;
+    outline: none;
 }
 
+QPushButton#loginButton:pressed {
+    outline: none;
+    border: none;
+}
+
+QPushButton#loginButton:focus {
+    outline: none;
+    border: none;
+}
 
 QLabel#WelcomeLabel {
     color: #4A90E2;
@@ -55,7 +69,7 @@ QLabel#WelcomeLabel {
     font-weight: 400;
     line-height: 50;
     margin-bottom: -10px;
-    padding-bottom: -20px;
+    padding-bottom: -10px;
 }
 
 QLabel#SubwelcomeLabel {
@@ -64,7 +78,7 @@ QLabel#SubwelcomeLabel {
     font-size: 20px;
     font-style: italic;
     line-height: 50;
-    font-weight: 200;
+    font-weight: 300;
 }
 
 #forgotPasswordButton {
@@ -73,7 +87,8 @@ QLabel#SubwelcomeLabel {
     font-family: Lato;    
     border: none;            
     background: transparent;
-    text-align: right;       
+    text-align: right;
+    margin-top: -15px;
 }
 
 #forgotPasswordButton:hover {
@@ -84,6 +99,7 @@ QLabel#SubwelcomeLabel {
 #signupButton {
     color: #3498db;
     font-size: 12px;
+    font-family: Lato;
     border: none;
     background: transparent;
     margin-left: -10px;
@@ -114,6 +130,7 @@ QLabel#SubwelcomeLabel {
 #LoginButton {
     color: #3498db;
     font-size: 20px;
+    font-family: Lato;
     border: none;
     background: transparent;
     margin-left: -40px;
@@ -123,6 +140,7 @@ QLabel#SubwelcomeLabel {
 
 #HaveaccountLabel{
     font-size: 20px;
+    font-family: Lato;
     margin-top: -30px;
 }
 
@@ -138,12 +156,14 @@ QLabel#SubwelcomeLabel {
     background-color: white;
     min-height: 20px; 
     font-size: 12px;
+    font-family: Lato;
 }
 
 QPushButton#create {
     min-width: 180px;         
     min-height: 50px;         
     font-size: 20px;
+    font-family: Lato;
     background-color:#4A90E2;
     color: white;
     border-radius: 25px;       
@@ -157,6 +177,7 @@ QPushButton#create:hover {
 QComboBox#RoleComboBox, QComboBox#RoleComboBox QLineEdit {
     padding: 10px;
     font-size: 12px;
+    font-family: Lato;
     border: 1px solid  #B0B0B0;
     border-radius: 20px;
     background: white;
@@ -209,14 +230,16 @@ QComboBox#RoleComboBox::drop-down {
 #PasswordFormInput{
     border: none;
     font-size: 12px;
+    font-family: Lato;
     border-radius: 20px;
-    mi-height: 20px;
+    min-height: 20px;
 }
 
 /* Home Page */
 
 #Header {
     background-color: #012547; 
+    font-family: Lato;
 }
 
 #UsernameLabel {
@@ -380,7 +403,7 @@ QPushButton {
 #DeleteButton {
     background-color: transparent;
     border: none; 
-    margin-top: -3px;
+    margin-top: -5px;
 }
 
 /*Reports Tab*/
