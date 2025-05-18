@@ -8,23 +8,30 @@ def create_styled_message_box(icon, title, text):
     message_box.setText(text)
     message_box.setStyleSheet("""
         QMessageBox { 
-            background-color: #FED766; 
-            border: 2px solid #012547; 
-            border-radius: 10px; 
+            background-color: white; 
+            border: 1px solid #e0e0e0; 
+            border-radius: 8px; 
         }
         QMessageBox QLabel { 
-            color: #012547; 
-            font-size: 14px; 
-            font-weight: bold; 
+            color: #333333; 
+            font-size: 16px; 
+            font-weight: normal;
+            padding: 10px;
+            font-family: Lato;
         }
         QMessageBox QPushButton { 
             background-color: #012547; 
             color: white; 
-            border-radius: 5px; 
-            padding: 5px 10px; 
+            border-radius: 4px; 
+            padding: 8px 16px;
+            font-size: 13px;
+            min-width: 80px;
         }
         QMessageBox QPushButton:hover { 
             background-color: #014A7F; 
+        }
+        QMessageBox QPushButton:pressed {
+            background-color: #001e3d;
         }
     """)
     return message_box
@@ -50,6 +57,7 @@ def show_message(parent, message, icon=QMessageBox.Information):
             padding: 5px 15px;
             border-radius: 5px;
             min-width: 80px;
+            font-family: Poppins;
         }
         QPushButton:hover {
             background-color: #01315d;
