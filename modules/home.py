@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt
 from modules.database import Database  # Import the Database class
 from datetime import datetime
 
-def get_home_widget():
+def get_home_widget(user_role):
         content = QWidget()
         layout = QVBoxLayout(content)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -39,7 +39,7 @@ def get_home_widget():
         clients_label = QLabel("clients", box1)
         clients_label.setObjectName("ClientsLabel")
         clients_label.setAlignment(Qt.AlignCenter)
-        clients_label.setStyleSheet("color: white; font-size: 14px;")
+        clients_label.setStyleSheet("color: white; font-size: 16px; font-family: Lato;")
 
         icon_and_number_layout = QHBoxLayout()
         icon_and_number_layout.addWidget(icon_label)
@@ -75,7 +75,7 @@ def get_home_widget():
         medical_label = QLabel("medical records", box2)
         medical_label.setObjectName("MedicalLabel")
         medical_label.setAlignment(Qt.AlignCenter)
-        medical_label.setStyleSheet("color: white; font-size: 14px;")
+        medical_label.setStyleSheet("color: white; font-size: 16px; font-family: Lato;")
 
         icon_and_number_layout2 = QHBoxLayout()
         icon_and_number_layout2.addWidget(icon_label2)
@@ -111,7 +111,7 @@ def get_home_widget():
         appointments_label = QLabel("appointments", box3)
         appointments_label.setObjectName("AppointmentsLabel")
         appointments_label.setAlignment(Qt.AlignCenter)
-        appointments_label.setStyleSheet("color: white; font-size: 14px;")
+        appointments_label.setStyleSheet("color: white; font-size: 16px; font-family: Lato;")
 
         icon_and_number_layout3 = QHBoxLayout()
         icon_and_number_layout3.addWidget(icon_label3)
@@ -136,27 +136,31 @@ def get_home_widget():
         container_layout.setSpacing(0)
         container.setStyleSheet("QWidget { margin: 0; padding: 0; }")
 
-        # Create title label
-        title_label = QLabel("Recent Reports")
+        # Create title label based on user role
+        title_text = "Recent Appointments" if user_role == "Veterinarian" else "Recent Reports"
+        title_label = QLabel(title_text)
+        title_label.setFixedHeight(50)
         title_label.setStyleSheet("""
             background-color: #012547;
             color: white;
-            font-size: 16px;
+            font-size: 24px;
             font-weight: bold;
             font-family: Poppins;
-            padding: 8px;
-            padding-bottom: 0;
+            padding: 5px;
             margin: 0;
             border: none;
         """)
-        title_label.setFixedHeight(40)
-        title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        title_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         container_layout.addWidget(title_label)
+        container_layout.setSpacing(0)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container.setStyleSheet("QWidget { margin: 0; padding: 0; }")
+        layout.setSpacing(50)
 
-        # Create the table for Recent Reports
+        # Create the table
         table_widget = QTableWidget()
         table_widget.setContentsMargins(0, 0, 0, 0)
-        table_widget.setObjectName("RecentReportsTable")
+        table_widget.setObjectName("RecentTable")
         table_widget.setStyleSheet("""
             QTableWidget {
                 margin: 0;
@@ -175,18 +179,83 @@ def get_home_widget():
                 border: none;
             }
         """)
-        table_widget.setColumnCount(5)
+        # Ensure no spacing between label and table
+        container_layout.setSpacing(0)
+        container_layout.setContentsMargins(0, 0, 0, 45)
+        container.setStyleSheet("QWidget { margin: 0; padding: 0; }")
 
-        # Set column headers
-        table_widget.setHorizontalHeaderLabels([
-            "Consultation Date", 
-            "Type",
-            "Pet", 
-            "Owner/Client", 
-            "Veterinarian/Staff in Charge"
-        ])
-        table_widget.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        table_widget.horizontalHeader().setFixedHeight(40)  # Set fixed height for column headers
+        if user_role == "Veterinarian":
+            # Set up table for appointments
+            table_widget.setColumnCount(6)
+            table_widget.setHorizontalHeaderLabels([
+                "Date",
+                "Pet Name",
+                "Reason for Appointment",
+                "Owner/Client",
+                "Status",
+                "Veterinarian in Charge"
+            ])
+            table_widget.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+            table_widget.horizontalHeader().setFixedHeight(40)
+            table_widget.setColumnWidth(0, 200)  # Date
+            table_widget.setColumnWidth(1, 200)  # Pet Name
+            table_widget.setColumnWidth(2, 295)  # Reason
+            table_widget.setColumnWidth(3, 205)  # Owner/Client
+            table_widget.setColumnWidth(4, 200)  # Status
+            table_widget.setColumnWidth(5, 180)  # Veterinarian
+
+            # Fetch and populate recent appointments
+            db = Database()
+            appointments = db.fetch_recent_appointments_summary(user_role)
+            db.close_connection()
+
+            table_widget.setRowCount(len(appointments))
+            for row, appointment in enumerate(appointments):
+                for col, value in enumerate(appointment):
+                    item = QTableWidgetItem(str(value))
+                    item.setTextAlignment(Qt.AlignCenter)
+                    table_widget.setItem(row, col, item)
+        else:
+            # Set up table for reports
+            table_widget.setColumnCount(5)
+            table_widget.setHorizontalHeaderLabels([
+                "Date",
+                "Type",
+                "Pet",
+                "Owner/Client",
+                "Veterinarian/Staff in Charge"
+            ])
+            table_widget.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+            table_widget.horizontalHeader().setFixedHeight(40)
+            table_widget.setColumnWidth(0, 250)  # Date
+            table_widget.setColumnWidth(1, 250)  # Type
+            table_widget.setColumnWidth(2, 250)  # Pet
+            table_widget.setColumnWidth(3, 250)  # Owner/Client
+            table_widget.setColumnWidth(4, 280)  # Veterinarian/Staff
+
+            # Fetch and populate recent reports
+            db = Database()
+            try:
+                recent_reports = db.fetch_recent_reports_summary(user_role)
+                if len(recent_reports) == 0:
+                    table_widget.setRowCount(1)
+                    no_data_item = QTableWidgetItem("No recent reports found")
+                    no_data_item.setTextAlignment(Qt.AlignCenter)
+                    table_widget.setSpan(0, 0, 1, 5)
+                    table_widget.setItem(0, 0, no_data_item)
+                else:
+                    table_widget.setRowCount(len(recent_reports))
+                    for row, report in enumerate(recent_reports):
+                        for col, value in enumerate(report):
+                            item = QTableWidgetItem(str(value))
+                            item.setTextAlignment(Qt.AlignCenter)
+                            table_widget.setItem(row, col, item)
+            except Exception as e:
+                print(f"Error populating reports table: {e}")
+            finally:
+                db.close_connection()
+
+        # Common table settings
         table_widget.horizontalHeader().setStyleSheet("""
             QHeaderView::section:horizontal {
                 background-color: #012547;
@@ -200,29 +269,14 @@ def get_home_widget():
             }
         """)
         table_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
-    
-        # Column widths - adjusted for 5 columns
-        table_widget.setColumnWidth(0, 200)  # Consultation Date
-        table_widget.setColumnWidth(1, 250)  # Type
-        table_widget.setColumnWidth(2, 250)  # Pet
-        table_widget.setColumnWidth(3, 300)  # Owner/Client
-        table_widget.setColumnWidth(4, 300)  # Veterinarian
-
-        # Hide vertical header (row numbers)
         table_widget.verticalHeader().setVisible(False)
-
-        # Disable the visible scrollbars but keep scrolling functionality
         table_widget.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         table_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-
-        # Allow scrolling with mouse wheel
         table_widget.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         table_widget.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
-
         table_widget.setShowGrid(True)
         table_widget.setEditTriggers(QAbstractItemView.NoEditTriggers)
         table_widget.setFocusPolicy(Qt.NoFocus)
-
         table_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         table_widget.setFixedHeight(300)
 
@@ -232,92 +286,6 @@ def get_home_widget():
         # Add container to main layout
         layout.addWidget(container)
 
-        # Fetch and populate recent reports
-        db = Database()
-        try:
-            print("\n=== Fetching Recent Reports for Home Page ===")
-            recent_reports = db.fetch_recent_reports_summary()
-            print(f"Received {len(recent_reports)} reports from database")
-            
-            if len(recent_reports) == 0:
-                print("No reports found to display")
-                # Add a message to the table
-                table_widget.setRowCount(1)
-                no_data_item = QTableWidgetItem("No recent reports found")
-                no_data_item.setTextAlignment(Qt.AlignCenter)
-                table_widget.setSpan(0, 0, 1, 5)  # Merge all columns
-                table_widget.setItem(0, 0, no_data_item)
-            else:
-                # Populate the table
-                print("\nPopulating table with data...")
-                table_widget.setRowCount(len(recent_reports))
-                for row, report in enumerate(recent_reports):
-                    try:
-                        print(f"\nProcessing row {row}:")
-                        print(f"Raw data: {report}")
-                        
-                        # Format date to dd/MM/yyyy
-                        try:
-                            date = datetime.strptime(str(report[0]), "%Y-%m-%d").strftime("%d/%m/%Y")
-                        except Exception as date_error:
-                            print(f"Error formatting date: {date_error}")
-                            date = str(report[0])
-                        
-                        # Get other values, using empty string if None
-                        pet_name = str(report[1]) if report[1] is not None else ""
-                        client_name = str(report[2]) if report[2] is not None else ""
-                        vet_name = str(report[3]) if report[3] is not None else ""
-                        report_type = str(report[4]) if report[4] is not None else ""
-                        
-                        # Add items to table with center alignment
-                        for col, value in enumerate([date, report_type, pet_name, client_name, vet_name]):
-                            item = QTableWidgetItem(value)
-                            item.setTextAlignment(Qt.AlignCenter)
-                            
-                            # Add background color based on report type
-                            if col == 1:  # Type column
-                                if value == "Consultation":
-                                    item.setBackground(QColor("#E3F2FD"))  # Light Blue
-                                elif value == "Vaccination":
-                                    item.setBackground(QColor("#E8F5E9"))  # Light Green
-                                elif value == "Surgery":
-                                    item.setBackground(QColor("#FFEBEE"))  # Light Red
-                                elif value == "Grooming":
-                                    item.setBackground(QColor("#F3E5F5"))  # Light Purple
-                                elif value == "Deworming":
-                                    item.setBackground(QColor("#FFF3E0"))  # Light Orange
-                                elif value == "Other Treatment":
-                                    item.setBackground(QColor("#FAFAFA"))  # Light Gray
-                            
-                            table_widget.setItem(row, col, item)
-                            print(f"Column {col}: {value}")
-                            
-                    except Exception as row_error:
-                        print(f"Error processing row {row}:")
-                        print(f"Error type: {type(row_error).__name__}")
-                        print(f"Error message: {str(row_error)}")
-                        continue
-                
-                print("\nFinished populating table")
-                    
-        except Exception as e:
-            print(f"\nError fetching recent reports:")
-            print(f"Error type: {type(e).__name__}")
-            print(f"Error message: {str(e)}")
-            import traceback
-            print("Traceback:")
-            print(traceback.format_exc())
-            
-            # Show error message in table
-            table_widget.setRowCount(1)
-            error_item = QTableWidgetItem("Error loading recent reports")
-            error_item.setTextAlignment(Qt.AlignCenter)
-            table_widget.setSpan(0, 0, 1, 5)  # Merge all 5 columns
-            table_widget.setItem(0, 0, error_item)
-        finally:
-            db.close_connection()
-            print("=== Finished loading recent reports ===\n")
-        
         return content
 
 class HomeWindow(QWidget):
@@ -327,5 +295,5 @@ class HomeWindow(QWidget):
         self.setup_ui()
 
     def setup_ui(self):
-        content = get_home_widget()
+        content = get_home_widget("Veterinarian")
         self.setLayout(content)
