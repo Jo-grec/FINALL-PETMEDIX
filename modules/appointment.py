@@ -339,6 +339,60 @@ def get_appointment_widget(user_role):
     layout.setSpacing(0)
     layout.setContentsMargins(0, 0, 0, 30)
 
+    # Store current search text
+    current_search = ""
+
+    def filter_appointments(search_text):
+        """Filter both urgent and all appointments tables based on search text."""
+        nonlocal current_search
+        current_search = search_text.lower()
+        
+        visible_rows = 0
+        for table in [urgent_table, all_table]:
+            for row in range(table.rowCount()):
+                show_row = False
+                for col in range(table.columnCount()):
+                    item = table.item(row, col)
+                    if item and current_search in item.text().lower():
+                        show_row = True
+                        break
+                table.setRowHidden(row, not show_row)
+                if show_row:
+                    visible_rows += 1
+
+        # Update table headers to show search status
+        for table in [urgent_table, all_table]:
+            header = table.horizontalHeader()
+            if current_search:
+                header.setStyleSheet("""
+                    QHeaderView::section {
+                        background-color: #FED766;
+                        color: #000;
+                        font-weight: bold;
+                        height: 40px;
+                        font-family: Lato;
+                    }
+                """)
+                # Add search indicator to header
+                if visible_rows > 0:
+                    header.setToolTip(f"Showing {visible_rows} results for '{current_search}'")
+                else:
+                    header.setToolTip(f"No results found for '{current_search}'")
+            else:
+                header.setStyleSheet("""
+                    QHeaderView::section {
+                        background-color: #FED766;
+                        color: #000;
+                        font-weight: bold;
+                        height: 40px;
+                        font-family: Lato;
+                    }
+                """)
+                header.setToolTip("")
+
+    # Make filter_appointments available to the main window
+    content.filter_appointments = filter_appointments
+
     def save_pdf():
         # Detect which table is visible
         table = urgent_table if urgent_table.isVisible() else all_table
@@ -494,12 +548,9 @@ def get_appointment_widget(user_role):
         "background-color: #F4F4F8; border: none; border-radius: 20px; margin-bottom: 5px;"
     )
 
-    # Disable the button if the user is not a receptionist
+    # Hide the button if the user is not a receptionist
     if user_role.lower() != "receptionist":
-        add_appointment_button.setEnabled(False)
-        add_appointment_button.setStyleSheet(
-            "background-color: #d3d3d3; border: none; border-radius: 20px; margin-bottom: 5px; color: #888;"
-        )
+        add_appointment_button.hide()
 
     # Save PDF Button
     save_pdf_button = QPushButton("Save PDF")
@@ -508,6 +559,10 @@ def get_appointment_widget(user_role):
     save_pdf_button.setStyleSheet(
         "background-color: #F4F4F8; border: none; border-radius: 20px; margin-bottom: 5px;"
     )
+    
+    # Hide the button if the user is not a receptionist
+    if user_role.lower() != "receptionist":
+        save_pdf_button.hide()
     
     save_pdf_button.clicked.connect(save_pdf)
 
