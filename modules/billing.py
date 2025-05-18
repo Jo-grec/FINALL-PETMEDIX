@@ -34,6 +34,12 @@ class InvoiceFormDialog(QDialog):
             self.is_view_mode = is_view_mode
             self.partial_amount_connected = False  # Track if partial amount signal is connected
             
+            # Add a timer for delayed loading
+            self.load_timer = QTimer(self)
+            self.load_timer.setSingleShot(True)
+            self.load_timer.timeout.connect(self.delayed_load_services)
+            self.pending_pet_id = None
+            
             # Initialize database connection
             self.db = None
             try:
@@ -311,8 +317,8 @@ class InvoiceFormDialog(QDialog):
         self.services_table.setItemDelegateForColumn(3, numeric_delegate)  # Quantity
         self.services_table.setItemDelegateForColumn(4, numeric_delegate)  # Unit Price
 
-        # Connect the itemChanged signal to auto-update total
-        self.services_table.itemChanged.connect(self.update_total)
+        # Don't connect itemChanged signal here - we'll do it after loading data
+        self.services_table_connected = False
 
         # Calculate proportional column widths
         table_width = 450
@@ -602,71 +608,103 @@ class InvoiceFormDialog(QDialog):
     def update_total(self, item):
         """Update the total amount when quantity or unit price changes or when checkbox state changes."""
         try:
-            # Block signals to prevent recursive updates
+            # Block all signals and updates to prevent event propagation
             self.services_table.blockSignals(True)
+            self.services_table.setUpdatesEnabled(False)
             
-            row = item.row()
-            col = item.column()
-
-            # Get checkbox state
-            checkbox_item = self.services_table.item(row, 0)
-            if not checkbox_item:
-                return
-                
-            is_checked = checkbox_item.checkState() == Qt.Checked
-
-            # Get quantity and unit price values
-            quantity_item = self.services_table.item(row, 3)
-            unit_price_item = self.services_table.item(row, 4)
-
-            if not quantity_item or not unit_price_item:
-                return
-
             try:
-                quantity = float(quantity_item.text()) if quantity_item.text() else 0.0
-                unit_price = float(unit_price_item.text()) if unit_price_item.text() else 0.0
-            except ValueError:
-                quantity = 0.0
-                unit_price = 0.0
-            
-            # Calculate row total
-            total = quantity * unit_price if is_checked else 0.0
+                if not item:
+                    return
+                    
+                row = item.row()
+                col = item.column()
 
-            # Update row total
-            total_item = QTableWidgetItem(f"{total:.2f}")
-            total_item.setFlags(total_item.flags() & ~Qt.ItemIsEditable)  # Make total read-only
-            self.services_table.setItem(row, 5, total_item)
+                # Get checkbox state safely
+                checkbox_item = self.services_table.item(row, 0)
+                if not checkbox_item:
+                    return
+                    
+                is_checked = checkbox_item.checkState() == Qt.Checked
 
-            # Calculate and update subtotal
-            subtotal = 0.0
-            for r in range(self.services_table.rowCount()):
-                checkbox = self.services_table.item(r, 0)
-                if checkbox and checkbox.checkState() == Qt.Checked:
-                    total_item = self.services_table.item(r, 5)
-                    if total_item and total_item.text():
-                        try:
-                            subtotal += float(total_item.text())
-                        except ValueError:
-                            continue
+                # Get quantity and unit price values safely
+                quantity_item = self.services_table.item(row, 3)
+                unit_price_item = self.services_table.item(row, 4)
 
-            # Update subtotal field
-            self.subtotal_field.setText(f"{subtotal:.2f}")
+                if not quantity_item or not unit_price_item:
+                    return
 
-            # Calculate and update VAT (12%)
-            vat = subtotal * 0.12
-            self.vat_field.setText(f"{vat:.2f}")
+                # Safely convert values to float with defaults
+                try:
+                    quantity = float(quantity_item.text() or "0")
+                except (ValueError, TypeError):
+                    quantity = 0.0
+                    
+                try:
+                    unit_price = float(unit_price_item.text() or "0")
+                except (ValueError, TypeError):
+                    unit_price = 0.0
+                
+                # Calculate row total safely
+                total = quantity * unit_price if is_checked else 0.0
 
-            # Update total amount
-            total_amount = subtotal + vat
-            self.total_field.setText(f"{total_amount:.2f}")
+                # Update row total safely
+                total_item = QTableWidgetItem(f"{total:.2f}")
+                total_item.setFlags(total_item.flags() & ~Qt.ItemIsEditable)
+                self.services_table.setItem(row, 5, total_item)
 
+                # Calculate and update subtotal safely
+                subtotal = 0.0
+                for r in range(self.services_table.rowCount()):
+                    try:
+                        checkbox = self.services_table.item(r, 0)
+                        if checkbox and checkbox.checkState() == Qt.Checked:
+                            total_item = self.services_table.item(r, 5)
+                            if total_item and total_item.text():
+                                try:
+                                    subtotal += float(total_item.text() or "0")
+                                except (ValueError, TypeError):
+                                    continue
+                    except Exception:
+                        continue
+
+                # Update subtotal field safely
+                self.subtotal_field.setText(f"{subtotal:.2f}")
+
+                # Calculate and update VAT safely
+                try:
+                    vat = subtotal * 0.12
+                    self.vat_field.setText(f"{vat:.2f}")
+
+                    # Update total amount safely
+                    total_amount = subtotal + vat
+                    self.total_field.setText(f"{total_amount:.2f}")
+                except Exception:
+                    self.vat_field.setText("0.00")
+                    self.total_field.setText(f"{subtotal:.2f}")
+
+            except Exception as calc_error:
+                print(f"Error in calculations: {calc_error}")
+                # Set safe default values
+                self.subtotal_field.setText("0.00")
+                self.vat_field.setText("0.00")
+                self.total_field.setText("0.00")
+                
         except Exception as e:
-            print(f"Error updating total: {e}")
+            print(f"Error in update_total: {e}")
             import traceback
             traceback.print_exc()
+            # Set safe default values
+            self.subtotal_field.setText("0.00")
+            self.vat_field.setText("0.00")
+            self.total_field.setText("0.00")
+            
         finally:
-            # Always re-enable signals
-            self.services_table.blockSignals(False)
+            # Always re-enable signals and updates
+            try:
+                self.services_table.setUpdatesEnabled(True)
+                self.services_table.blockSignals(False)
+            except:
+                pass
 
     def get_invoice_data(self):
         """Get all data from the invoice form."""
@@ -814,44 +852,58 @@ class InvoiceFormDialog(QDialog):
 
     def on_client_selected(self, index):
         """Handle client selection and update related fields."""
-        if index <= 0:  # Skip the default "Select Client" item
-            # Clear client fields
-            self.client_address_field.clear()
-            self.client_contact_field.clear()
-            self.client_email_field.clear()
-            # Clear pet dropdown
-            self.pet_dropdown.clear()
-            return
-            
-        # Get the selected client_id
-        client_id = self.client_dropdown.itemData(index)
-        
-        # Load client details
-        db = Database()
         try:
-            # Get client info
-            db.cursor.execute("""
-                SELECT name, address, contact_number, email 
-                FROM clients 
-                WHERE client_id = ?
-            """, (client_id,))
+            if index <= 0:  # Skip the default "Select Client" item
+                # Clear client fields
+                self.client_address_field.clear()
+                self.client_contact_field.clear()
+                self.client_email_field.clear()
+                # Clear pet dropdown
+                self.pet_dropdown.clear()
+                return
+                
+            # Get the selected client_id
+            client_id = self.client_dropdown.itemData(index)
+            if not client_id:
+                return
             
-            client_info = db.cursor.fetchone()
-            if client_info:
-                _, address, contact_number, email = client_info
+            # Load client details
+            db = Database()
+            try:
+                # Get client info
+                db.cursor.execute("""
+                    SELECT name, address, contact_number, email 
+                    FROM clients 
+                    WHERE client_id = ?
+                """, (client_id,))
                 
-                # Update client fields
-                self.client_address_field.setText(address or "")
-                self.client_contact_field.setText(contact_number or "")
-                self.client_email_field.setText(email or "")
-                
-                # Load pets for this client
-                self.load_pets_for_client(client_id)
-                
+                client_info = db.cursor.fetchone()
+                if client_info:
+                    _, address, contact_number, email = client_info
+                    
+                    # Update client fields with safe defaults
+                    self.client_address_field.setText(str(address or ""))
+                    self.client_contact_field.setText(str(contact_number or ""))
+                    self.client_email_field.setText(str(email or ""))
+                    
+                    # Load pets for this client
+                    self.load_pets_for_client(client_id)
+                    
+            except Exception as e:
+                print(f"Error loading client details: {e}")
+                import traceback
+                traceback.print_exc()
+                # Set safe default values
+                self.client_address_field.clear()
+                self.client_contact_field.clear()
+                self.client_email_field.clear()
+                self.pet_dropdown.clear()
+            finally:
+                db.close_connection()
         except Exception as e:
-            print(f"❌ Error loading client details: {e}")
-        finally:
-            db.close_connection()
+            print(f"Error in client selection: {e}")
+            import traceback
+            traceback.print_exc()
 
     def load_pets_for_client(self, client_id):
         """Load pets for the selected client."""
@@ -880,196 +932,253 @@ class InvoiceFormDialog(QDialog):
 
     def on_pet_selected(self, index):
         """Handle pet selection and update related fields."""
-        if index <= 0:  # Skip the default "Select Pet" item
-            # Clear pet fields only, not client fields
-            self.pet_species_field.clear()
-            self.pet_breed_field.clear()
-            self.pet_age_field.clear()
-            # Clear services table
-            self.services_table.setRowCount(0)
-            return
-            
-        # Get the selected pet_id
-        pet_id = self.pet_dropdown.itemData(index)
-        
-        # Load pet details
-        db = Database()
         try:
-            db.cursor.execute("""
-                SELECT species, breed, age 
-                FROM pets 
-                WHERE pet_id = ?
-            """, (pet_id,))
-            
-            pet_info = db.cursor.fetchone()
-            if pet_info:
-                species, breed, age = pet_info
+            if index <= 0:  # Skip the default "Select Pet" item
+                # Clear pet fields only, not client fields
+                self.pet_species_field.clear()
+                self.pet_breed_field.clear()
+                self.pet_age_field.clear()
+                # Clear services table only if we're not loading an existing invoice
+                if not hasattr(self, 'loading_invoice') or not self.loading_invoice:
+                    self.services_table.setRowCount(0)
+                return
                 
-                # Update pet fields ONLY, don't touch client fields
-                self.pet_species_field.setText(species or "")
-                self.pet_breed_field.setText(breed or "")
-                self.pet_age_field.setText(str(age) if age else "")
-                
-                # Load services for this pet
-                self.load_services_for_pet(pet_id)
-                
-        except Exception as e:
-            print(f"❌ Error loading pet details: {e}")
-        finally:
-            db.close_connection()
-
-    def load_services_for_pet(self, pet_id):
-        """Load services from medical reports for the selected pet."""
-        try:
-            print(f"\n=== Debug: Loading services for pet_id {pet_id} ===")
+            # Get the selected pet_id
+            pet_id = self.pet_dropdown.itemData(index)
+            if not pet_id:
+                return
             
-            # Block signals temporarily
-            self.services_table.blockSignals(True)
-            
+            # Load pet details
             db = Database()
-            cursor = db.cursor
-
-            # Clear existing items in the services table
-            self.services_table.setRowCount(0)
-
-            # Get the selected reason for visit
-            selected_reason = self.reason_dropdown.currentText()
-            print(f"Selected reason: {selected_reason}")
-
-            # Base query for all treatment types
-            base_query = """
-                SELECT 
-                    'Consultation' as type,
-                    date,
-                    prescribed_treatment as treatment_details,
-                    veterinarian
-                FROM consultations
-                WHERE pet_id = ?
-                UNION ALL
-                SELECT 
-                    'Deworming' as type,
-                    date,
-                    medication as treatment_details,
-                    veterinarian
-                FROM deworming
-                WHERE pet_id = ?
-                UNION ALL
-                SELECT 
-                    'Vaccination' as type,
-                    date,
-                    vaccine as treatment_details,
-                    veterinarian
-                FROM vaccinations
-                WHERE pet_id = ?
-                UNION ALL
-                SELECT 
-                    'Surgery' as type,
-                    date,
-                    surgery_type as treatment_details,
-                    veterinarian
-                FROM surgeries
-                WHERE pet_id = ?
-                UNION ALL
-                SELECT 
-                    'Grooming' as type,
-                    date,
-                    services as treatment_details,
-                    veterinarian
-                FROM grooming
-                WHERE pet_id = ?
-                UNION ALL
-                SELECT 
-                    'Other Treatments' as type,
-                    date,
-                    medication as treatment_details,
-                    veterinarian
-                FROM other_treatments
-                WHERE pet_id = ?
-            """
-
-            # If a specific reason is selected, filter by that type
-            if selected_reason and selected_reason != "-- Select Treatment Type --":
-                query = f"""
-                    SELECT * FROM (
-                        {base_query}
-                    ) AS combined_services
-                    WHERE type = ?
-                    ORDER BY date DESC
-                """
-                cursor.execute(query, (pet_id, pet_id, pet_id, pet_id, pet_id, pet_id, selected_reason))
-            else:
-                # If no specific reason selected, show all records
-                query = f"""
-                    {base_query}
-                    ORDER BY date DESC
-                """
-                cursor.execute(query, (pet_id, pet_id, pet_id, pet_id, pet_id, pet_id))
-            
-            services = cursor.fetchall()
-            print(f"Found {len(services)} services")
-            
-            # Add services to the table
-            for row_num, service in enumerate(services):
-                print(f"\nProcessing service {row_num + 1}:")
-                print(f"Type: {service[0]}")
-                print(f"Date: {service[1]}")
-                print(f"Details: {service[2]}")
-                print(f"Vet: {service[3]}")
+            try:
+                db.cursor.execute("""
+                    SELECT species, breed, age 
+                    FROM pets 
+                    WHERE pet_id = ?
+                """, (pet_id,))
                 
-                self.services_table.insertRow(row_num)
-                
-                # Add checkbox for selection
-                checkbox = QTableWidgetItem()
-                checkbox.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-                checkbox.setCheckState(Qt.Unchecked)
-                self.services_table.setItem(row_num, 0, checkbox)
-                
-                # Format date for display
-                try:
-                    date = datetime.strptime(str(service[1]), "%Y-%m-%d").strftime("%d/%m/%Y")
-                except:
-                    date = str(service[1])
-                
-                # Create service description with date
-                service_desc = f"{service[0]}: {service[2]}"  # Type: Treatment Details
-                service_item = QTableWidgetItem(service_desc)
-                service_item.setFlags(service_item.flags() & ~Qt.ItemIsEditable)  # Make read-only
-                self.services_table.setItem(row_num, 1, service_item)
-                
-                # Add date column
-                date_item = QTableWidgetItem(date)
-                date_item.setFlags(date_item.flags() & ~Qt.ItemIsEditable)
-                self.services_table.setItem(row_num, 2, date_item)
-                
-                # Add quantity field (default to 1)
-                quantity_item = QTableWidgetItem("1")
-                self.services_table.setItem(row_num, 3, quantity_item)
-                
-                # Add unit price field with default price based on service type
-                default_price = self.get_default_price(service[0])  # Get default price based on service type
-                price_item = QTableWidgetItem(f"{default_price:.2f}")
-                self.services_table.setItem(row_num, 4, price_item)
-                
-                # Add total field (will be calculated)
-                total_item = QTableWidgetItem(f"{default_price:.2f}")  # Initial total same as price
-                total_item.setFlags(total_item.flags() & ~Qt.ItemIsEditable)  # Make read-only
-                self.services_table.setItem(row_num, 5, total_item)
-
-            # Re-enable signals and connect if needed
-            self.services_table.blockSignals(False)
-            if not self.services_table_connected:
-                self.services_table.itemChanged.connect(self.update_total)
-                self.services_table_connected = True
-            
-            db.close_connection()
-            print("=== Services loaded successfully ===\n")
-            
+                pet_info = db.cursor.fetchone()
+                if pet_info:
+                    species, breed, age = pet_info
+                    
+                    # Update pet fields with safe defaults
+                    self.pet_species_field.setText(str(species or ""))
+                    self.pet_breed_field.setText(str(breed or ""))
+                    self.pet_age_field.setText(str(age) if age is not None else "")
+                    
+                    # Only schedule service loading if we're not loading an existing invoice
+                    if not hasattr(self, 'loading_invoice') or not self.loading_invoice:
+                        self.pending_pet_id = pet_id
+                        self.load_timer.start(100)  # 100ms delay
+                    
+            except Exception as e:
+                print(f"Error loading pet details: {e}")
+                import traceback
+                traceback.print_exc()
+                # Set safe default values
+                self.pet_species_field.clear()
+                self.pet_breed_field.clear()
+                self.pet_age_field.clear()
+                if not hasattr(self, 'loading_invoice') or not self.loading_invoice:
+                    self.services_table.setRowCount(0)
+            finally:
+                db.close_connection()
         except Exception as e:
-            print(f"Error loading services: {e}")
+            print(f"Error in pet selection: {e}")
             import traceback
             traceback.print_exc()
-            # Re-enable signals in case of error
-            self.services_table.blockSignals(False)
+
+    def delayed_load_services(self):
+        """Load services in a delayed manner to avoid Qt event issues."""
+        if not self.pending_pet_id:
+            return
+            
+        try:
+            # Skip loading services if we're loading an existing invoice
+            if hasattr(self, 'loading_invoice') and self.loading_invoice:
+                print("Skipping service loading for existing invoice")
+                return
+                
+            # Disconnect any existing itemChanged connection
+            if self.services_table_connected:
+                try:
+                    self.services_table.itemChanged.disconnect(self.update_total)
+                    self.services_table_connected = False
+                except:
+                    pass
+            
+            # Block all signals and updates
+            self.services_table.blockSignals(True)
+            self.services_table.setUpdatesEnabled(False)
+            
+            try:
+                # Clear existing items safely
+                while self.services_table.rowCount() > 0:
+                    self.services_table.removeRow(0)
+                
+                db = Database()
+                cursor = db.cursor
+
+                # Get the selected reason for visit safely
+                selected_reason = self.reason_dropdown.currentText() if hasattr(self, 'reason_dropdown') else "-- Select Treatment Type --"
+                print(f"Selected reason: {selected_reason}")
+
+                # Base query for all treatment types
+                base_query = """
+                    SELECT 
+                        'Consultation' as type,
+                        date,
+                        COALESCE(prescribed_treatment, '') as treatment_details,
+                        COALESCE(veterinarian, '') as veterinarian
+                    FROM consultations
+                    WHERE pet_id = ?
+                    UNION ALL
+                    SELECT 
+                        'Deworming' as type,
+                        date,
+                        COALESCE(medication, '') as treatment_details,
+                        COALESCE(veterinarian, '') as veterinarian
+                    FROM deworming
+                    WHERE pet_id = ?
+                    UNION ALL
+                    SELECT 
+                        'Vaccination' as type,
+                        date,
+                        COALESCE(vaccine, '') as treatment_details,
+                        COALESCE(veterinarian, '') as veterinarian
+                    FROM vaccinations
+                    WHERE pet_id = ?
+                    UNION ALL
+                    SELECT 
+                        'Surgery' as type,
+                        date,
+                        COALESCE(surgery_type, '') as treatment_details,
+                        COALESCE(veterinarian, '') as veterinarian
+                    FROM surgeries
+                    WHERE pet_id = ?
+                    UNION ALL
+                    SELECT 
+                        'Grooming' as type,
+                        date,
+                        COALESCE(services, '') as treatment_details,
+                        COALESCE(veterinarian, '') as veterinarian
+                    FROM grooming
+                    WHERE pet_id = ?
+                    UNION ALL
+                    SELECT 
+                        'Other Treatments' as type,
+                        date,
+                        COALESCE(medication, '') as treatment_details,
+                        COALESCE(veterinarian, '') as veterinarian
+                    FROM other_treatments
+                    WHERE pet_id = ?
+                """
+
+                # If a specific reason is selected, filter by that type
+                if selected_reason and selected_reason != "-- Select Treatment Type --":
+                    query = f"""
+                        SELECT * FROM (
+                            {base_query}
+                        ) AS combined_services
+                        WHERE type = ?
+                        ORDER BY date DESC
+                    """
+                    cursor.execute(query, (self.pending_pet_id,) * 6 + (selected_reason,))
+                else:
+                    # If no specific reason selected, show all records
+                    query = f"""
+                        {base_query}
+                        ORDER BY date DESC
+                    """
+                    cursor.execute(query, (self.pending_pet_id,) * 6)
+                
+                services = cursor.fetchall()
+                print(f"Found {len(services)} services")
+                
+                # Add services to the table safely
+                for row_num, service in enumerate(services):
+                    try:
+                        # Insert row safely
+                        self.services_table.insertRow(row_num)
+                        
+                        # Add checkbox for selection
+                        checkbox = QTableWidgetItem()
+                        checkbox.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+                        checkbox.setCheckState(Qt.Unchecked)
+                        self.services_table.setItem(row_num, 0, checkbox)
+                        
+                        # Format date safely
+                        try:
+                            date = datetime.strptime(str(service[1]), "%Y-%m-%d").strftime("%d/%m/%Y")
+                        except (ValueError, TypeError):
+                            date = str(service[1] or "")
+                        
+                        # Create service description safely
+                        service_desc = f"{service[0] or ''}: {service[2] or ''}"
+                        service_item = QTableWidgetItem(service_desc)
+                        service_item.setFlags(service_item.flags() & ~Qt.ItemIsEditable)
+                        self.services_table.setItem(row_num, 1, service_item)
+                        
+                        # Add date column safely
+                        date_item = QTableWidgetItem(date)
+                        date_item.setFlags(date_item.flags() & ~Qt.ItemIsEditable)
+                        self.services_table.setItem(row_num, 2, date_item)
+                        
+                        # Add quantity field safely
+                        quantity_item = QTableWidgetItem("1")
+                        self.services_table.setItem(row_num, 3, quantity_item)
+                        
+                        # Add unit price field safely
+                        default_price = self.get_default_price(service[0] or "")
+                        price_item = QTableWidgetItem(f"{default_price:.2f}")
+                        self.services_table.setItem(row_num, 4, price_item)
+                        
+                        # Add total field safely
+                        total_item = QTableWidgetItem(f"{default_price:.2f}")
+                        total_item.setFlags(total_item.flags() & ~Qt.ItemIsEditable)
+                        self.services_table.setItem(row_num, 5, total_item)
+
+                    except Exception as row_error:
+                        print(f"Error processing service row {row_num}: {row_error}")
+                        continue
+
+            except Exception as db_error:
+                print(f"Database error: {db_error}")
+                import traceback
+                traceback.print_exc()
+            finally:
+                # Always ensure database connection is closed
+                try:
+                    if db and db.conn:
+                        db.close_connection()
+                except:
+                    pass
+                
+                # Re-enable signals and updates
+                self.services_table.setUpdatesEnabled(True)
+                self.services_table.blockSignals(False)
+                
+                # Reconnect the itemChanged signal
+                try:
+                    self.services_table.itemChanged.connect(self.update_total)
+                    self.services_table_connected = True
+                except:
+                    pass
+                
+                # Clear pending pet_id
+                self.pending_pet_id = None
+
+        except Exception as e:
+            print(f"Error in delayed_load_services: {e}")
+            import traceback
+            traceback.print_exc()
+            # Ensure signals and updates are re-enabled
+            try:
+                self.services_table.setUpdatesEnabled(True)
+                self.services_table.blockSignals(False)
+            except:
+                pass
+            self.pending_pet_id = None
 
     def get_default_price(self, service_type):
         """Get default price based on service type."""
@@ -1097,7 +1206,9 @@ class InvoiceFormDialog(QDialog):
     def refresh_services(self):
         """Refresh services when reason for visit changes."""
         if hasattr(self, 'pet_dropdown') and self.pet_dropdown.currentData():
-            self.load_services_for_pet(self.pet_dropdown.currentData())
+            # Use the delayed loading mechanism
+            self.pending_pet_id = self.pet_dropdown.currentData()
+            self.load_timer.start(100)  # 100ms delay
 
     def on_payment_status_changed(self, checked):
         """Handle payment status radio button changes."""
@@ -1266,6 +1377,9 @@ class InvoiceFormDialog(QDialog):
             if not billing_id:
                 raise ValueError("Invalid billing ID")
 
+            # Set loading_invoice flag to prevent service reloading
+            self.loading_invoice = True
+
             if not self.db or not self.db.conn:
                 print("Database connection not available, attempting to reconnect...")
                 try:
@@ -1350,7 +1464,9 @@ class InvoiceFormDialog(QDialog):
                     self.pet_age_field.setText(str(billing_data.get('age', '')))
 
                     # Set reason and veterinarian
+                    self.reason_dropdown.blockSignals(True)
                     self.reason_dropdown.setCurrentText(str(billing_data.get('reason', '')))
+                    self.reason_dropdown.blockSignals(False)
                     self.vet_dropdown.setCurrentText(str(billing_data.get('veterinarian', '')))
                     
                     # Set notes
@@ -1400,54 +1516,94 @@ class InvoiceFormDialog(QDialog):
                         self.total_field.setText("0.00")
 
                     print("Loading services...")
-                    # Load services
+                    # Load services from billing_services instead of pet history
                     self.db.cursor.execute("""
                         SELECT service_description, service_date, quantity, unit_price, line_total 
                         FROM billing_services 
                         WHERE billing_id = ?
+                        ORDER BY service_date DESC
                     """, (billing_id,))
                     services = self.db.cursor.fetchall()
                     print(f"Found {len(services)} services")
 
-                    # Clear and populate services table
-                    self.services_table.setRowCount(len(services))
-                    for row, service in enumerate(services):
+                    # Ensure we're disconnected from itemChanged
+                    if self.services_table_connected:
                         try:
-                            # Create checkbox (checked by default since these are saved services)
+                            self.services_table.itemChanged.disconnect(self.update_total)
+                            self.services_table_connected = False
+                        except:
+                            pass
+
+                    # Block all signals and updates
+                    self.services_table.blockSignals(True)
+                    self.services_table.setUpdatesEnabled(False)
+
+                    try:
+                        # Clear the table
+                        self.services_table.setRowCount(0)
+                        
+                        # Create all rows first
+                        for _ in range(len(services)):
+                            self.services_table.insertRow(self.services_table.rowCount())
+                        
+                        # Now populate all cells
+                        for row, service in enumerate(services):
+                            # Create checkbox and set it to checked since these are the saved services
                             checkbox = QTableWidgetItem()
                             checkbox.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-                            checkbox.setCheckState(Qt.Checked)
+                            checkbox.setCheckState(Qt.Checked)  # Set to checked since these are saved services
                             self.services_table.setItem(row, 0, checkbox)
-
-                            # Create items with appropriate flags
+                            
+                            # Create other items
                             description_item = QTableWidgetItem(str(service[0] or ""))
-                            description_item.setFlags(description_item.flags() & ~Qt.ItemIsEditable)  # Read-only
+                            description_item.setFlags(description_item.flags() & ~Qt.ItemIsEditable)
                             
                             date_item = QTableWidgetItem(str(service[1] or ""))
-                            date_item.setFlags(date_item.flags() & ~Qt.ItemIsEditable)  # Read-only
+                            date_item.setFlags(date_item.flags() & ~Qt.ItemIsEditable)
                             
                             quantity_item = QTableWidgetItem(str(service[2] or "0"))
-                            quantity_item.setFlags(quantity_item.flags() | Qt.ItemIsEditable)  # Editable
+                            if not self.is_view_mode:
+                                quantity_item.setFlags(quantity_item.flags() | Qt.ItemIsEditable)
                             
                             unit_price_item = QTableWidgetItem(f"{float(service[3] or 0):.2f}")
-                            unit_price_item.setFlags(unit_price_item.flags() | Qt.ItemIsEditable)  # Editable
+                            if not self.is_view_mode:
+                                unit_price_item.setFlags(unit_price_item.flags() | Qt.ItemIsEditable)
                             
                             total_item = QTableWidgetItem(f"{float(service[4] or 0):.2f}")
                             total_item.setFlags(total_item.flags() & ~Qt.ItemIsEditable)
-
-                            # Add tooltip with full details
-                            tooltip = f"Date: {service[1]}\nDescription: {service[0]}"
-                            description_item.setToolTip(tooltip)
-
-                            # Set items in table
-                            self.services_table.setItem(row, 1, description_item)  # service_description
-                            self.services_table.setItem(row, 2, date_item)  # service_date
+                            
+                            # Set all items at once
+                            self.services_table.setItem(row, 1, description_item)
+                            self.services_table.setItem(row, 2, date_item)
                             self.services_table.setItem(row, 3, quantity_item)
-                            self.services_table.setItem(row, 4, unit_price_item)  # unit_price
-                            self.services_table.setItem(row, 5, total_item)  # line_total
-                        except Exception as e:
-                            print(f"Error processing service row {row}: {e}")
-                            continue
+                            self.services_table.setItem(row, 4, unit_price_item)
+                            self.services_table.setItem(row, 5, total_item)
+                            
+                            # Add tooltip
+                            description_item.setToolTip(f"Date: {service[1]}\nDescription: {service[0]}")
+
+                        # If in view mode, make checkboxes read-only after all items are set
+                        if self.is_view_mode:
+                            for row in range(self.services_table.rowCount()):
+                                checkbox = self.services_table.item(row, 0)
+                                if checkbox:
+                                    checkbox.setFlags(Qt.ItemIsUserCheckable)
+                                    checkbox.setCheckState(Qt.Checked)  # Keep checked in view mode
+
+                    finally:
+                        # Re-enable updates and signals
+                        self.services_table.setUpdatesEnabled(True)
+                        self.services_table.blockSignals(False)
+                        
+                        # Reconnect itemChanged signal
+                        try:
+                            self.services_table.itemChanged.connect(self.update_total)
+                            self.services_table_connected = True
+                        except:
+                            pass
+
+                    # Force an update of totals
+                    self.update_total(None)
 
                     print("Services loaded successfully")
                     print("All form data set successfully")
@@ -1460,6 +1616,8 @@ class InvoiceFormDialog(QDialog):
                 print(f"Database error: {db_error}")
                 raise
             finally:
+                # Clear loading_invoice flag
+                self.loading_invoice = False
                 if self.db:
                     self.db.close_connection()
                     self.db = None
@@ -1475,13 +1633,11 @@ class InvoiceFormDialog(QDialog):
     def download_invoice(self):
         """Generate and download the invoice as a PDF."""
         try:
-            # Get the current invoice data
             invoice_data = self.get_invoice_data()
             if not invoice_data:
                 show_message(None, "No invoice data to download", QMessageBox.Warning)
                 return
 
-            # Ask user where to save the file
             default_name = f"Invoice_{invoice_data['invoice_no']}.pdf"
             file_path, _ = QFileDialog.getSaveFileName(
                 self,
@@ -1489,54 +1645,50 @@ class InvoiceFormDialog(QDialog):
                 default_name,
                 "PDF Files (*.pdf)"
             )
-
             if not file_path:
-                return  # User cancelled
+                return
 
-            # Create PDF in landscape mode
             c = canvas.Canvas(file_path, pagesize=letter)
             width, height = letter
-            # Swap width and height for landscape
             width, height = height, width
             c.setPageSize((width, height))
 
-            # Set up margins and spacing
             x_margin = 50
             y_margin = 50
-            row_height = 25
             header_height = 100
+            content_width = width - (2 * x_margin)
+            left_column_width = content_width * 0.45
+            right_column_width = content_width * 0.55
+            right_column_x = x_margin + left_column_width + 20
+            section_gap = 25
+            line_gap = 12
 
-            # Draw header
-            # Clinic Logo (if available)
+            # Header
             logo_path = "assets/logologin.png"
             if os.path.exists(logo_path):
                 c.drawImage(logo_path, x_margin, height - y_margin - 50, width=50, height=50)
-
-            # Clinic Information
             c.setFont("Helvetica-Bold", 16)
             c.drawString(x_margin + 60, height - y_margin - 20, self.clinic_field.text())
             c.setFont("Helvetica", 12)
             c.drawString(x_margin + 60, height - y_margin - 40, self.clinic_address_field.text())
             c.drawString(x_margin + 60, height - y_margin - 60, f"Contact: {self.clinic_contact_field.text()}")
-
-            # Invoice Title and Date
             c.setFont("Helvetica-Bold", 14)
-            c.drawString(width - 250, height - y_margin - 20, "SERVICE INVOICE")
+            c.drawString(width - 250, height - y_margin - 20, "SERVICE BILLING")
             c.setFont("Helvetica", 12)
             c.drawString(width - 250, height - y_margin - 40, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-
-            # Draw a line under the header
-            c.setStrokeColorRGB(0.003922, 0.145098, 0.278431)  # #012547 in RGB
+            c.setStrokeColorRGB(0.003922, 0.145098, 0.278431)
             c.line(x_margin, height - y_margin - header_height, width - x_margin, height - y_margin - header_height)
 
             # Start content below header
-            y_pos = height - y_margin - header_height - 30
+            y_start = height - y_margin - header_height - 30
+            y_left = y_start
+            y_right = y_start
 
-            # Invoice Details
+            # LEFT COLUMN
             c.setFont("Helvetica-Bold", 12)
-            c.drawString(x_margin, y_pos, "Invoice Details")
-            y_pos -= 25
-            c.setFont("Helvetica", 10)
+            c.drawString(x_margin, y_left, "Invoice Details")
+            y_left -= section_gap
+            c.setFont("Helvetica", 9)
             details = [
                 ("Invoice No:", invoice_data['invoice_no']),
                 ("Date:", invoice_data['date_issued']),
@@ -1544,16 +1696,14 @@ class InvoiceFormDialog(QDialog):
                 ("Reason:", invoice_data['reason'])
             ]
             for label, value in details:
-                c.drawString(x_margin, y_pos, f"{label} {value}")
-                y_pos -= 20
+                c.drawString(x_margin, y_left, f"{label} {value}")
+                y_left -= line_gap
+            y_left -= section_gap
 
-            y_pos -= 10  # Add some space
-
-            # Client Information
             c.setFont("Helvetica-Bold", 12)
-            c.drawString(x_margin, y_pos, "Client Information")
-            y_pos -= 25
-            c.setFont("Helvetica", 10)
+            c.drawString(x_margin, y_left, "Client Information")
+            y_left -= section_gap
+            c.setFont("Helvetica", 9)
             client_details = [
                 ("Client:", self.client_dropdown.currentText()),
                 ("Address:", self.client_address_field.text()),
@@ -1561,16 +1711,14 @@ class InvoiceFormDialog(QDialog):
                 ("Email:", self.client_email_field.text())
             ]
             for label, value in client_details:
-                c.drawString(x_margin, y_pos, f"{label} {value}")
-                y_pos -= 20
+                c.drawString(x_margin, y_left, f"{label} {value}")
+                y_left -= line_gap
+            y_left -= section_gap
 
-            y_pos -= 10  # Add some space
-
-            # Pet Information
             c.setFont("Helvetica-Bold", 12)
-            c.drawString(x_margin, y_pos, "Pet Information")
-            y_pos -= 25
-            c.setFont("Helvetica", 10)
+            c.drawString(x_margin, y_left, "Pet Information")
+            y_left -= section_gap
+            c.setFont("Helvetica", 9)
             pet_details = [
                 ("Pet Name:", self.pet_dropdown.currentText()),
                 ("Species:", self.pet_species_field.text()),
@@ -1578,122 +1726,137 @@ class InvoiceFormDialog(QDialog):
                 ("Age:", self.pet_age_field.text())
             ]
             for label, value in pet_details:
-                c.drawString(x_margin, y_pos, f"{label} {value}")
-                y_pos -= 20
+                c.drawString(x_margin, y_left, f"{label} {value}")
+                y_left -= line_gap
+            y_left -= section_gap
 
-            y_pos -= 10  # Add some space
+            # Notes (if any)
+            if invoice_data['notes']:
+                c.setFont("Helvetica-Bold", 12)
+                c.drawString(x_margin, y_left, "Notes:")
+                y_left -= section_gap
+                c.setFont("Helvetica", 9)
+                words = invoice_data['notes'].split()
+                line = ""
+                for word in words:
+                    if len(line + " " + word) < 60:
+                        line += " " + word if line else word
+                    else:
+                        c.drawString(x_margin, y_left, line)
+                        y_left -= line_gap
+                        line = word
+                if line:
+                    c.drawString(x_margin, y_left, line)
+                    y_left -= line_gap
+                y_left -= section_gap
 
-            # Services Table
+            # RIGHT COLUMN
             c.setFont("Helvetica-Bold", 12)
-            c.drawString(x_margin, y_pos, "Services")
-            y_pos -= 25
-
-            # Table headers
-            headers = ["Service", "Date", "Quantity", "Unit Price", "Total"]
-            col_widths = [2.5*inch, 1.5*inch, 1*inch, 1.5*inch, 1.5*inch]
-            x_pos = x_margin
-
-            # Draw table headers
-            c.setFont("Helvetica-Bold", 10)
-            for header, width in zip(headers, col_widths):
-                c.drawString(x_pos + 5, y_pos, header)
-                x_pos += width
-
-            # Draw table content
-            y_pos -= 20
-            c.setFont("Helvetica", 10)
+            c.drawString(right_column_x, y_right, "Services")
+            y_right -= section_gap
+            c.setFont("Helvetica", 9)
             for row in range(self.services_table.rowCount()):
                 checkbox = self.services_table.item(row, 0)
                 if checkbox and checkbox.checkState() == Qt.Checked:
-                    # Check if we need a new page
-                    if y_pos < y_margin + row_height:
-                        c.showPage()
-                        # Redraw header on new page
-                        c.setFont("Helvetica-Bold", 16)
-                        c.drawString(x_margin + 60, height - y_margin - 20, self.clinic_field.text())
-                        c.setFont("Helvetica-Bold", 14)
-                        c.drawString(width - 250, height - y_margin - 20, "SERVICE INVOICE (continued)")
-                        c.setFont("Helvetica", 10)
-                        y_pos = height - y_margin - header_height - 30
-
-                    x_pos = x_margin
-                    for col in range(1, self.services_table.columnCount()):  # Skip checkbox column
-                        item = self.services_table.item(row, col)
-                        if item:
-                            c.drawString(x_pos + 5, y_pos, item.text())
-                        x_pos += col_widths[col-1]
-                    y_pos -= 20
-
-            y_pos -= 20  # Add some space
+                    desc = self.services_table.item(row, 1).text()
+                    date = self.services_table.item(row, 2).text()
+                    qty = self.services_table.item(row, 3).text()
+                    unit_price = self.services_table.item(row, 4).text()
+                    total = self.services_table.item(row, 5).text()
+                    indent = 20
+                    max_width = 4.5*inch
+                    from reportlab.pdfbase.pdfmetrics import stringWidth
+                    # Service label and value
+                    c.setFont("Helvetica-Bold", 9)
+                    c.drawString(right_column_x, y_right, "Service:")
+                    y_right -= line_gap
+                    c.setFont("Helvetica", 9)
+                    words = desc.split()
+                    line = ""
+                    for word in words:
+                        test_line = (line + " " + word) if line else word
+                        if stringWidth(test_line, "Helvetica", 9) < max_width:
+                            line = test_line
+                        else:
+                            c.drawString(right_column_x + indent, y_right, line)
+                            y_right -= line_gap
+                            line = word
+                    if line:
+                        c.drawString(right_column_x + indent, y_right, line)
+                        y_right -= line_gap
+                    # Date label and value
+                    c.setFont("Helvetica-Bold", 9)
+                    c.drawString(right_column_x, y_right, "Date:")
+                    y_right -= line_gap
+                    c.setFont("Helvetica", 9)
+                    c.drawString(right_column_x + indent, y_right, date)
+                    y_right -= line_gap
+                    # Quantity label and value
+                    c.setFont("Helvetica-Bold", 9)
+                    c.drawString(right_column_x, y_right, "Quantity:")
+                    y_right -= line_gap
+                    c.setFont("Helvetica", 9)
+                    c.drawString(right_column_x + indent, y_right, qty)
+                    y_right -= line_gap
+                    # Unit Price label and value
+                    c.setFont("Helvetica-Bold", 9)
+                    c.drawString(right_column_x, y_right, "Unit Price:")
+                    y_right -= line_gap
+                    c.setFont("Helvetica", 9)
+                    c.drawString(right_column_x + indent, y_right, unit_price)
+                    y_right -= line_gap
+                    # Total label and value
+                    c.setFont("Helvetica-Bold", 9)
+                    c.drawString(right_column_x, y_right, "Total:")
+                    y_right -= line_gap
+                    c.setFont("Helvetica", 9)
+                    c.drawString(right_column_x + indent, y_right, total)
+                    y_right -= line_gap
+                    # Blank line between services
+                    y_right -= line_gap
 
             # Totals
-            c.setFont("Helvetica-Bold", 12)
+            c.setFont("Helvetica-Bold", 10)
             totals = [
-                ("Subtotal:", f"₱ {self.subtotal_field.text()}"),
-                ("VAT:", f"₱ {self.vat_field.text()}"),
-                ("Total Amount:", f"₱ {self.total_field.text()}")
+                ("Subtotal:", f"PHP {self.subtotal_field.text()}"),
+                ("VAT:", f"PHP {self.vat_field.text()}"),
+                ("Total Amount:", f"PHP {self.total_field.text()}")
             ]
             for label, value in totals:
-                c.drawString(width - x_margin - 200, y_pos, f"{label} {value}")
-                y_pos -= 20
-
-            y_pos -= 20  # Add some space
+                c.drawString(right_column_x, y_right, f"{label} {value}")
+                y_right -= line_gap + 2
+            y_right -= section_gap
 
             # Payment Information
             c.setFont("Helvetica-Bold", 12)
-            c.drawString(x_margin, y_pos, "Payment Information")
-            y_pos -= 25
-            c.setFont("Helvetica", 10)
+            c.drawString(right_column_x, y_right, "Payment Information")
+            y_right -= section_gap
+            c.setFont("Helvetica", 9)
             payment_details = [
                 ("Payment Status:", invoice_data['payment_status']),
                 ("Payment Method:", invoice_data['payment_method']),
                 ("Received By:", invoice_data['received_by'])
             ]
             if invoice_data['payment_status'] == 'PARTIAL':
-                payment_details.append(("Partial Amount:", f"₱ {invoice_data['partial_amount']:.2f}"))
-            
+                payment_details.append(("Partial Amount:", f"PHP {invoice_data['partial_amount']:.2f}"))
             for label, value in payment_details:
-                c.drawString(x_margin, y_pos, f"{label} {value}")
-                y_pos -= 20
+                c.drawString(right_column_x, y_right, f"{label} {value}")
+                y_right -= line_gap
+            y_right -= section_gap
 
-            # Add notes if any
-            if invoice_data['notes']:
-                y_pos -= 20
-                c.setFont("Helvetica-Bold", 12)
-                c.drawString(x_margin, y_pos, "Notes:")
-                y_pos -= 20
-                c.setFont("Helvetica", 10)
-                # Split notes into lines to handle long text
-                words = invoice_data['notes'].split()
-                line = ""
-                for word in words:
-                    if len(line + " " + word) < 80:  # Approximate characters per line
-                        line += " " + word if line else word
-                    else:
-                        c.drawString(x_margin, y_pos, line)
-                        y_pos -= 15
-                        line = word
-                if line:
-                    c.drawString(x_margin, y_pos, line)
-                    y_pos -= 20
-
-            # Add thank you message
-            y_pos -= 20
+            # Calculate where to put the thank you message
+            y_final = min(y_left, y_right) - 30
             c.setFont("Helvetica-Bold", 12)
-            c.drawCentredString(width/2, y_pos, "THANK YOU FOR TRUSTING US WITH YOUR PET'S CARE!")
+            c.drawCentredString(width/2, y_final, "THANK YOU FOR TRUSTING US WITH YOUR PET'S CARE!")
 
-            # Add footer
+            # Footer
             c.setFont("Helvetica", 8)
             c.drawString(x_margin, y_margin, f"Generated by PetMedix System on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             c.drawString(width - x_margin - 100, y_margin, f"Page 1")
 
             c.save()
-            
             show_message(None, "Invoice PDF generated successfully!", QMessageBox.Information)
-            
-            # Open the PDF file
             os.startfile(file_path)
-            
         except Exception as e:
             print(f"Error generating PDF: {e}")
             import traceback
