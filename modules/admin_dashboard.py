@@ -1,13 +1,15 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTableWidget,
     QTableWidgetItem, QMessageBox, QDialog, QFormLayout, QLineEdit,
-    QComboBox, QHeaderView, QFrame
+    QComboBox, QHeaderView, QFrame, QGridLayout, QFileDialog
 )
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QIcon, QPixmap, QColor
+from PySide6.QtGui import QIcon, QPixmap, QColor, QPainter, QPainterPath
 from modules.database import Database
 from modules.utils import show_message
 import os
+from shutil import copyfile
+from modules.setting import UpdateClinicInfoDialog
 
 class AdminDashboard(QWidget):
     def __init__(self):
@@ -141,6 +143,189 @@ class AdminDashboard(QWidget):
         stats_layout.addWidget(receptionists_card)
 
         layout.addLayout(stats_layout)
+        
+        # Add spacing between stat cards and clinic info
+        layout.addSpacing(30)  # Add 30 pixels of vertical spacing
+
+        # --- Clinic Information Section ---
+        clinic_section = QFrame()
+        clinic_section.setStyleSheet("background-color: white; border-radius: 5px;")
+        clinic_layout = QVBoxLayout(clinic_section)
+        clinic_layout.setContentsMargins(10, 10, 30, 10)
+        clinic_layout.setSpacing(25)
+        
+        clinic_header = QLabel("VET CLINIC INFORMATION")
+        clinic_header.setStyleSheet("font-weight: bold; font-size: 16px;")
+        clinic_layout.addWidget(clinic_header)
+        clinic_content = QHBoxLayout()
+        clinic_content.setSpacing(25)
+        clinic_picture_column = QVBoxLayout()
+        clinic_picture_column.setAlignment(Qt.AlignTop | Qt.AlignCenter)
+        clinic_logo = QLabel()
+        clinic_logo.setFixedSize(200, 200)
+        clinic_logo.setAlignment(Qt.AlignCenter)
+        clinic_logo.setText("Clinic\nLogo")
+        clinic_upload_btn = QPushButton("Upload Photo")
+        clinic_upload_btn.setStyleSheet("""
+            background-color: #dfe4ea;
+            color: #000;
+            font-size: 12px;
+            padding: 8px;
+            border-radius: 10px;
+            margin-left:45px;
+        """)
+        clinic_upload_btn.setFixedWidth(170)
+        clinic_picture_column.addWidget(clinic_logo)
+        clinic_picture_column.addWidget(clinic_upload_btn)
+        clinic_picture_column.addStretch()
+        clinic_info_column = QGridLayout()
+        clinic_info_column.setVerticalSpacing(10)
+        clinic_info_column.setHorizontalSpacing(10)
+        clinic_labels = {}
+        def update_clinic_info_ui():
+            db = Database()
+            try:
+                db.cursor.execute("SELECT name, address, contact_number, email, employees_count, logo_path FROM clinic_info LIMIT 1")
+                clinic_row = db.cursor.fetchone()
+                if clinic_row:
+                    clinic_data = {
+                        "name": clinic_row[0],
+                        "address": clinic_row[1],
+                        "contact": clinic_row[2],
+                        "email": clinic_row[3],
+                        "employees": str(clinic_row[4]),
+                        "logo_path": clinic_row[5] or ""
+                    }
+                else:
+                    clinic_data = {"name": "", "address": "", "contact": "", "email": "", "employees": "", "logo_path": ""}
+            except Exception as e:
+                print(f"❌ Error loading clinic data: {e}")
+                clinic_data = {"name": "", "address": "", "contact": "", "email": "", "employees": "", "logo_path": ""}
+            # Update logo
+            if clinic_data.get("logo_path") and os.path.exists(clinic_data["logo_path"]):
+                original_pixmap = QPixmap(clinic_data["logo_path"])
+                size = clinic_logo.size()
+                rounded_pixmap = QPixmap(size)
+                rounded_pixmap.fill(Qt.transparent)
+                painter = QPainter(rounded_pixmap)
+                painter.setRenderHint(QPainter.Antialiasing)
+                path = QPainterPath()
+                path.addEllipse(0, 0, size.width(), size.height())
+                painter.setClipPath(path)
+                scaled_pixmap = original_pixmap.scaled(size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+                painter.drawPixmap(0, 0, scaled_pixmap)
+                painter.end()
+                clinic_logo.setPixmap(rounded_pixmap)
+                clinic_logo.setText("")
+            else:
+                clinic_logo.setText("Clinic\nLogo")
+            # Update info fields
+            clinic_fields = {
+                "Name:": clinic_data.get("name", ""),
+                "Email Address:": clinic_data.get("email", ""),
+                "Address:": clinic_data.get("address", ""),
+                "Contact Number:": clinic_data.get("contact", ""),
+                "No. of Employees:": clinic_data.get("employees", "")
+            }
+            # Clear previous widgets if any
+            for i in reversed(range(clinic_info_column.count())):
+                item = clinic_info_column.itemAt(i)
+                if item:
+                    widget = item.widget()
+                    if widget:
+                        widget.setParent(None)
+            clinic_labels.clear()
+            row = 0
+            for label_text, value_text in clinic_fields.items():
+                label = QLabel(label_text)
+                label.setStyleSheet("font-weight: bold; color: #222f3e;")
+                value = QLabel(value_text)
+                value.setStyleSheet("color: #222f3e;")
+                clinic_info_column.addWidget(label, row, 0)
+                clinic_info_column.addWidget(value, row, 1)
+                clinic_labels[label_text.replace(":", "")] = value
+                row += 1
+            db.close_connection()
+        update_clinic_info_ui()
+        def upload_logo():
+            file_path, _ = QFileDialog.getOpenFileName(self, "Select Clinic Logo", "", "Images (*.png *.jpg *.jpeg)")
+            if file_path:
+                logo_dir = os.path.join("assets", "clinic_logos")
+                os.makedirs(logo_dir, exist_ok=True)
+                filename = "clinic_logo.jpg"
+                new_path = os.path.join(logo_dir, filename)
+                copyfile(file_path, new_path)
+                db = Database()
+                db.save_clinic_info(
+                    clinic_labels["Name"].text(),
+                    clinic_labels["Address"].text(),
+                    clinic_labels["Contact Number"].text(),
+                    clinic_labels["Email Address"].text(),
+                    clinic_labels["No. of Employees"].text(),
+                    logo_path=new_path
+                )
+                db.close_connection()
+                update_clinic_info_ui()
+        clinic_upload_btn.clicked.connect(upload_logo)
+        clinic_button_column = QVBoxLayout()
+        clinic_button_column.setAlignment(Qt.AlignTop)
+        update_clinic_btn = QPushButton("Update Info")
+        update_clinic_btn.setIcon(QIcon("edit_icon.png"))
+        update_clinic_btn.setIconSize(QSize(10, 10))
+        update_clinic_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #012547;
+                color: white;
+                font-size: 12px;
+                font-weight: bold;
+                padding: 10px;
+                border-radius: 15px;
+            }
+            QPushButton:hover {
+                background-color: #01315d;
+            }
+        """)
+        update_clinic_btn.setFixedWidth(120)
+        
+        def open_update_clinic_dialog():
+            db = Database()
+            db.cursor.execute("SELECT name, address, contact_number, email, employees_count, logo_path FROM clinic_info LIMIT 1")
+            clinic_row = db.cursor.fetchone()
+            if clinic_row:
+                clinic_data = {
+                    "name": clinic_row[0],
+                    "address": clinic_row[1],
+                    "contact": clinic_row[2],
+                    "email": clinic_row[3],
+                    "employees": str(clinic_row[4]),
+                    "logo_path": clinic_row[5] or ""
+                }
+            else:
+                clinic_data = {"name": "", "address": "", "contact": "", "email": "", "employees": "", "logo_path": ""}
+            db.close_connection()
+            dialog = UpdateClinicInfoDialog(clinic_data)
+            if dialog.exec():
+                updated_data = dialog.get_updated_data()
+                db = Database()
+                db.save_clinic_info(
+                    updated_data["name"],
+                    updated_data["address"],
+                    updated_data["contact"],
+                    updated_data["email"],
+                    int(updated_data["employees"]),
+                    logo_path=clinic_data.get("logo_path")
+                )
+                db.close_connection()
+                update_clinic_info_ui()
+        update_clinic_btn.clicked.connect(open_update_clinic_dialog)
+        clinic_button_column.addWidget(update_clinic_btn)
+        clinic_button_column.addStretch()
+        clinic_content.addLayout(clinic_picture_column)
+        clinic_content.addSpacing(40)
+        clinic_content.addLayout(clinic_info_column, 1)
+        clinic_content.addLayout(clinic_button_column)
+        clinic_layout.addLayout(clinic_content)
+        layout.addWidget(clinic_section)
         layout.addStretch()
 
     def create_stat_card(self, title, value_label):
