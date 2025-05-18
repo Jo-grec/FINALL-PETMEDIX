@@ -3,7 +3,7 @@ import hashlib
 from datetime import datetime
 
 class Database:
-    def __init__(self, host="localhost", user="root", password="joelmar123", database="petmedix"):
+    def __init__(self, host="localhost", user="root", password="petmedix123", database="petmedix"):
         try:
             self.conn = mariadb.connect(
                 host=host,
