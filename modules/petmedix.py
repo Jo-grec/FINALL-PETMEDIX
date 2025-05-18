@@ -705,33 +705,8 @@ class PetMedix(QWidget):
         self.edit_btn.setFixedWidth(70)
         self.edit_btn.clicked.connect(self.toggle_edit_mode)
 
-        # Create Download button
-        download_btn = QToolButton()
-        download_btn.setText("Download")
-        download_btn.setIcon(QIcon("assets/download.png"))
-        download_btn.setIconSize(QSize(20, 20))  # Slightly larger icon
-        download_btn.setStyleSheet("""
-            QToolButton {
-                background-color: rgba(254, 74, 73, 0.70);
-                color: #000;
-                padding: 5px;
-                font-weight: bold;
-                font-size: 11px;
-                text-align: center;
-                border-radius: 5px;
-                font-family: Lato;
-            }
-            QToolButton:hover {
-                background-color: #023b6d;
-            }
-        """)
-        download_btn.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        download_btn.setFixedHeight(60)  # Increased height to accommodate icon above text
-        download_btn.setFixedWidth(70)
-
         # Add buttons to layout
         buttons_layout.addWidget(self.edit_btn)
-        buttons_layout.addWidget(download_btn)
         buttons_layout.addStretch()  # Add stretch to push buttons to the top
 
         # Add buttons panel to content layout
@@ -918,9 +893,13 @@ class PetMedix(QWidget):
     # -- Settings Tab -- #
     def show_settings_content(self):
         self.clear_content()
+        # Uncheck all navigation buttons when entering settings
+        for btn in self.nav_buttons:
+            btn.setChecked(False)
+            btn.setStyleSheet("")
         settings_widget = get_setting_widget(user_id=self.user_id)
         self.content_layout.addWidget(settings_widget)
-        
+    
     def show_user_menu(self, event):
         """Show the user menu when clicking the user icon."""
         menu = QMenu(self)
