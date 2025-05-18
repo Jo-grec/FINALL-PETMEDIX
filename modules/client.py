@@ -2,9 +2,9 @@ from PySide6.QtWidgets import (
     QWidget, QLabel, QHBoxLayout, QVBoxLayout, QPushButton, QLineEdit,
     QTableWidget, QScroller, QScrollArea,
     QStackedLayout, QComboBox, QTabWidget, QDateEdit, QMessageBox,
-    QFileDialog, QHeaderView, QDialog
+    QFileDialog, QHeaderView, QDialog, QFrame
 )
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtGui import QIcon, QPixmap, QPainter, QPainterPath
 from PySide6.QtCore import Qt, QSize, QDate
 from modules.database import Database
 from modules.utils import create_styled_message_box, show_message
@@ -273,10 +273,10 @@ class AddPetDialog(QDialog):
         finally:
             db.close_connection()
 
-def get_client_widget(main_window):
+def get_client_widget(main_window, user_role=None):
     content = QWidget()
     main_layout = QVBoxLayout(content)
-    main_layout.setContentsMargins(0, -30, 0, 30)
+    main_layout.setContentsMargins(0, 0, 0, 0)
     main_layout.setSpacing(0)
     
     main_window.tab_widget = QTabWidget()
@@ -333,6 +333,8 @@ def get_client_widget(main_window):
     edit_client_button.setIconSize(QSize(30, 30))
     edit_client_button.setFixedSize(90, 60)
     edit_client_button.setStyleSheet("background-color: #FED766; border: none;")
+    if user_role and user_role.lower() == "veterinarian":
+        edit_client_button.hide()
 
     # Connect the edit button to the open_edit_form function
     edit_client_button.clicked.connect(open_edit_form)
@@ -353,7 +355,7 @@ def get_client_widget(main_window):
     # --- Client List Label ---
     client_list = QLabel("Client List", content)
     client_list.setObjectName("ClientList")
-    client_list.setStyleSheet("background-color: #102547;")
+    client_list.setStyleSheet("background-color: #102547; font-family: Poppins;")
     client_list.setAlignment(Qt.AlignVCenter)
 
     # --- add client button --- #
@@ -362,8 +364,10 @@ def get_client_widget(main_window):
     add_button.setObjectName("AddClientButton")
     add_button.setFixedSize(60, 40)
     add_button.setStyleSheet(
-        "background-color: #F4F4F8; border: none; border-radius: 20px; margin-bottom: 5px;"
+        "background-color: #F4F4F8; border: none; border-radius: 20px; margin-bottom: 5px; font-family: Lato;"
     )
+    if user_role and user_role.lower() == "veterinarian":
+        add_button.hide()
 
     client_header_layout.addWidget(client_list)
     client_header_layout.addWidget(add_button)
@@ -382,7 +386,7 @@ def get_client_widget(main_window):
     table.setColumnCount(1)
     table.setRowCount(16)
     table.setFixedWidth(325)
-    table.setFixedHeight(500)
+    table.setFixedHeight(545)
     table.horizontalHeader().setStretchLastSection(True)
     table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
     table.verticalHeader().setVisible(False)
@@ -400,27 +404,31 @@ def get_client_widget(main_window):
             padding: 0px;
             margin: 0px;
             border: none;
-    }
+        }
         QTableWidget {
             background-color: transparent;
             color: black;
             border: 1px solid gray;
             margin-top: 0;
             padding-top: 0;
+            font-family: Lato;
+            outline: none;  /* Remove the focus outline */
         }
                         
         QTableWidget::item {
             border-bottom: 1px solid gray; 
-            padding-left: 10px;  /* Adds space between text and left border */
+            padding-left: 20px;  /* Adds space between text and left border */
             padding-right: 10px;
             padding-top: -5px;
             padding-bottom: 5px;
-            background-color:transparent;
+            background-color: transparent;
         }
                                
         QTableWidget::item:selected {
-        background-color:  #007a99;  /* Light cyan highlight */
-        color: black;
+            background-color: #CFDEF3;  /* Light cyan highlight */
+            color: black;
+            border: none;
+            outline: none;  /* Remove the focus outline */
         }
     """)
 
@@ -457,6 +465,8 @@ def get_client_widget(main_window):
     edit_client_button.setIconSize(QSize(30, 30))
     edit_client_button.setFixedSize(90, 60)
     edit_client_button.setStyleSheet("background-color: #FED766; border: none;")
+    if user_role and user_role.lower() == "veterinarian":
+        edit_client_button.hide()
 
     edit_client_button.clicked.connect(open_edit_form)  # 🛠️ Connect it here!
 
@@ -465,8 +475,6 @@ def get_client_widget(main_window):
     client_info_layout_inner.addWidget(edit_client_button)
 
     client_info_layout.addWidget(client_info_widget)
-
-    ###########################################
 
     labels = ["Name:", "Address:", "Contact Number:", "Email Address:"]
     label_names = ["NameLabel", "AddressLabel", "ContactLabel", "EmailLabel"]
@@ -490,9 +498,6 @@ def get_client_widget(main_window):
 
         client_info_layout.addLayout(pair_layout)
 
-
-    ################################################
-
     # PETS section
     
     pet_info_widget = QWidget(client_info_view)  # Set parent
@@ -511,6 +516,8 @@ def get_client_widget(main_window):
     edit_pet_button.setIconSize(QSize(30, 30))
     edit_pet_button.setFixedSize(90, 60)
     edit_pet_button.setStyleSheet("background-color: #FED766; border: none;")
+    if user_role and user_role.lower() == "veterinarian":
+        edit_pet_button.hide()
 
     pet_info_layout.addWidget(pet_info_label)
     pet_info_layout.addStretch()  # Add stretch to push arrows and button to the right
@@ -524,17 +531,35 @@ def get_client_widget(main_window):
     pet_picture.setText("No Photo")
 
 
-
-    #####################################################
-   # Scroll area setup (already correct)
+   # Scroll area setup
     scroll_area = QScrollArea(client_info_view)
     scroll_area.setWidgetResizable(True)
     scroll_area.setFixedHeight(300)
+    scroll_area.setStyleSheet("""
+        QScrollArea {
+            border: none;
+            background-color: transparent;
+        }
+        QScrollBar:vertical {
+            border: none;
+            background: #f0f0f0;
+            width: 10px;
+            margin: 0px;
+        }
+        QScrollBar::handle:vertical {
+            background: #012547;
+            min-height: 20px;
+            border-radius: 5px;
+        }
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+            height: 0px;
+        }
+    """)
     
     scroll_content = QWidget()
     scroll_layout = QVBoxLayout(scroll_content)
-    scroll_layout.setSpacing(5)
-    scroll_layout.setContentsMargins(10, 10, 10, 10)
+    scroll_layout.setSpacing(10)
+    scroll_layout.setContentsMargins(0, 0, 0, 0)
     scroll_layout.setAlignment(Qt.AlignTop)
     scroll_area.setWidget(scroll_content)
 
@@ -557,10 +582,30 @@ def get_client_widget(main_window):
 
     edit_fields = ["Name", "Address", "Contact Number", "Email Address"]
     for field in edit_fields:
-        line_edit = QLineEdit(edit_fields_widget)  # Set parent
+        # Create a vertical layout for each field
+        field_layout = QVBoxLayout()
+        field_layout.setSpacing(0)  # Space between label and input
+        
+        # Create and style the label
+        label = QLabel(field)
+        label.setStyleSheet("""
+            font-size: 14px;
+            font-weight: bold;
+            color: #012547;
+            margin-left: 10px;
+        """)
+        
+        # Create and style the input field
+        line_edit = QLineEdit(edit_fields_widget)
         line_edit.setPlaceholderText(f"Enter {field}")
-        line_edit.setStyleSheet("padding: 8px; margin: 10px; background-color: #f4f4f8; border: 1px solid gray; border-radius: 5px; font-size: 12px;")
-        edit_fields_layout.addWidget(line_edit)
+        line_edit.setStyleSheet("padding: 15px; margin: 10px; background-color: #f4f4f8; border: 1px solid gray; border-radius: 5px; font-size: 14px;")
+        
+        # Add label and input to the field layout
+        field_layout.addWidget(label)
+        field_layout.addWidget(line_edit)
+        
+        # Add the field layout to the main layout
+        edit_fields_layout.addLayout(field_layout)
 
     edit_form_layout.addWidget(edit_fields_widget)
 
@@ -960,6 +1005,14 @@ def get_client_widget(main_window):
                     for index, pet in enumerate(pets):
                         pet_card = create_pet_card(pet, index)
                         scroll_layout.addWidget(pet_card)
+                        
+                        # Add separator after each pet card except the last one
+                        if index < len(pets) - 1:
+                            separator = QFrame()
+                            separator.setFrameShape(QFrame.HLine)
+                            separator.setStyleSheet("background-color: #012547;")
+                            separator.setFixedHeight(3)
+                            scroll_layout.addWidget(separator)
                 else:
                     no_pet_label = QLabel("No pets found.")
                     no_pet_label.setAlignment(Qt.AlignCenter)
@@ -976,49 +1029,49 @@ def get_client_widget(main_window):
             db.close_connection()
 
     def handle_update_pet(pet_data, index):
-        pets = pet_info_widget.property("pets") or []
-        pets.insert(0, pet_data)  # optional: update or replace existing list
-        pet_info_widget.setProperty("pets", pets)
-        pet_info_widget.setProperty("current_index", index)
-        open_edit_pet_form(pet_data)
+        """Handle updating a pet's information."""
+        # Store the pet data and index in the widget's properties
+        pet_info_widget.setProperty("pets", [pet_data])  # Store as a list with single item
+        pet_info_widget.setProperty("current_index", 0)  # Index will always be 0 since we store single item
         
-    def redirect_to_appointments_tab(pet_name):
-        """Redirect to the Appointments Tab and filter appointments by the pet's name."""
-        try:
-            # Get the main window's tab widget
-            tab_widget = main_window.tab_widget
-            if not tab_widget:
-                print("❌ Could not find tab widget")
-                return
+        # Open the edit form with the pet data
+        open_edit_pet_form(pet_data)
 
-            # Find the Appointments tab by name
-            for i in range(tab_widget.count()):
-                if tab_widget.tabText(i) == "Appointments":
-                    # Switch to the Appointments Tab
-                    tab_widget.setCurrentIndex(i)
-                    
-                    # Get the Appointments Tab widget
-                    appointments_tab = tab_widget.widget(i)
-                    
-                    # Call the filter method if it exists
-                    if hasattr(appointments_tab, "filter_appointments_by_pet"):
-                        appointments_tab.filter_appointments_by_pet(pet_name)
-                        print(f"✅ Successfully filtered appointments for pet: {pet_name}")
-                    else:
-                        print("❌ Appointments tab does not have filter_appointments_by_pet method")
-                    return
-                
-            print("❌ Could not find Appointments tab")
-            
-        except Exception as e:
-            print(f"❌ Error in redirect_to_appointments_tab: {str(e)}")
+    def open_edit_pet_form(pet_data):
+        """Open the form to edit the currently selected pet."""
+        # Fill the input fields with existing pet data
+        name_input.setText(pet_data[0])
+        pet_gender.setCurrentText(pet_data[1])
+        species_input.setText(pet_data[2])
+        breed_input.setText(pet_data[3])
+        color_input.setText(pet_data[4])
+        birthdate_input.setDate(QDate.fromString(pet_data[5], "yyyy-MM-dd"))
+        age_input.setText(str(pet_data[6]))
+        weight_input.setText(str(pet_data[7]))
+        height_input.setText(str(pet_data[8]))
+
+        # Set the photo preview in pet_picture
+        photo_path = pet_data[9]
+        if photo_path:
+            pet_picture.setPixmap(QPixmap(photo_path).scaled(
+                pet_picture.width(), pet_picture.height(),
+                Qt.KeepAspectRatio, Qt.SmoothTransformation
+            ))
+            pet_picture.setProperty("photo_path", photo_path)
+        else:
+            pet_picture.setPixmap(QPixmap())
+            pet_picture.setText("No Photo")
+            pet_picture.setProperty("photo_path", None)
+
+        pets_edit_widget.setProperty("mode", "edit")  # Mark as editing mode
+        client_info_stack.setCurrentIndex(2)  # Switch to pet form
 
     def create_pet_card(pet_data, index):
         pet_card = QWidget()
         pet_card.setFixedHeight(160)
         pet_card_layout = QHBoxLayout(pet_card)
-        pet_card_layout.setContentsMargins(10, 10, 20, 10)
-        pet_card_layout.setSpacing(10)
+        pet_card_layout.setContentsMargins(10, 0, 20, 0)
+        pet_card_layout.setSpacing(20)  # Increased spacing from 10 to 20 pixels
 
         pet_card.setStyleSheet("background-color: white; border-radius: 20px;")
 
@@ -1026,18 +1079,58 @@ def get_client_widget(main_window):
         pet_card_picture = QLabel()
         pet_card_picture.setFixedSize(150, 150)
         pet_card_picture.setAlignment(Qt.AlignCenter)
-        pet_card_picture.setStyleSheet("background-color: white; border-radius: 10px;")
+        pet_card_picture.setStyleSheet("""
+            QLabel {
+                background-color: white;
+                border-radius: 75px;  /* Half of width/height for perfect circle */
+                border: 2px solid #012547;
+            }
+        """)
 
         # Extract photo path from the last element of pet_data
         photo_path = pet_data[-1]  # Get the last element which should be the photo path
         if photo_path:
-            pet_card_picture.setPixmap(QPixmap(photo_path).scaled(
+            # Create a circular pixmap
+            pixmap = QPixmap(photo_path)
+            circular_pixmap = QPixmap(150, 150)
+            circular_pixmap.fill(Qt.transparent)
+            
+            # Create a painter to draw the circular mask
+            painter = QPainter(circular_pixmap)
+            painter.setRenderHint(QPainter.Antialiasing)
+            
+            # Create a circular path
+            path = QPainterPath()
+            path.addEllipse(0, 0, 150, 150)
+            painter.setClipPath(path)
+            
+            # Calculate scaling to fill the circle
+            scaled_pixmap = pixmap.scaled(
                 150, 150,
-                Qt.KeepAspectRatio,
+                Qt.KeepAspectRatioByExpanding,  # Changed to fill mode
                 Qt.SmoothTransformation
-            ))
+            )
+            
+            # Center the scaled pixmap
+            x = (150 - scaled_pixmap.width()) // 2
+            y = (150 - scaled_pixmap.height()) // 2
+            
+            # Draw the scaled pixmap centered
+            painter.drawPixmap(x, y, scaled_pixmap)
+            painter.end()
+            
+            pet_card_picture.setPixmap(circular_pixmap)
         else:
             pet_card_picture.setText("No Photo")
+            pet_card_picture.setStyleSheet("""
+                QLabel {
+                    background-color: white;
+                    border-radius: 75px;
+                    border: 2px solid #012547;
+                    color: #012547;
+                    font-weight: bold;
+                }
+            """)
 
         # 📄 Pet info in the middle (two columns)
         pet_info_widget = QWidget()
@@ -1195,10 +1288,10 @@ def get_client_widget(main_window):
     upload_photo_button.setStyleSheet("""
         background-color: white; 
         color: black; 
-        border: 2px solid black;
+        border: 1px solid black;
         border-radius: 5px; 
-        font-size: 20px; 
-        padding: 8px;
+        font-size: 14px; 
+        padding: 5px;
     """)
     pets_fields_layout.addWidget(upload_photo_button)
     # Add photo preview label before the button
@@ -1420,6 +1513,7 @@ def get_client_widget(main_window):
     pets_delete_btn.setStyleSheet("""
         background-color: red; 
         border-radius: 20px; 
+        font-size: 12px;
         color: white; 
         margin-right: 90px;
     """)
