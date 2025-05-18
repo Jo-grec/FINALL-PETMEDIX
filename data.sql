@@ -53,18 +53,24 @@ INSERT INTO `appointments` (`appointment_id`, `pet_id`, `client_id`, `date`, `st
 --
 
 CREATE TABLE `billing` (
-  `billing_id` int(11) NOT NULL,
+  `billing_id` int(11) NOT NULL AUTO_INCREMENT,
   `invoice_no` varchar(50) DEFAULT NULL,
   `client_id` int(11) NOT NULL,
   `pet_id` int(11) NOT NULL,
   `date_issued` date NOT NULL,
+  `subtotal` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `vat` decimal(10,2) NOT NULL DEFAULT 0.00,
   `total_amount` decimal(10,2) NOT NULL,
-  `payment_status` enum('Paid','Unpaid','Partial') NOT NULL,
-  `payment_method` enum('Cash','Credit Card','GCash','Bank Transfer') DEFAULT NULL,
-  `received_by` varchar(100) DEFAULT NULL,
-  `reason` varchar(200) DEFAULT NULL,
-  `veterinarian` varchar(100) DEFAULT NULL,
-  `notes` varchar(200) DEFAULT NULL
+  `payment_status` enum('PAID', 'UNPAID', 'PARTIAL') NOT NULL,
+  `partial_amount` decimal(10,2) DEFAULT 0.00,
+  `payment_method` enum('CASH', 'CREDIT CARD', 'GCASH', 'BANK TRANSFER'),
+  `received_by` varchar(100),
+  `reason` varchar(200),
+  `veterinarian` varchar(100),
+  `notes` text,
+  PRIMARY KEY (`billing_id`),
+  FOREIGN KEY (`client_id`) REFERENCES `clients`(`client_id`) ON DELETE CASCADE,
+  FOREIGN KEY (`pet_id`) REFERENCES `pets`(`pet_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 -- --------------------------------------------------------
@@ -74,12 +80,15 @@ CREATE TABLE `billing` (
 --
 
 CREATE TABLE `billing_services` (
-  `service_id` int(11) NOT NULL,
+  `service_id` int(11) NOT NULL AUTO_INCREMENT,
   `billing_id` int(11) NOT NULL,
   `service_description` varchar(255) NOT NULL,
   `quantity` int(11) NOT NULL,
   `unit_price` decimal(10,2) NOT NULL,
-  `line_total` decimal(10,2) NOT NULL
+  `line_total` decimal(10,2) NOT NULL,
+  `service_date` date,
+  PRIMARY KEY (`service_id`),
+  FOREIGN KEY (`billing_id`) REFERENCES `billing`(`billing_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 -- --------------------------------------------------------
@@ -387,6 +396,27 @@ CREATE TABLE `vaccinations` (
 INSERT INTO `vaccinations` (`vaccination_id`, `pet_id`, `client_id`, `date`, `vaccine`, `dosage`, `next_scheduled`, `veterinarian`) VALUES
 (1, 4, 2, '2025-05-14', 'dawddawdwa', 'dadaw', '2025-05-29', 'Axel'),
 (2, 5, 3, '2025-05-14', 'dawda', 'nn', '2025-05-28', 'Axel');
+
+--
+-- Table structure for table pet notes (past illnesses and medical history)
+--
+
+CREATE TABLE IF NOT EXISTS `pet_notes` (
+    `note_id` int(11) NOT NULL AUTO_INCREMENT,
+    `pet_id` int(11) NOT NULL,
+    `note_type` varchar(20) NOT NULL CHECK (`note_type` IN ('past_illnesses', 'medical_history')),
+    `notes` text,
+    `last_updated` timestamp NULL DEFAULT current_timestamp(),
+    PRIMARY KEY (`note_id`),
+    UNIQUE KEY `pet_note_type` (`pet_id`, `note_type`),
+    FOREIGN KEY (`pet_id`) REFERENCES `pets` (`pet_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+
+--
+-- Indexes for table pet notes (past illnesses and medical history)
+--
+CREATE INDEX `idx_pet_notes_pet_id` ON `pet_notes` (`pet_id`);
+CREATE INDEX `idx_pet_notes_type` ON `pet_notes` (`note_type`);
 
 --
 -- Indexes for dumped tables
