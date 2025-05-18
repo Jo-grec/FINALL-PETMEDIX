@@ -3,7 +3,7 @@ import hashlib
 from datetime import datetime
 
 class Database:
-    def __init__(self, host="localhost", user="root", password="", database="petmedix"):
+    def __init__(self, host="localhost", user="root", password="joelmar123", database="petmedix"):
         try:
             self.conn = mariadb.connect(
                 host=host,
@@ -252,6 +252,23 @@ class Database:
                 FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE CASCADE
             );
             """)
+
+            # Pet Notes Table (Depends on pets)
+            self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pet_notes (
+                note_id INT AUTO_INCREMENT PRIMARY KEY,
+                pet_id INT NOT NULL,
+                note_type VARCHAR(20) NOT NULL CHECK (note_type IN ('past_illnesses', 'medical_history')),
+                notes TEXT,
+                last_updated TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY pet_note_type (pet_id, note_type),
+                FOREIGN KEY (pet_id) REFERENCES pets(pet_id) ON DELETE CASCADE
+            );
+            """)
+
+            # Create indexes for pet_notes
+            self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_pet_notes_pet_id ON pet_notes(pet_id);")
+            self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_pet_notes_type ON pet_notes(note_type);")
 
             # Appointments Table (Depends on pets and clients)
             self.cursor.execute("""
@@ -1392,80 +1409,96 @@ class Database:
             print(f"❌ Error fetching recent reports: {e}")
             return []
 
-    def fetch_recent_reports_summary(self):
+    def fetch_recent_reports_summary(self, user_role=None):
         """Fetch recent reports with only consultation date, pet name, owner name, and veterinarian."""
         try:
             print("\n=== Debug: Starting fetch_recent_reports_summary ===")
             # Union query to combine all treatment types
             query = """
                 SELECT * FROM (
-                    SELECT date, p.name as pet_name, cl.name as client_name, veterinarian, 'Consultation' as type
+                    SELECT date, 'Consultation' as type, p.name as pet_name, cl.name as client_name, 
+                           CONCAT('Dr. ', veterinarian) as veterinarian
                     FROM consultations c
                     JOIN pets p ON c.pet_id = p.pet_id
                     JOIN clients cl ON c.client_id = cl.client_id
                     UNION ALL
-                    SELECT date, p.name as pet_name, cl.name as client_name, veterinarian, 'Deworming' as type
+                    SELECT date, 'Deworming' as type, p.name as pet_name, cl.name as client_name, 
+                           CONCAT('Dr. ', veterinarian) as veterinarian
                     FROM deworming d
                     JOIN pets p ON d.pet_id = p.pet_id
                     JOIN clients cl ON d.client_id = cl.client_id
                     UNION ALL
-                    SELECT date, p.name as pet_name, cl.name as client_name, veterinarian, 'Vaccination' as type
+                    SELECT date, 'Vaccination' as type, p.name as pet_name, cl.name as client_name, 
+                           CONCAT('Dr. ', veterinarian) as veterinarian
                     FROM vaccinations v
                     JOIN pets p ON v.pet_id = p.pet_id
                     JOIN clients cl ON v.client_id = cl.client_id
                     UNION ALL
-                    SELECT date, p.name as pet_name, cl.name as client_name, veterinarian, 'Surgery' as type
+                    SELECT date, 'Surgery' as type, p.name as pet_name, cl.name as client_name, 
+                           CONCAT('Dr. ', veterinarian) as veterinarian
                     FROM surgeries s
                     JOIN pets p ON s.pet_id = p.pet_id
                     JOIN clients cl ON s.client_id = cl.client_id
                     UNION ALL
-                    SELECT date, p.name as pet_name, cl.name as client_name, veterinarian, 'Grooming' as type
+                    SELECT date, 'Grooming' as type, p.name as pet_name, cl.name as client_name, 
+                           CONCAT('Dr. ', veterinarian) as veterinarian
                     FROM grooming g
                     JOIN pets p ON g.pet_id = p.pet_id
                     JOIN clients cl ON g.client_id = cl.client_id
                     UNION ALL
-                    SELECT date, p.name as pet_name, cl.name as client_name, veterinarian, 'Other Treatment' as type
+                    SELECT date, 'Other Treatment' as type, p.name as pet_name, cl.name as client_name, 
+                           CONCAT('Dr. ', veterinarian) as veterinarian
                     FROM other_treatments o
                     JOIN pets p ON o.pet_id = p.pet_id
                     JOIN clients cl ON o.client_id = cl.client_id
                 ) AS combined_reports
+            """
+            
+            # Add WHERE clause for receptionists to show only this week's reports
+            if user_role == "Receptionist":
+                query += " WHERE YEARWEEK(date) = YEARWEEK(CURDATE())"
+            
+            query += """
                 ORDER BY date DESC
                 LIMIT 20;
             """
             
-            print("Executing query...")
             self.cursor.execute(query)
-            results = self.cursor.fetchall()
-            print(f"Query executed. Found {len(results)} records")
-            
-            if len(results) == 0:
-                print("No records found. Checking individual tables...")
-                
-                # Check each table individually
-                tables = ['consultations', 'deworming', 'vaccinations', 'surgeries', 'grooming', 'other_treatments']
-                for table in tables:
-                    self.cursor.execute(f"SELECT COUNT(*) FROM {table}")
-                    count = self.cursor.fetchone()[0]
-                    print(f"Records in {table}: {count}")
-                
-                # Check if there are any pets and clients
-                self.cursor.execute("SELECT COUNT(*) FROM pets")
-                pets_count = self.cursor.fetchone()[0]
-                self.cursor.execute("SELECT COUNT(*) FROM clients")
-                clients_count = self.cursor.fetchone()[0]
-                print(f"Total pets: {pets_count}")
-                print(f"Total clients: {clients_count}")
-            else:
-                print("\nFirst few records:")
-                for i, record in enumerate(results[:3]):
-                    print(f"Record {i + 1}: {record}")
-            
-            return results
+            return self.cursor.fetchall()
         except Exception as e:
-            print(f"\n❌ Error in fetch_recent_reports_summary:")
-            print(f"Error type: {type(e).__name__}")
-            print(f"Error message: {str(e)}")
-            import traceback
-            print("Traceback:")
-            print(traceback.format_exc())
+            print(f"❌ Error fetching recent reports summary: {e}")
+            return []
+
+    def fetch_recent_appointments_summary(self, user_role=None):
+        """Fetch recent appointments for the home page."""
+        try:
+            base_query = """
+                SELECT 
+                    a.date,
+                    p.name as pet_name,
+                    a.reason,
+                    c.name as owner,
+                    a.status,
+                    CONCAT('Dr. ', a.veterinarian) as veterinarian
+                FROM appointments a
+                JOIN pets p ON a.pet_id = p.pet_id
+                JOIN clients c ON a.client_id = c.client_id
+            """
+            
+            # Add WHERE clause for veterinarians to show only this week's appointments
+            if user_role == "Veterinarian":
+                base_query += """
+                WHERE YEARWEEK(a.date) = YEARWEEK(CURDATE())
+                """
+            
+            base_query += """
+                ORDER BY a.date DESC
+                LIMIT 10
+            """
+            
+            self.cursor.execute(base_query)
+            appointments = self.cursor.fetchall()
+            return appointments
+        except mariadb.Error as e:
+            print(f"Error fetching recent appointments: {e}")
             return []
