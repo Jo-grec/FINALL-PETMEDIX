@@ -228,13 +228,44 @@ class SignUpWindow(QMainWindow):
                     "What is the name of the street you grew up on?",
                     answer_three
                 ):
-                    QMessageBox.information(self, "Success", f"Account created successfully! Your username is: {user_id}")
+                    # Create a styled success message box
+                    success_msg = QMessageBox()
+                    success_msg.setWindowTitle("Success")
+                    success_msg.setIconPixmap(QPixmap("assets/authentication 1.png").scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                    success_msg.setText(f"""
+                        <div style='font-size: 14px; color: #012547;'>
+                            <p style='font-weight: bold; font-size: 16px; margin-bottom: 10px;'>Account Created Successfully!</p>
+                            <p>Your account has been created with the following details:</p>
+                            <p style='margin-top: 10px;'><b>Username:</b> {user_id}</p>
+                            <p style='margin-top: 5px;'><b>Email:</b> {email}</p>
+                            <p style='margin-top: 5px;'><b>Role:</b> {role}</p>
+                            <p style='margin-top: 15px; color: #4A90E2;'>You will be redirected to the login page in a moment...</p>
+                        </div>
+                    """)
+                    success_msg.setStyleSheet("""
+                        QMessageBox {
+                            background-color: white;
+                        }
+                        QPushButton {
+                            padding: 8px 20px;
+                            border-radius: 5px;
+                            font-weight: bold;
+                            min-width: 80px;
+                            background-color: #012547;
+                            color: white;
+                            border: none;
+                        }
+                        QPushButton:hover {
+                            background-color: #023d6d;
+                        }
+                        QPushButton:pressed {
+                            background-color: #001e3d;
+                        }
+                    """)
+                    success_msg.setStandardButtons(QMessageBox.Ok)
+                    success_msg.exec()
 
-                    redirect_label = QLabel("Redirecting to login page...", self)
-                    redirect_label.setAlignment(Qt.AlignCenter)
-                    redirect_label.setStyleSheet("font-size: 16px; color: green;")
-                    self.layout().addWidget(redirect_label)
-
+                    # Redirect after a short delay
                     QTimer.singleShot(2000, self.redirect_to_login)
                 else:
                     QMessageBox.critical(self, "Error", "Failed to save security questions. Please try again.")
