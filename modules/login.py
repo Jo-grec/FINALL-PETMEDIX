@@ -15,7 +15,7 @@ class ForgotPasswordDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Reset Password")
         self.setFixedSize(500, 500)  # Increased width to 500
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint | Qt.WindowCloseButtonHint)
         self.setup_ui()
 
     def setup_ui(self):
@@ -62,6 +62,17 @@ class ForgotPasswordDialog(QDialog):
         self.answer_three.setObjectName("FormInput")
         self.answer_three.setFixedHeight(35)
 
+        # Button container
+        button_container = QHBoxLayout()
+        button_container.setSpacing(10)
+
+        # Cancel button
+        self.cancel_button = QPushButton("Cancel")
+        self.cancel_button.setObjectName("create")
+        self.cancel_button.setFixedHeight(40)
+        self.cancel_button.setFixedWidth(200)
+        self.cancel_button.clicked.connect(self.reject)
+
         # Verify button
         self.verify_button = QPushButton("Verify Answers")
         self.verify_button.setObjectName("create")
@@ -69,13 +80,16 @@ class ForgotPasswordDialog(QDialog):
         self.verify_button.setFixedWidth(200)  # Fixed width for button
         self.verify_button.clicked.connect(self.verify_answers)
 
+        button_container.addWidget(self.cancel_button)
+        button_container.addWidget(self.verify_button)
+
         # Add widgets to input container
         input_layout.addWidget(QLabel("Enter your User ID and answer security questions:"))
         input_layout.addWidget(self.user_id_input)
         input_layout.addWidget(self.answer_one)
         input_layout.addWidget(self.answer_two)
         input_layout.addWidget(self.answer_three)
-        input_layout.addWidget(self.verify_button, alignment=Qt.AlignCenter)
+        input_layout.addLayout(button_container)
 
         # Add title and container to security layout
         security_layout.addWidget(step1_title)
@@ -113,6 +127,17 @@ class ForgotPasswordDialog(QDialog):
         self.confirm_password.setObjectName("FormInput")
         self.confirm_password.setFixedHeight(35)
 
+        # Button container for password reset
+        password_button_container = QHBoxLayout()
+        password_button_container.setSpacing(10)
+
+        # Cancel button for password reset
+        self.password_cancel_button = QPushButton("Cancel")
+        self.password_cancel_button.setObjectName("create")
+        self.password_cancel_button.setFixedHeight(40)
+        self.password_cancel_button.setFixedWidth(200)
+        self.password_cancel_button.clicked.connect(self.reject)
+
         # Submit button
         self.submit_button = QPushButton("Reset Password")
         self.submit_button.setObjectName("create")
@@ -120,11 +145,14 @@ class ForgotPasswordDialog(QDialog):
         self.submit_button.setFixedWidth(200)  # Fixed width for button
         self.submit_button.clicked.connect(self.reset_password)
 
+        password_button_container.addWidget(self.password_cancel_button)
+        password_button_container.addWidget(self.submit_button)
+
         # Add widgets to password container
         password_input_layout.addWidget(QLabel("Enter your new password:"))
         password_input_layout.addWidget(self.new_password)
         password_input_layout.addWidget(self.confirm_password)
-        password_input_layout.addWidget(self.submit_button, alignment=Qt.AlignCenter)
+        password_input_layout.addLayout(password_button_container)
 
         # Add title and container to password layout
         password_layout.addWidget(step2_title)
@@ -262,7 +290,7 @@ class LoginWindow(QMainWindow):
 
         self.username_input = QLineEdit(self)
         self.username_input.setPlaceholderText("Email")
-        self.username_input.setFixedWidth(500)
+        self.username_input.setFixedWidth(550)
 
         # password field with icon and toggle visibility
         password_container = QWidget()
@@ -349,12 +377,13 @@ class LoginWindow(QMainWindow):
         form_container.setMaximumWidth(600)
 
         form_layout.addWidget(self.welcome_label)
+        form_layout.addSpacing(0)
         form_layout.addWidget(self.subwelcome_label)
-        form_layout.addSpacing(20)
+        form_layout.addSpacing(10)
         form_layout.addWidget(username_container)
         form_layout.addSpacing(20)
         form_layout.addWidget(password_container) 
-        form_layout.addSpacing(5)  
+        form_layout.addSpacing(0)  
         form_layout.addLayout(forgot_password_layout)  
         form_layout.addSpacing(20)
 
@@ -428,16 +457,18 @@ class LoginWindow(QMainWindow):
                     if status != 'Verified':
                         show_message(self, "Your account is pending verification. Please contact the administrator.", QMessageBox.Warning)
                         return
-                        
+                    
+                    # Add Dr. prefix for veterinarians
+                    name_prefix = "Dr. " if role == 'Veterinarian' else ""
                     message_box = create_styled_message_box(
                         QMessageBox.Information, 
                         "Success", 
-                        f"Welcome {user['name']} {last_name}!"
+                        f"Welcome {name_prefix}{user['name']} {last_name}!"
                     )
                     message_box.exec()
                     
                     # Redirect to HomePage with role and last_name
-                    self.home_page = PetMedix(user_id=user_id, role=role, last_name=last_name)
+                    self.home_page = PetMedix(user_id=user_id, role=role, last_name=last_name, first_name=user['name'])
                     self.home_page.showMaximized()
                     self.close()
             else:

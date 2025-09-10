@@ -1,10 +1,12 @@
 QMainWindow {
     background-color: #ffffff; 
+    font-family: Lato;
 }
 
 QLineEdit {
     padding: 10px;
     font-size: 25px;
+    font-family: Lato;
     border: none;
     line-height: 60;
     padding-left: 20px;
@@ -36,16 +38,28 @@ QPushButton#loginButton {
     min-width: 150px;         
     min-height: 60px;         
     font-size: 20px;
+    font-family: Lato;
     background-color: #4A90E2;
     color: white;
     border-radius: 25px;       
     border: none;
+    outline: none;
 }
 
 QPushButton#loginButton:hover {
     background-color: #012547;
+    outline: none;
 }
 
+QPushButton#loginButton:pressed {
+    outline: none;
+    border: none;
+}
+
+QPushButton#loginButton:focus {
+    outline: none;
+    border: none;
+}
 
 QLabel#WelcomeLabel {
     color: #4A90E2;
@@ -55,7 +69,7 @@ QLabel#WelcomeLabel {
     font-weight: 400;
     line-height: 50;
     margin-bottom: -10px;
-    padding-bottom: -20px;
+    padding-bottom: -10px;
 }
 
 QLabel#SubwelcomeLabel {
@@ -64,7 +78,7 @@ QLabel#SubwelcomeLabel {
     font-size: 20px;
     font-style: italic;
     line-height: 50;
-    font-weight: 200;
+    font-weight: 300;
 }
 
 #forgotPasswordButton {
@@ -73,7 +87,8 @@ QLabel#SubwelcomeLabel {
     font-family: Lato;    
     border: none;            
     background: transparent;
-    text-align: right;       
+    text-align: right;
+    margin-top: -15px;
 }
 
 #forgotPasswordButton:hover {
@@ -84,6 +99,7 @@ QLabel#SubwelcomeLabel {
 #signupButton {
     color: #3498db;
     font-size: 12px;
+    font-family: Lato;
     border: none;
     background: transparent;
     margin-left: -10px;
@@ -114,6 +130,7 @@ QLabel#SubwelcomeLabel {
 #LoginButton {
     color: #3498db;
     font-size: 20px;
+    font-family: Lato;
     border: none;
     background: transparent;
     margin-left: -40px;
@@ -123,6 +140,7 @@ QLabel#SubwelcomeLabel {
 
 #HaveaccountLabel{
     font-size: 20px;
+    font-family: Lato;
     margin-top: -30px;
 }
 
@@ -138,12 +156,14 @@ QLabel#SubwelcomeLabel {
     background-color: white;
     min-height: 20px; 
     font-size: 12px;
+    font-family: Lato;
 }
 
 QPushButton#create {
     min-width: 180px;         
     min-height: 50px;         
     font-size: 20px;
+    font-family: Lato;
     background-color:#4A90E2;
     color: white;
     border-radius: 25px;       
@@ -157,6 +177,7 @@ QPushButton#create:hover {
 QComboBox#RoleComboBox, QComboBox#RoleComboBox QLineEdit {
     padding: 10px;
     font-size: 12px;
+    font-family: Lato;
     border: 1px solid  #B0B0B0;
     border-radius: 20px;
     background: white;
@@ -209,23 +230,30 @@ QComboBox#RoleComboBox::drop-down {
 #PasswordFormInput{
     border: none;
     font-size: 12px;
+    font-family: Lato;
     border-radius: 20px;
-    mi-height: 20px;
+    min-height: 20px;
 }
 
 /* Home Page */
 
 #Header {
     background-color: #012547; 
+    font-family: Lato;
 }
 
 #UsernameLabel {
-    color: #FFF;
+    color: #012547;
     text-align: center;
     font-family: Lato;
-    font-size: 24px;
+    font-size: 18px;
     font-style: normal;
-    line-height: normal;        
+    font-weight: 600;
+    line-height: normal;
+    padding: 10px 15px;
+    background-color: transparent;
+    border: none;
+    margin-right: 10px;
 }
 
 #Navbarlogo {
@@ -234,7 +262,7 @@ QComboBox#RoleComboBox::drop-down {
 }
 
 #NavBar {
-    background-color: #F4F4F8;
+    background-color: #FFFFFF;
 }
 
 QPushButton {
@@ -244,6 +272,56 @@ QPushButton {
     font-size: 20px;
     background: transparent;
     color: #000;
+}
+
+QPushButton#navbarButton {
+    background-color: transparent !important;
+    color: #000;
+    border: none !important;
+    outline: none !important;
+    padding: 12px 15px;
+    text-align: left;
+    font-size: 14px;
+    font-weight: 500;
+    min-height: 45px;
+    max-height: 45px;
+    margin: 2px 0px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding-left: 25px;
+    icon-padding: 12px;
+    text-indent: 0px;
+    icon-position: left;
+    min-width: 150px;
+    text-indent: 0px;
+}
+
+QPushButton#navbarButton:checked {
+    background-color: #F4F4F8 !important;
+    color: #3F51B5 !important;
+    border: none !important;
+    outline: none !important;
+}
+
+QPushButton#navbarButton:focus {
+    background-color: #F4F4F8 !important;
+    color: #3F51B5 !important;
+    border: none !important;
+    outline: none !important;
+}
+
+QPushButton#navbarButton:pressed {
+    background-color: #F4F4F8 !important;
+    color: #3F51B5 !important;
+    border: none !important;
+    outline: none !important;
+}
+
+QPushButton#navbarButton:hover {
+    background-color: #F4F4F8 !important;
+    border: none !important;
+    outline: none !important;
 }
 
 #ClinicNameLabel {
@@ -257,23 +335,26 @@ QPushButton {
 }
 
 #SearchBar {
-    border-radius: 20px;  /* Adjust the number for more or less roundness */
-    padding: 10px;  /* Optional: padding inside the search bar */
-    margin-bottom: 30px;  /* Add space below the search bar */
-    margin-top: 20px;
-    border: 2px solid gray;
+    /* Search bar styling is now handled inline in the code for better control */
 }
 
 
-#Box1, #Box2, #Box3 {
-    border-radius: 50px;
+#Box1, #Box2, #Box3, #Box4, #Box5, #TableBox, #CalendarBox {
+    border-radius: 30px;
+    border: 2px solid #e0e0e0;
 }
 
-#NumberLabel, #NumberLabel2, #NumberLabel3 {
+#NumberLabel {
     color: white;
-    font-size: 60px;
+    font-size: 50px;
     font-weight: bold;
-    padding-left: 15px; /* Space between the icon and number */
+    vertical-align: middle; /* Vertically align the text in the center */
+}
+
+#NumberLabel2, #NumberLabel3, #NumberLabel4 {
+    color: #1A1A1A;
+    font-size: 50px;
+    font-weight: bold;
     vertical-align: middle; /* Vertically align the text in the center */
 }
 
@@ -324,7 +405,7 @@ QPushButton {
     margin: 0;
 }
 
-#NameLabel, #AddressLabel, #ContactLabel, #EmailLabel{
+#NameLabel, #ControlNumberLabel, #AddressLabel, #ContactLabel, #EmailLabel{
     color: #000;
     font-family: Poppins;
     font-size: 15px;
@@ -380,7 +461,7 @@ QPushButton {
 #DeleteButton {
     background-color: transparent;
     border: none; 
-    margin-top: -3px;
+    margin-top: -5px;
 }
 
 /*Reports Tab*/

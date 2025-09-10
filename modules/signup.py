@@ -61,7 +61,8 @@ class SignUpWindow(QMainWindow):
         self.last_name_input.setPlaceholderText("Last Name")
 
         self.email_input = QLineEdit()
-        self.email_input.setPlaceholderText("Email")
+        self.email_input.setPlaceholderText("Email (must end with @petmedix.med)")
+        self.email_input.setObjectName("FormInput")
 
         self.role_input = QComboBox()
         self.role_input.setEditable(True)
@@ -175,7 +176,7 @@ class SignUpWindow(QMainWindow):
         first_name = self.first_name_input.text().strip()
         last_name = self.last_name_input.text().strip()
         email = self.email_input.text().strip()
-        role = self.role_input.currentText()  # Use self.role_input instead of self.role_dropdown
+        role = self.role_input.currentText()
         password = self.password_input.text().strip()
         
         # Get security question answers
@@ -183,65 +184,130 @@ class SignUpWindow(QMainWindow):
         answer_two = self.questionTwo_input.text().strip()
         answer_three = self.questionThree_input.text().strip()
 
+        # Input validation
         if not (first_name and last_name and email and password) or role == "Select Role":
-            message_box = create_styled_message_box(
-                QMessageBox.Warning, 
-                "Input Error", 
+            error_msg = create_styled_message_box(
+                QMessageBox.Critical,
+                "Error",
                 "All fields are required!"
             )
-            message_box.exec()
+            error_msg.setStandardButtons(QMessageBox.Ok)
+            error_msg.exec()
             return
 
         if not email.endswith("@petmedix.med"):
-            QMessageBox.warning(self, "Invalid Email", "Email must end with @petmedix.med")
+            error_msg = create_styled_message_box(
+                QMessageBox.Warning,
+                "Invalid Email",
+                "Email must end with @petmedix.med"
+            )
+            error_msg.setStandardButtons(QMessageBox.Ok)
+            error_msg.exec()
             return
 
         if not re.fullmatch(r"[A-Za-z0-9]{6,20}", password):
-            QMessageBox.warning(self, "Invalid Password",
-                "Password must be alphanumeric and 6-20 characters long.")
+            error_msg = create_styled_message_box(
+                QMessageBox.Warning,
+                "Invalid Password",
+                "Password must be alphanumeric and 6-20 characters long."
+            )
+            error_msg.setStandardButtons(QMessageBox.Ok)
+            error_msg.exec()
             return
 
         if not (answer_one and answer_two and answer_three):
-            QMessageBox.warning(self, "Security Questions Required",
-                "Please answer all security questions.")
+            error_msg = create_styled_message_box(
+                QMessageBox.Warning,
+                "Security Questions Required",
+                "Please answer all security questions."
+            )
+            error_msg.setStandardButtons(QMessageBox.Ok)
+            error_msg.exec()
             return
-
-        full_name = f"{first_name} {last_name}"
 
         db = Database()
         try:
             # Check if user already exists
             if db.user_exists(email):
-                QMessageBox.warning(self, "Account Exists", "An account with this email already exists.")
+                error_msg = create_styled_message_box(
+                    QMessageBox.Warning,
+                    "Account Exists",
+                    "An account with this email already exists."
+                )
+                error_msg.setStandardButtons(QMessageBox.Ok)
+                error_msg.exec()
                 return
 
             # Create user and retrieve the generated USER_ID
+            print(f"Creating user with role: {role}")
             user_id = db.create_user(first_name, last_name, email, password, role)
-            if user_id:
-                # Save security questions
-                if db.save_security_questions(
-                    user_id,
-                    "What is your mother's maiden name?",
-                    answer_one,
-                    "What was the name of your first pet?",
-                    answer_two,
-                    "What is the name of the street you grew up on?",
-                    answer_three
-                ):
-                    QMessageBox.information(self, "Success", f"Account created successfully! Your username is: {user_id}")
+            
+            if not user_id:
+                print("Failed to generate user ID")
+                error_msg = create_styled_message_box(
+                    QMessageBox.Critical,
+                    "Error",
+                    "Failed to generate a username. Please try again."
+                )
+                error_msg.setStandardButtons(QMessageBox.Ok)
+                error_msg.exec()
+                return
 
-                    redirect_label = QLabel("Redirecting to login page...", self)
-                    redirect_label.setAlignment(Qt.AlignCenter)
-                    redirect_label.setStyleSheet("font-size: 16px; color: green;")
-                    self.layout().addWidget(redirect_label)
+            print(f"User created with ID: {user_id}")
+            
+            # Save security questions
+            print("Saving security questions...")
+            if not db.save_security_questions(
+                user_id,
+                "What is your mother's maiden name?",
+                answer_one,
+                "What was the name of your first pet?",
+                answer_two,
+                "What is the name of the street you grew up on?",
+                answer_three
+            ):
+                print("Failed to save security questions")
+                error_msg = create_styled_message_box(
+                    QMessageBox.Critical,
+                    "Error",
+                    "Failed to save security questions. Please try again."
+                )
+                error_msg.setStandardButtons(QMessageBox.Ok)
+                error_msg.exec()
+                return
 
-                    QTimer.singleShot(2000, self.redirect_to_login)
-                else:
-                    QMessageBox.critical(self, "Error", "Failed to save security questions. Please try again.")
-            else:
-                QMessageBox.critical(self, "Error", "Failed to generate a username. Please try again.")
+            print("Security questions saved successfully")
+            
+            # Create success message
+            success_msg = create_styled_message_box(
+                QMessageBox.Information,
+                "Success",
+                f"""
+                <div style='font-size: 14px; color: #012547;'>
+                    <p style='font-weight: bold; font-size: 16px; margin-bottom: 10px;'>Account Created Successfully!</p>
+                    <p>Your account has been created with the following details:</p>
+                    <p style='margin-top: 10px;'><b>Username:</b> {user_id}</p>
+                    <p style='margin-top: 5px;'><b>Email:</b> {email}</p>
+                    <p style='margin-top: 5px;'><b>Role:</b> {role}</p>
+                    <p style='margin-top: 15px; color: #4A90E2;'>You will be redirected to the login page in a moment...</p>
+                </div>
+                """
+            )
+            success_msg.setStandardButtons(QMessageBox.Ok)
+            success_msg.exec()
+
+            # Redirect after a short delay
+            QTimer.singleShot(2000, self.redirect_to_login)
+            
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to create account: {e}")
+            print(f"Error creating account: {str(e)}")
+            error_msg = create_styled_message_box(
+                QMessageBox.Critical,
+                "Error",
+                f"Failed to create account: {str(e)}"
+            )
+            error_msg.setStandardButtons(QMessageBox.Ok)
+            error_msg.exec()
         finally:
             db.close_connection()
 

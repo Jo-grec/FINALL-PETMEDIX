@@ -1,13 +1,17 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTableWidget,
     QTableWidgetItem, QMessageBox, QDialog, QFormLayout, QLineEdit,
-    QComboBox, QHeaderView, QFrame
+    QComboBox, QHeaderView, QFrame, QGridLayout, QFileDialog, QTextEdit, QCheckBox,
+    QStyledItemDelegate, QGroupBox, QRadioButton, QAbstractScrollArea, QAbstractItemView,
+    QButtonGroup
 )
-from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QIcon, QPixmap, QColor
+from PySide6.QtCore import Qt, QSize, QDate, QTimer
+from PySide6.QtGui import QIcon, QPixmap, QColor, QPainter, QPainterPath, QDoubleValidator
 from modules.database import Database
-from modules.utils import show_message
+from modules.utils import create_styled_message_box, show_message
 import os
+from shutil import copyfile
+from modules.setting import UpdateClinicInfoDialog
 
 class AdminDashboard(QWidget):
     def __init__(self):
@@ -126,38 +130,243 @@ class AdminDashboard(QWidget):
         stats_layout = QHBoxLayout()
         
         # Total Users Card
-        users_card = self.create_stat_card("Total Users", "0", "users")
+        self.users_card_value = QLabel("0")
+        users_card = self.create_stat_card("Total Users", self.users_card_value)
         stats_layout.addWidget(users_card)
 
         # Total Vets Card
-        vets_card = self.create_stat_card("Veterinarians", "0", "vets")
+        self.vets_card_value = QLabel("0")
+        vets_card = self.create_stat_card("Veterinarians", self.vets_card_value)
         stats_layout.addWidget(vets_card)
 
         # Total Receptionists Card
-        receptionists_card = self.create_stat_card("Receptionists", "0", "receptionists")
+        self.receptionists_card_value = QLabel("0")
+        receptionists_card = self.create_stat_card("Receptionists", self.receptionists_card_value)
         stats_layout.addWidget(receptionists_card)
 
         layout.addLayout(stats_layout)
-        layout.addStretch()
+        
+        # Add spacing between stat cards and clinic info
+        layout.addSpacing(30)  # Add 30 pixels of vertical spacing
 
-    def create_stat_card(self, title, value, icon):
-        card = QFrame()
-        card.setStyleSheet("""
-            QFrame {
-                background-color: white;
-                border-radius: 10px;
-                padding: 20px;
+        # --- Clinic Information Section ---
+        clinic_section = QFrame()
+        clinic_section.setStyleSheet("background-color: white; border-radius: 5px;")
+        clinic_layout = QVBoxLayout(clinic_section)
+        clinic_layout.setContentsMargins(10, 10, 30, 10)
+        clinic_layout.setSpacing(25)
+        
+        clinic_header = QLabel("VET CLINIC INFORMATION")
+        clinic_header.setStyleSheet("font-weight: bold; font-size: 16px;")
+        clinic_layout.addWidget(clinic_header)
+        clinic_content = QHBoxLayout()
+        clinic_content.setSpacing(25)
+        clinic_picture_column = QVBoxLayout()
+        clinic_picture_column.setAlignment(Qt.AlignTop | Qt.AlignCenter)
+        clinic_logo = QLabel()
+        clinic_logo.setFixedSize(200, 200)
+        clinic_logo.setAlignment(Qt.AlignCenter)
+        clinic_logo.setText("Clinic\nLogo")
+        clinic_upload_btn = QPushButton("Upload Photo")
+        clinic_upload_btn.setStyleSheet("""
+            background-color: #dfe4ea;
+            color: #000;
+            font-size: 12px;
+            padding: 8px;
+            border-radius: 10px;
+            margin-left:45px;
+        """)
+        clinic_upload_btn.setFixedWidth(170)
+        clinic_picture_column.addWidget(clinic_logo)
+        clinic_picture_column.addWidget(clinic_upload_btn)
+        clinic_picture_column.addStretch()
+        clinic_info_column = QGridLayout()
+        clinic_info_column.setVerticalSpacing(10)
+        clinic_info_column.setHorizontalSpacing(10)
+        clinic_labels = {}
+        def update_clinic_info_ui():
+            db = Database()
+            try:
+                db.cursor.execute("SELECT name, address, contact_number, email, employees_count, logo_path, vet_license FROM clinic_info LIMIT 1")
+                clinic_row = db.cursor.fetchone()
+                if clinic_row:
+                    clinic_data = {
+                        "name": clinic_row[0],
+                        "address": clinic_row[1],
+                        "contact": clinic_row[2],
+                        "email": clinic_row[3],
+                        "employees": str(clinic_row[4]),
+                        "logo_path": clinic_row[5] or "",
+                        "vet_license": clinic_row[6] or "VET-214"
+                    }
+                else:
+                    clinic_data = {"name": "", "address": "", "contact": "", "email": "", "employees": "", "logo_path": "", "vet_license": "VET-214"}
+            except Exception as e:
+                print(f"❌ Error loading clinic data: {e}")
+                clinic_data = {"name": "", "address": "", "contact": "", "email": "", "employees": "", "logo_path": "", "vet_license": "VET-214"}
+            # Update logo
+            if clinic_data.get("logo_path") and os.path.exists(clinic_data["logo_path"]):
+                original_pixmap = QPixmap(clinic_data["logo_path"])
+                size = clinic_logo.size()
+                rounded_pixmap = QPixmap(size)
+                rounded_pixmap.fill(Qt.transparent)
+                painter = QPainter(rounded_pixmap)
+                painter.setRenderHint(QPainter.Antialiasing)
+                path = QPainterPath()
+                path.addEllipse(0, 0, size.width(), size.height())
+                painter.setClipPath(path)
+                scaled_pixmap = original_pixmap.scaled(size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+                painter.drawPixmap(0, 0, scaled_pixmap)
+                painter.end()
+                clinic_logo.setPixmap(rounded_pixmap)
+                clinic_logo.setText("")
+            else:
+                clinic_logo.setText("Clinic\nLogo")
+            # Update info fields
+            clinic_fields = {
+                "Name:": clinic_data.get("name", ""),
+                "Vet License Number:": clinic_data.get("vet_license", "VET-214"),
+                "Email Address:": clinic_data.get("email", ""),
+                "Address:": clinic_data.get("address", ""),
+                "Contact Number:": clinic_data.get("contact", ""),
+                "No. of Employees:": clinic_data.get("employees", "")
+            }
+            # Clear previous widgets if any
+            for i in reversed(range(clinic_info_column.count())):
+                item = clinic_info_column.itemAt(i)
+                if item:
+                    widget = item.widget()
+                    if widget:
+                        widget.setParent(None)
+            clinic_labels.clear()
+            row = 0
+            for label_text, value_text in clinic_fields.items():
+                label = QLabel(label_text)
+                label.setStyleSheet("font-weight: bold; color: #222f3e;")
+                value = QLabel(value_text)
+                value.setStyleSheet("color: #222f3e;")
+                clinic_info_column.addWidget(label, row, 0)
+                clinic_info_column.addWidget(value, row, 1)
+                clinic_labels[label_text.replace(":", "")] = value
+                row += 1
+            db.close_connection()
+        update_clinic_info_ui()
+        def upload_logo():
+            file_path, _ = QFileDialog.getOpenFileName(self, "Select Clinic Logo", "", "Images (*.png *.jpg *.jpeg)")
+            if file_path:
+                logo_dir = os.path.join("assets", "clinic_logos")
+                os.makedirs(logo_dir, exist_ok=True)
+                filename = "clinic_logo.jpg"
+                new_path = os.path.join(logo_dir, filename)
+                copyfile(file_path, new_path)
+                db = Database()
+                db.save_clinic_info(
+                    clinic_labels["Name"].text(),
+                    clinic_labels["Address"].text(),
+                    clinic_labels["Contact Number"].text(),
+                    clinic_labels["Email Address"].text(),
+                    clinic_labels["No. of Employees"].text(),
+                    vet_license=clinic_labels["Vet License Number"].text(),
+                    logo_path=new_path
+                )
+                db.close_connection()
+                update_clinic_info_ui()
+        clinic_upload_btn.clicked.connect(upload_logo)
+        clinic_button_column = QVBoxLayout()
+        clinic_button_column.setAlignment(Qt.AlignTop)
+        update_clinic_btn = QPushButton("Update Info")
+        update_clinic_btn.setIcon(QIcon("edit_icon.png"))
+        update_clinic_btn.setIconSize(QSize(10, 10))
+        update_clinic_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #012547;
+                color: white;
+                font-size: 12px;
+                font-weight: bold;
+                padding: 10px;
+                border-radius: 15px;
+            }
+            QPushButton:hover {
+                background-color: #01315d;
             }
         """)
-        card.setMinimumHeight(150)
+        update_clinic_btn.setFixedWidth(120)
+        
+        def open_update_clinic_dialog():
+            db = Database()
+            db.cursor.execute("SELECT name, address, contact_number, email, employees_count, logo_path, vet_license FROM clinic_info LIMIT 1")
+            clinic_row = db.cursor.fetchone()
+            if clinic_row:
+                clinic_data = {
+                    "name": clinic_row[0],
+                    "address": clinic_row[1],
+                    "contact": clinic_row[2],
+                    "email": clinic_row[3],
+                    "employees": str(clinic_row[4]),
+                    "logo_path": clinic_row[5] or "",
+                    "vet_license": clinic_row[6] or "VET-214"
+                }
+            else:
+                clinic_data = {"name": "", "address": "", "contact": "", "email": "", "employees": "", "logo_path": "", "vet_license": "VET-214"}
+            db.close_connection()
+            dialog = UpdateClinicInfoDialog(clinic_data)
+            if dialog.exec():
+                updated_data = dialog.get_updated_data()
+                db = Database()
+                db.save_clinic_info(
+                    updated_data["name"],
+                    updated_data["address"],
+                    updated_data["contact"],
+                    updated_data["email"],
+                    int(updated_data["employees"]),
+                    vet_license=updated_data["vet_license"],
+                    logo_path=clinic_data.get("logo_path")
+                )
+                db.close_connection()
+                update_clinic_info_ui()
+        update_clinic_btn.clicked.connect(open_update_clinic_dialog)
+        clinic_button_column.addWidget(update_clinic_btn)
+        clinic_button_column.addStretch()
+        clinic_content.addLayout(clinic_picture_column)
+        clinic_content.addSpacing(40)
+        clinic_content.addLayout(clinic_info_column, 1)
+        clinic_content.addLayout(clinic_button_column)
+        clinic_layout.addLayout(clinic_content)
+        layout.addWidget(clinic_section)
+        layout.addStretch()
+
+    def create_stat_card(self, title, value_label):
+        card = QFrame()
+        
+        # Set different colors based on card title
+        if title == "Total Users":
+            bg_color = "#FF0000"  # Light blue
+            text_color = "#fff"  # Dark blue
+        elif title == "Veterinarians":
+            bg_color = "#008000"  # Light green
+            text_color = "#fff"  # Dark green
+        elif title == "Receptionists":
+            bg_color = "#012547"  # Light orange
+            text_color = "#fff"  # Dark orange
+        else:
+            bg_color = "white"
+            text_color = "#012547"
+            
+        card.setStyleSheet(f"""
+            QFrame {{
+                background-color: {bg_color};
+                border-radius: 10px;
+                padding: 10px;
+            }}
+        """)
+        card.setFixedHeight(150)
 
         layout = QVBoxLayout(card)
         
         title_label = QLabel(title)
-        title_label.setStyleSheet("font-size: 16px; color: #666;")
+        title_label.setStyleSheet(f"font-size: 16px; color: {text_color};")
         
-        value_label = QLabel(value)
-        value_label.setStyleSheet("font-size: 32px; font-weight: bold; color: #012547;")
+        value_label.setStyleSheet(f"font-size: 32px; font-weight: bold; color: {text_color};")
         
         layout.addWidget(title_label)
         layout.addWidget(value_label)
@@ -291,9 +500,9 @@ class AdminDashboard(QWidget):
 
         # Users table
         self.users_table = QTableWidget()
-        self.users_table.setColumnCount(6)
+        self.users_table.setColumnCount(7)
         self.users_table.setHorizontalHeaderLabels([
-            "User ID", "Name", "Email", "Role", "Status", "Created Date"
+            "User ID", "Name", "Email", "Role", "Status", "License Number", "Created Date"
         ])
         self.users_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.users_table.setStyleSheet("""
@@ -349,29 +558,22 @@ class AdminDashboard(QWidget):
     def update_dashboard_stats(self):
         db = Database()
         try:
-            # Get total users count
-            db.cursor.execute("SELECT COUNT(*) FROM users")
+            # Get total verified users count
+            db.cursor.execute("SELECT COUNT(*) FROM users WHERE status = 'Verified'")
             total_users = db.cursor.fetchone()[0]
 
-            # Get vets count
-            db.cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'Veterinarian'")
+            # Get verified vets count
+            db.cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'Veterinarian' AND status = 'Verified'")
             total_vets = db.cursor.fetchone()[0]
 
-            # Get receptionists count
-            db.cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'Receptionist'")
+            # Get verified receptionists count
+            db.cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'Receptionist' AND status = 'Verified'")
             total_receptionists = db.cursor.fetchone()[0]
 
             # Update the stat cards
-            for i in range(self.dashboard_page.layout().count()):
-                widget = self.dashboard_page.layout().itemAt(i).widget()
-                if isinstance(widget, QFrame):
-                    value_label = widget.findChild(QLabel, "", Qt.FindChildrenRecursively)[1]
-                    if "Total Users" in widget.findChildren(QLabel)[0].text():
-                        value_label.setText(str(total_users))
-                    elif "Veterinarians" in widget.findChildren(QLabel)[0].text():
-                        value_label.setText(str(total_vets))
-                    elif "Receptionists" in widget.findChildren(QLabel)[0].text():
-                        value_label.setText(str(total_receptionists))
+            self.users_card_value.setText(str(total_users))
+            self.vets_card_value.setText(str(total_vets))
+            self.receptionists_card_value.setText(str(total_receptionists))
 
         except Exception as e:
             print(f"❌ Error updating dashboard stats: {e}")
@@ -382,7 +584,7 @@ class AdminDashboard(QWidget):
         db = Database()
         try:
             db.cursor.execute("""
-                SELECT user_id, name, email, role, status, created_date
+                SELECT user_id, name, email, role, status, license_number, created_date
                 FROM users
                 WHERE role IN ('Veterinarian', 'Receptionist')
                 ORDER BY created_date DESC
@@ -393,7 +595,7 @@ class AdminDashboard(QWidget):
             for row, user in enumerate(users):
                 # Add user data
                 for col, value in enumerate(user):
-                    item = QTableWidgetItem(str(value))
+                    item = QTableWidgetItem(str(value) if value is not None else "")
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
                     
                     # Set background color based on status
@@ -432,64 +634,13 @@ class AdminDashboard(QWidget):
 
     def verify_user(self, row):
         user_id = self.users_table.item(row, 0).text()
-        name = self.users_table.item(row, 1).text()
-        email = self.users_table.item(row, 2).text()
-        role = self.users_table.item(row, 3).text()
         
-        # Create confirmation dialog
-        confirm = QMessageBox()
-        confirm.setWindowTitle("Confirm User Verification")
-        confirm.setIconPixmap(QPixmap("assets/authentication 1.png").scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-        
-        # Create custom message with styling
-        message = f"""
-        <div style='font-size: 14px; color: #012547; margin-bottom: 15px;'>
-            <p style='font-weight: bold; font-size: 16px; margin-bottom: 10px;'>Please confirm the following user details:</p>
-            <div style='background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;'>
-                <p><b>Name:</b> {name}</p>
-                <p><b>Email:</b> {email}</p>
-                <p><b>Role:</b> {role}</p>
-            </div>
-            <p style='margin-top: 15px;'>Do you want to verify this user?</p>
-        </div>
-        """
-        confirm.setText(message)
-        
-        # Style the buttons
-        confirm.setStyleSheet("""
-            QMessageBox {
-                background-color: white;
-            }
-            QPushButton {
-                padding: 8px 20px;
-                border-radius: 5px;
-                font-weight: bold;
-                min-width: 80px;
-            }
-            QPushButton#qt_msgbox_yesbutton {
-                background-color: #012547;
-                color: white;
-                border: none;
-            }
-            QPushButton#qt_msgbox_yesbutton:hover {
-                background-color: #023d6d;
-            }
-            QPushButton#qt_msgbox_yesbutton:pressed {
-                background-color: #001e3d;
-            }
-            QPushButton#qt_msgbox_nobutton {
-                background-color: #012547;
-                color: white;
-                border: none;
-            }
-            QPushButton#qt_msgbox_nobutton:hover {
-                background-color: #023d6d;
-            }
-            QPushButton#qt_msgbox_nobutton:pressed {
-                background-color: #001e3d;
-            }
-        """)
-        
+        # Create confirmation message box
+        confirm = create_styled_message_box(
+            QMessageBox.Question,
+            "Verify User",
+            f"Are you sure you want to verify user {user_id}?"
+        )
         confirm.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         
         if confirm.exec() == QMessageBox.Yes:
@@ -502,36 +653,17 @@ class AdminDashboard(QWidget):
                 """, (user_id,))
                 db.conn.commit()
                 
-                # Show success message with styling
-                success_msg = QMessageBox()
-                success_msg.setWindowTitle("Success")
-                success_msg.setIconPixmap(QPixmap("assets/authentication 1.png").scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-                success_msg.setText(f"""
+                # Show success message
+                success_msg = create_styled_message_box(
+                    QMessageBox.Information,
+                    "Success",
+                    f"""
                     <div style='font-size: 14px; color: #012547;'>
                         <p style='font-weight: bold; font-size: 16px; margin-bottom: 10px;'>User Verified Successfully!</p>
                         <p>The user has been verified and can now access the system.</p>
                     </div>
-                """)
-                success_msg.setStyleSheet("""
-                    QMessageBox {
-                        background-color: white;
-                    }
-                    QPushButton {
-                        padding: 8px 20px;
-                        border-radius: 5px;
-                        font-weight: bold;
-                        min-width: 80px;
-                        background-color: #012547;
-                        color: white;
-                        border: none;
-                    }
-                    QPushButton:hover {
-                        background-color: #023d6d;
-                    }
-                    QPushButton:pressed {
-                        background-color: #001e3d;
-                    }
-                """)
+                    """
+                )
                 success_msg.setStandardButtons(QMessageBox.Ok)
                 success_msg.exec()
                 
@@ -539,84 +671,81 @@ class AdminDashboard(QWidget):
                 # Update dashboard stats after verifying user
                 self.update_dashboard_stats()
             except Exception as e:
-                show_message(self, f"Error verifying user: {str(e)}", QMessageBox.Critical)
-            finally:
-                db.close_connection()
+                print(f"Error verifying user: {e}")
+                db.conn.rollback()
+                # Show error message
+                error_msg = create_styled_message_box(
+                    QMessageBox.Critical,
+                    "Error",
+                    "An error occurred while verifying the user. Please try again."
+                )
+                error_msg.setStandardButtons(QMessageBox.Ok)
+                error_msg.exec()
 
     def delete_user(self, row):
         user_id = self.users_table.item(row, 0).text()
-        confirm = QMessageBox()
-        confirm.setIcon(QMessageBox.Question)
-        confirm.setText("Are you sure you want to delete this user?")
-        confirm.setWindowTitle("Confirm Deletion")
+        
+        # Create confirmation message box
+        confirm = create_styled_message_box(
+            QMessageBox.Question,
+            "Delete User",
+            f"Are you sure you want to delete user {user_id}?"
+        )
         confirm.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        confirm.setDefaultButton(QMessageBox.No)
         
         if confirm.exec() == QMessageBox.Yes:
             db = Database()
             try:
                 db.cursor.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
                 db.conn.commit()
-                show_message(self, "User deleted successfully!")
+                
+                # Show success message
+                success_msg = create_styled_message_box(
+                    QMessageBox.Information,
+                    "Success",
+                    f"""
+                    <div style='font-size: 14px; color: #012547;'>
+                        <p style='font-weight: bold; font-size: 16px; margin-bottom: 10px;'>User Deleted Successfully!</p>
+                        <p>The user has been removed from the system.</p>
+                    </div>
+                    """
+                )
+                success_msg.setStandardButtons(QMessageBox.Ok)
+                success_msg.exec()
+                
                 self.load_users()
                 # Update dashboard stats after deleting user
                 self.update_dashboard_stats()
             except Exception as e:
-                show_message(self, f"Error deleting user: {str(e)}", QMessageBox.Critical)
+                print(f"Error deleting user: {e}")
+                db.conn.rollback()
+                # Show error message
+                error_msg = create_styled_message_box(
+                    QMessageBox.Critical,
+                    "Error",
+                    "An error occurred while deleting the user. Please try again."
+                )
+                error_msg.setStandardButtons(QMessageBox.Ok)
+                error_msg.exec()
             finally:
                 db.close_connection()
 
     def logout(self):
         """Handle logout action."""
         # Create confirmation dialog
-        confirm = QMessageBox()
-        confirm.setWindowTitle("Confirm Logout")
-        confirm.setIconPixmap(QPixmap("assets/authentication 1.png").scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-        
-        # Create custom message with styling
-        message = """
-        <div style='font-size: 14px; color: #012547; margin-bottom: 15px;'>
-            <p style='font-weight: bold; font-size: 16px; margin-bottom: 10px;'>Are you sure you want to logout?</p>
-            <p>You will be redirected to the login page.</p>
-        </div>
-        """
-        confirm.setText(message)
-        
-        # Style the buttons
-        confirm.setStyleSheet("""
-            QMessageBox {
-                background-color: white;
-            }
-            QPushButton {
-                padding: 8px 20px;
-                border-radius: 5px;
-                font-weight: bold;
-                min-width: 80px;
-            }
-            QPushButton#qt_msgbox_yesbutton {
-                background-color: #012547;
-                color: white;
-                border: none;
-            }
-            QPushButton#qt_msgbox_yesbutton:hover {
-                background-color: #023d6d;
-            }
-            QPushButton#qt_msgbox_yesbutton:pressed {
-                background-color: #001e3d;
-            }
-            QPushButton#qt_msgbox_nobutton {
-                background-color: #012547;
-                color: white;
-                border: none;
-            }
-            QPushButton#qt_msgbox_nobutton:hover {
-                background-color: #023d6d;
-            }
-            QPushButton#qt_msgbox_nobutton:pressed {
-                background-color: #001e3d;
-            }
-        """)
-        
+        confirm = create_styled_message_box(
+            QMessageBox.Question,
+            "Confirm Logout",
+            """
+            <div style='font-size: 14px; color: #012547;'>
+                <p style='font-weight: bold; font-size: 16px; margin-bottom: 10px;'>Are you sure you want to logout?</p>
+                <p>You will be redirected to the login page.</p>
+            </div>
+            """
+        )
         confirm.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        confirm.setDefaultButton(QMessageBox.No)
         
         if confirm.exec() == QMessageBox.Yes:
             from modules.login import LoginWindow
@@ -649,64 +778,13 @@ class AdminDashboard(QWidget):
         if selected_items:
             row = selected_items[0].row()
             user_id = self.users_table.item(row, 0).text()
-            name = self.users_table.item(row, 1).text()
-            email = self.users_table.item(row, 2).text()
-            role = self.users_table.item(row, 3).text()
             
-            # Create confirmation dialog
-            confirm = QMessageBox()
-            confirm.setWindowTitle("Confirm User Unverification")
-            confirm.setIconPixmap(QPixmap("assets/authentication 1.png").scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-            
-            # Create custom message with styling
-            message = f"""
-            <div style='font-size: 14px; color: #012547; margin-bottom: 15px;'>
-                <p style='font-weight: bold; font-size: 16px; margin-bottom: 10px;'>Please confirm the following user details:</p>
-                <div style='background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;'>
-                    <p><b>Name:</b> {name}</p>
-                    <p><b>Email:</b> {email}</p>
-                    <p><b>Role:</b> {role}</p>
-                </div>
-                <p style='margin-top: 15px;'>Do you want to unverify this user?</p>
-            </div>
-            """
-            confirm.setText(message)
-            
-            # Style the buttons
-            confirm.setStyleSheet("""
-                QMessageBox {
-                    background-color: white;
-                }
-                QPushButton {
-                    padding: 8px 20px;
-                    border-radius: 5px;
-                    font-weight: bold;
-                    min-width: 80px;
-                }
-                QPushButton#qt_msgbox_yesbutton {
-                    background-color: #012547;
-                    color: white;
-                    border: none;
-                }
-                QPushButton#qt_msgbox_yesbutton:hover {
-                    background-color: #023d6d;
-                }
-                QPushButton#qt_msgbox_yesbutton:pressed {
-                    background-color: #001e3d;
-                }
-                QPushButton#qt_msgbox_nobutton {
-                    background-color: #012547;
-                    color: white;
-                    border: none;
-                }
-                QPushButton#qt_msgbox_nobutton:hover {
-                    background-color: #023d6d;
-                }
-                QPushButton#qt_msgbox_nobutton:pressed {
-                    background-color: #001e3d;
-                }
-            """)
-            
+            # Create confirmation message box
+            confirm = create_styled_message_box(
+                QMessageBox.Question,
+                "Unverify User",
+                f"Are you sure you want to unverify user {user_id}?"
+            )
             confirm.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
             
             if confirm.exec() == QMessageBox.Yes:
@@ -719,36 +797,17 @@ class AdminDashboard(QWidget):
                     """, (user_id,))
                     db.conn.commit()
                     
-                    # Show success message with styling
-                    success_msg = QMessageBox()
-                    success_msg.setWindowTitle("Success")
-                    success_msg.setIconPixmap(QPixmap("assets/authentication 1.png").scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-                    success_msg.setText(f"""
+                    # Show success message
+                    success_msg = create_styled_message_box(
+                        QMessageBox.Information,
+                        "Success",
+                        f"""
                         <div style='font-size: 14px; color: #012547;'>
                             <p style='font-weight: bold; font-size: 16px; margin-bottom: 10px;'>User Unverified Successfully!</p>
                             <p>The user's status has been changed to Pending.</p>
                         </div>
-                    """)
-                    success_msg.setStyleSheet("""
-                        QMessageBox {
-                            background-color: white;
-                        }
-                        QPushButton {
-                            padding: 8px 20px;
-                            border-radius: 5px;
-                            font-weight: bold;
-                            min-width: 80px;
-                            background-color: #012547;
-                            color: white;
-                            border: none;
-                        }
-                        QPushButton:hover {
-                            background-color: #023d6d;
-                        }
-                        QPushButton:pressed {
-                            background-color: #001e3d;
-                        }
-                    """)
+                        """
+                    )
                     success_msg.setStandardButtons(QMessageBox.Ok)
                     success_msg.exec()
                     
@@ -756,9 +815,16 @@ class AdminDashboard(QWidget):
                     # Update dashboard stats after unverifying user
                     self.update_dashboard_stats()
                 except Exception as e:
-                    show_message(self, f"Error unverifying user: {str(e)}", QMessageBox.Critical)
-                finally:
-                    db.close_connection()
+                    print(f"Error unverifying user: {e}")
+                    db.conn.rollback()
+                    # Show error message
+                    error_msg = create_styled_message_box(
+                        QMessageBox.Critical,
+                        "Error",
+                        "An error occurred while unverifying the user. Please try again."
+                    )
+                    error_msg.setStandardButtons(QMessageBox.Ok)
+                    error_msg.exec()
 
     def edit_selected_user(self):
         selected_items = self.users_table.selectedIndexes()
@@ -779,230 +845,177 @@ class AddUserDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Add New User")
-        self.setMinimumWidth(500)
-        self.setMinimumHeight(600)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #f8f9fa;
-            }
-            QLabel {
-                font-size: 14px;
-                color: #012547;
-                font-weight: bold;
-                margin-bottom: 2px;
-            }
-            QLabel#sectionLabel {
-                font-size: 16px;
-                color: #012547;
-                font-weight: bold;
-                margin: 0px;
-                padding: 0px;
-            }
-            QLabel#sectionLabel#personalInfo {
-                margin-bottom: 0px;
-            }
-            QLabel#sectionLabel#accountInfo, QLabel#sectionLabel#roleInfo {
-                margin-bottom: 15px;
-            }
-            QLineEdit, QComboBox {
-                padding: 10px;
-                border: 2px solid #e0e0e0;
-                border-radius: 8px;
-                background-color: white;
-                font-size: 13px;
-                min-height: 20px;
-                margin: 0px;
-            }
-            QLineEdit:focus, QComboBox:focus {
-                border: 2px solid #012547;
-            }
-            QComboBox {
-                padding-right: 30px;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 30px;
-            }
-            QComboBox::down-arrow {
-                image: url(assets/dropdown.png);
-                width: 12px;
-                height: 12px;
-            }
-            QComboBox QAbstractItemView {
-                border: 2px solid #e0e0e0;
-                border-radius: 8px;
-                background-color: white;
-                selection-background-color: #f0f0f0;
-                selection-color: #012547;
-                padding: 5px;
-            }
-            QComboBox QAbstractItemView::item {
-                min-height: 30px;
-                padding: 5px 10px;
-            }
-            QPushButton {
-                padding: 10px 20px;
-                border-radius: 8px;
-                font-size: 14px;
-                font-weight: bold;
-                min-width: 100px;
-            }
-        """)
+        self.setFixedSize(600, 650)
         self.setup_ui()
 
     def setup_ui(self):
-        main_layout = QVBoxLayout(self)
-        main_layout.setSpacing(15)
-        main_layout.setContentsMargins(20, 20, 20, 20)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
-        # Form container
-        form_container = QFrame()
-        form_container.setStyleSheet("""
-            QFrame {
-                background-color: white;
-                border-radius: 15px;
-                padding: 15px;
-            }
-            QLabel#sectionLabel {
-                font-size: 16px;
-                color: #012547;
-                font-weight: bold;
-                margin: 0px;
-                padding: 0px;
-            }
-            QLabel#sectionLabel#personalInfo {
-                margin-bottom: 0px;
-            }
-            QLabel#sectionLabel#accountInfo, QLabel#sectionLabel#roleInfo {
-                margin-bottom: 15px;
-            }
-        """)
-        form_layout = QVBoxLayout(form_container)
-        form_layout.setSpacing(20)
-        form_layout.setContentsMargins(15, 15, 15, 15)
+        # Header
+        header = QWidget()
+        header.setStyleSheet("background-color: #012547;")
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(30, 30, 30, 30)
+        title_label = QLabel("Add New User")
+        title_label.setStyleSheet("font-size: 32px; font-weight: bold; color: white;")
+        header_layout.addWidget(title_label)
+        layout.addWidget(header)
 
-        # Form fields
-        fields_layout = QVBoxLayout()
-        fields_layout.setSpacing(0)
+        # Main form area
+        form_area = QWidget()
+        form_layout = QVBoxLayout(form_area)
+        form_layout.setContentsMargins(40, 30, 40, 10)
+        form_layout.setSpacing(5)
 
-        # Name fields container
-        name_container = QHBoxLayout()
-        name_container.setSpacing(10)
-
-        # First Name field
-        first_name_container = QVBoxLayout()
-        first_name_label = QLabel("First Name")
+        # First Name and Last Name
+        name_label = QLabel("Name")
+        name_label.setStyleSheet("font-size: 18px; font-weight: bold; margin-bottom: 2px;")
+        form_layout.addWidget(name_label)
+        name_row = QHBoxLayout()
+        name_row.setSpacing(20)
         self.first_name_input = QLineEdit()
-        self.first_name_input.setPlaceholderText("Enter first name")
-        first_name_container.addWidget(first_name_label)
-        first_name_container.addWidget(self.first_name_input)
-        first_name_container.setContentsMargins(0, 0, 0, 0)
-        first_name_container.setSpacing(2)
-        name_container.addLayout(first_name_container)
-
-        # Last Name field
-        last_name_container = QVBoxLayout()
-        last_name_label = QLabel("Last Name")
+        self.first_name_input.setPlaceholderText("First Name")
+        self.first_name_input.setMinimumHeight(40)
+        self.first_name_input.setStyleSheet(self.input_style())
         self.last_name_input = QLineEdit()
-        self.last_name_input.setPlaceholderText("Enter last name")
-        last_name_container.addWidget(last_name_label)
-        last_name_container.addWidget(self.last_name_input)
-        last_name_container.setContentsMargins(0, 0, 0, 0)
-        last_name_container.setSpacing(2)
-        name_container.addLayout(last_name_container)
+        self.last_name_input.setPlaceholderText("Last Name")
+        self.last_name_input.setMinimumHeight(40)
+        self.last_name_input.setStyleSheet(self.input_style())
+        name_row.addWidget(self.first_name_input)
+        name_row.addWidget(self.last_name_input)
+        form_layout.addLayout(name_row)
 
-        fields_layout.addLayout(name_container)
-
-        # Email field
-        email_container = QVBoxLayout()
-        email_label = QLabel("Email Address")
+        # Email
+        email_label = QLabel("Email")
+        email_label.setStyleSheet("font-size: 18px; font-weight: bold; margin-bottom: 2px;")
+        form_layout.addWidget(email_label)
         self.email_input = QLineEdit()
-        self.email_input.setPlaceholderText("example@petmedix.med")
-        email_container.addWidget(email_label)
-        email_container.addWidget(self.email_input)
-        email_container.setContentsMargins(0, 0, 0, 0)
-        email_container.setSpacing(2)
-        fields_layout.addLayout(email_container)
+        self.email_input.setPlaceholderText("Enter email (@petmedix.med)")
+        self.email_input.setMinimumHeight(40)
+        self.email_input.setStyleSheet(self.input_style())
+        form_layout.addWidget(self.email_input)
 
-        # Password field
-        password_container = QVBoxLayout()
+        # Password
         password_label = QLabel("Password")
+        password_label.setStyleSheet("font-size: 18px; font-weight: bold; margin-bottom: 2px;")
+        form_layout.addWidget(password_label)
         self.password_input = QLineEdit()
+        self.password_input.setPlaceholderText("Enter password")
         self.password_input.setEchoMode(QLineEdit.Password)
-        self.password_input.setPlaceholderText("Enter secure password")
-        password_container.addWidget(password_label)
-        password_container.addWidget(self.password_input)
-        password_container.setContentsMargins(0, 0, 0, 0)
-        password_container.setSpacing(2)
-        fields_layout.addLayout(password_container)
+        self.password_input.setMinimumHeight(40)
+        self.password_input.setStyleSheet(self.input_style())
+        form_layout.addWidget(self.password_input)
 
-        # Role field
-        role_container = QVBoxLayout()
+        # Role
         role_label = QLabel("Role")
+        role_label.setStyleSheet("font-size: 18px; font-weight: bold; margin-bottom: 2px;")
+        form_layout.addWidget(role_label)
         self.role_combo = QComboBox()
-        self.role_combo.addItems(["Veterinarian", "Receptionist"])
-        
-        # Add icons to combo box items
-        vet_icon = QIcon(os.path.join("assets", "medical.png"))
-        receptionist_icon = QIcon(os.path.join("assets", "client.png"))
-        
-        self.role_combo.setItemIcon(0, vet_icon)
-        self.role_combo.setItemIcon(1, receptionist_icon)
-        self.role_combo.setIconSize(QSize(20, 20))
-        
-        role_container.addWidget(role_label)
-        role_container.addWidget(self.role_combo)
-        role_container.setContentsMargins(0, 0, 0, 0)
-        role_container.setSpacing(2)
-        fields_layout.addLayout(role_container)
+        self.role_combo.addItems(['Veterinarian', 'Receptionist'])
+        self.role_combo.setMinimumHeight(40)
+        self.role_combo.setStyleSheet(self.input_style(combo=True))
+        form_layout.addWidget(self.role_combo)
 
-        form_layout.addLayout(fields_layout)
-        main_layout.addWidget(form_container)
+        # License Number
+        license_label = QLabel("License Number")
+        license_label.setStyleSheet("font-size: 18px; font-weight: bold; margin-bottom: 2px;")
+        form_layout.addWidget(license_label)
+        self.license_number_input = QLineEdit()
+        self.license_number_input.setPlaceholderText("Enter license number")
+        self.license_number_input.setMinimumHeight(40)
+        self.license_number_input.setStyleSheet(self.input_style())
+        form_layout.addWidget(self.license_number_input)
 
-        # Buttons container
-        buttons_container = QFrame()
-        buttons_container.setStyleSheet("""
-            QFrame {
-                background-color: white;
-                border-radius: 15px;
-                padding: 15px;
-            }
-        """)
-        buttons_layout = QHBoxLayout(buttons_container)
-        buttons_layout.setSpacing(10)
-        buttons_layout.setContentsMargins(15, 15, 15, 15)
+        # Connect role change to show/hide license number
+        self.role_combo.currentTextChanged.connect(self.on_role_changed)
+        self.on_role_changed(self.role_combo.currentText())
 
+        layout.addWidget(form_area)
+        layout.addStretch()
+
+        # Buttons
+        button_row = QHBoxLayout()
+        button_row.setContentsMargins(0, 0, 35, 50)
+        button_row.addStretch()
         cancel_btn = QPushButton("Cancel")
-        cancel_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #e0e0e0;
-                color: #333;
-                border: none;
-            }
-            QPushButton:hover {
-                background-color: #d0d0d0;
-            }
-        """)
+        cancel_btn.setFixedSize(140, 50)
+        cancel_btn.setStyleSheet(self.cancel_button_style())
         cancel_btn.clicked.connect(self.reject)
+        save_btn = QPushButton("Save")
+        save_btn.setFixedSize(140, 50)
+        save_btn.setStyleSheet(self.save_button_style())
+        save_btn.clicked.connect(self.save_user)
+        button_row.addWidget(cancel_btn)
+        button_row.addWidget(save_btn)
+        layout.addLayout(button_row)
 
-        save_btn = QPushButton("Create User")
-        save_btn.setStyleSheet("""
+    def input_style(self, combo=False):
+        if combo:
+            return """
+                QComboBox {
+                    font-family: 'Lato';
+                    padding: 8px;
+                    background-color: #fff;
+                    border: 1px solid #ddd;
+                    border-radius: 10px;
+                    font-size: 16px;
+                }
+                QComboBox::drop-down {
+                    width: 30px;
+                    border: none;
+                }
+                QComboBox QAbstractItemView {
+                    font-family: 'Lato';
+                    font-size: 16px;
+                }
+            """
+        return """
+            QLineEdit {
+                font-family: 'Lato';
+                padding: 8px;
+                background-color: #fff;
+                border: 1px solid #ddd;
+                border-radius: 10px;
+                font-size: 16px;
+            }
+        """
+
+    def save_button_style(self):
+        return """
             QPushButton {
                 background-color: #012547;
+                border-radius: 25px;
+                font-size: 18px;
+                font-weight: bold;
                 color: white;
-                border: none;
+                font-family: Lato;
             }
             QPushButton:hover {
-                background-color: #023d6d;
+                background-color: #01315d;
             }
-        """)
-        save_btn.clicked.connect(self.save_user)
+        """
 
-        buttons_layout.addStretch()
-        buttons_layout.addWidget(cancel_btn)
-        buttons_layout.addWidget(save_btn)
+    def cancel_button_style(self):
+        return """
+            QPushButton {
+                background-color: #f5f5f5;
+                border-radius: 25px;
+                font-size: 18px;
+                font-weight: bold;
+                color: #012547;
+                font-family: Lato;
+            }
+            QPushButton:hover {
+                background-color: #e0e0e0;
+            }
+        """
 
-        main_layout.addWidget(buttons_container)
+    def on_role_changed(self, role):
+        self.license_number_input.setVisible(role == 'Veterinarian')
+        if role != 'Veterinarian':
+            self.license_number_input.clear()
 
     def save_user(self):
         first_name = self.first_name_input.text()
@@ -1010,280 +1023,252 @@ class AddUserDialog(QDialog):
         email = self.email_input.text()
         password = self.password_input.text()
         role = self.role_combo.currentText()
+        license_number = self.license_number_input.text() if role == 'Veterinarian' else None
 
         if not all([first_name, last_name, email, password, role]):
             show_message(self, "Please fill in all fields", QMessageBox.Warning)
             return
 
-        # Validate email domain
         if not email.endswith("@petmedix.med"):
             show_message(self, "Email must end with @petmedix.med", QMessageBox.Warning)
             return
 
+        if role == 'Veterinarian' and not license_number:
+            show_message(self, "License number is required for veterinarians", QMessageBox.Warning)
+            return
+
         db = Database()
         try:
-            # Check if email already exists
             db.cursor.execute("SELECT 1 FROM users WHERE email = ?", (email,))
             if db.cursor.fetchone():
                 show_message(self, "Email already exists", QMessageBox.Warning)
                 return
-
-            # Create new user with full name
             full_name = f"{first_name} {last_name}"
-            user_id = db.create_user(full_name, "", email, password, role)
+            user_id = db.create_user(full_name, "", email, password, role, status='Verified', license_number=license_number)
             if user_id:
                 show_message(self, "User created successfully!")
-                # Update dashboard stats after creating new user
                 self.parent().update_dashboard_stats()
                 self.accept()
             else:
                 show_message(self, "Failed to create user", QMessageBox.Critical)
-
         except Exception as e:
             show_message(self, f"Error creating user: {str(e)}", QMessageBox.Critical)
         finally:
             db.close_connection()
 
 class EditUserDialog(QDialog):
-    def __init__(self, parent=None, user_id=None, name="", email="", role=""):
+    def __init__(self, parent=None, user_id=None, name=None, email=None, role=None):
         super().__init__(parent)
-        self.user_id = user_id
         self.setWindowTitle("Edit User")
-        self.setMinimumWidth(500)
-        self.setMinimumHeight(500)  # Reduced height
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #f8f9fa;
-            }
-            QLabel {
-                font-size: 14px;
-                color: #012547;
-                font-weight: bold;
-                margin-bottom: 2px;
-            }
-            QLineEdit, QComboBox {
-                padding: 10px;
-                border: 2px solid #e0e0e0;
-                border-radius: 8px;
-                background-color: white;
-                font-size: 13px;
-                min-height: 20px;
-                margin: 0px;
-            }
-            QLineEdit:focus, QComboBox:focus {
-                border: 2px solid #012547;
-            }
-            QComboBox {
-                padding-right: 30px;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 30px;
-            }
-            QComboBox::down-arrow {
-                image: url(assets/dropdown.png);
-                width: 12px;
-                height: 12px;
-            }
-            QComboBox QAbstractItemView {
-                border: 2px solid #e0e0e0;
-                border-radius: 8px;
-                background-color: white;
-                selection-background-color: #f0f0f0;
-                selection-color: #012547;
-                padding: 5px;
-            }
-            QComboBox QAbstractItemView::item {
-                min-height: 30px;
-                padding: 5px 10px;
-            }
-            QPushButton {
-                padding: 10px 20px;
-                border-radius: 8px;
-                font-size: 14px;
-                font-weight: bold;
-                min-width: 100px;
-            }
-        """)
+        self.setFixedSize(600, 550)
+        self.user_id = user_id
         self.setup_ui(name, email, role)
 
     def setup_ui(self, name, email, role):
-        main_layout = QVBoxLayout(self)
-        main_layout.setSpacing(15)
-        main_layout.setContentsMargins(20, 20, 20, 20)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
-        # Form container
-        form_container = QFrame()
-        form_container.setStyleSheet("""
-            QFrame {
-                background-color: white;
-                border-radius: 15px;
-                padding: 15px;
-            }
-        """)
-        form_layout = QVBoxLayout(form_container)
-        form_layout.setSpacing(8)
-        form_layout.setContentsMargins(15, 15, 15, 15)
+        # Header
+        header = QWidget()
+        header.setStyleSheet("background-color: #012547;")
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(30, 30, 30, 30)
+        title_label = QLabel("Edit User")
+        title_label.setStyleSheet("font-size: 32px; font-weight: bold; color: white;")
+        header_layout.addWidget(title_label)
+        layout.addWidget(header)
 
-        # Form fields
-        fields_layout = QVBoxLayout()
-        fields_layout.setSpacing(10)
+        # Main form area
+        form_area = QWidget()
+        form_layout = QVBoxLayout(form_area)
+        form_layout.setContentsMargins(40, 10, 40, 0)
+        form_layout.setSpacing(5)
 
-        # Name fields container
-        name_container = QHBoxLayout()
-        name_container.setSpacing(10)
+        # Name
+        name_label = QLabel("Name")
+        name_label.setStyleSheet("font-size: 18px; font-weight: bold; margin-bottom: 2px;")
+        form_layout.addWidget(name_label)
+        name_row = QHBoxLayout()
+        name_row.setSpacing(20)
+        self.name_input = QLineEdit()
+        self.name_input.setText(name)
+        self.name_input.setMinimumHeight(40)
+        self.name_input.setStyleSheet(self.input_style())
+        name_row.addWidget(self.name_input)
+        form_layout.addLayout(name_row)
 
-        # Split name into first and last name
-        name_parts = name.split()
-        first_name = name_parts[0] if name_parts else ""
-        last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
-
-        # First Name field
-        first_name_container = QVBoxLayout()
-        first_name_label = QLabel("First Name")
-        self.first_name_input = QLineEdit()
-        self.first_name_input.setText(first_name)
-        self.first_name_input.setPlaceholderText("Enter first name")
-        first_name_container.addWidget(first_name_label)
-        first_name_container.addWidget(self.first_name_input)
-        first_name_container.setContentsMargins(0, 0, 0, 0)
-        first_name_container.setSpacing(2)
-        name_container.addLayout(first_name_container)
-
-        # Last Name field
-        last_name_container = QVBoxLayout()
-        last_name_label = QLabel("Last Name")
-        self.last_name_input = QLineEdit()
-        self.last_name_input.setText(last_name)
-        self.last_name_input.setPlaceholderText("Enter last name")
-        last_name_container.addWidget(last_name_label)
-        last_name_container.addWidget(self.last_name_input)
-        last_name_container.setContentsMargins(0, 0, 0, 0)
-        last_name_container.setSpacing(2)
-        name_container.addLayout(last_name_container)
-
-        fields_layout.addLayout(name_container)
-
-        # Email field
-        email_container = QVBoxLayout()
-        email_label = QLabel("Email Address")
+        # Email
+        email_field_layout = QVBoxLayout()
+        email_field_layout.setSpacing(2)
+        email_label = QLabel("Email")
+        email_label.setStyleSheet("font-size: 18px; font-weight: bold; margin-bottom: 2px;")
+        email_field_layout.addWidget(email_label)
         self.email_input = QLineEdit()
         self.email_input.setText(email)
-        self.email_input.setPlaceholderText("example@petmedix.med")
-        email_container.addWidget(email_label)
-        email_container.addWidget(self.email_input)
-        email_container.setContentsMargins(0, 0, 0, 0)
-        email_container.setSpacing(2)
-        fields_layout.addLayout(email_container)
+        self.email_input.setMinimumHeight(40)
+        self.email_input.setStyleSheet(self.input_style())
+        email_field_layout.addWidget(self.email_input)
+        form_layout.addLayout(email_field_layout)
 
-        # Role field
-        role_container = QVBoxLayout()
+        # Role
+        role_field_layout = QVBoxLayout()
+        role_field_layout.setSpacing(2)
         role_label = QLabel("Role")
+        role_label.setStyleSheet("font-size: 18px; font-weight: bold; margin-bottom: 2px;")
+        role_field_layout.addWidget(role_label)
         self.role_combo = QComboBox()
-        self.role_combo.addItems(["Veterinarian", "Receptionist"])
-        
-        # Add icons to combo box items
-        vet_icon = QIcon(os.path.join("assets", "medical.png"))
-        receptionist_icon = QIcon(os.path.join("assets", "client.png"))
-        
-        self.role_combo.setItemIcon(0, vet_icon)
-        self.role_combo.setItemIcon(1, receptionist_icon)
-        self.role_combo.setIconSize(QSize(20, 20))
-        
-        # Set current role
-        index = self.role_combo.findText(role)
-        if index >= 0:
-            self.role_combo.setCurrentIndex(index)
-        
-        role_container.addWidget(role_label)
-        role_container.addWidget(self.role_combo)
-        role_container.setContentsMargins(0, 0, 0, 0)
-        role_container.setSpacing(2)
-        fields_layout.addLayout(role_container)
+        self.role_combo.addItems(['Veterinarian', 'Receptionist'])
+        self.role_combo.setCurrentText(role)
+        self.role_combo.setMinimumHeight(40)
+        self.role_combo.setStyleSheet(self.input_style(combo=True))
+        role_field_layout.addWidget(self.role_combo)
+        form_layout.addLayout(role_field_layout)
 
-        form_layout.addLayout(fields_layout)
-        main_layout.addWidget(form_container)
+        # License Number
+        license_field_layout = QVBoxLayout()
+        license_field_layout.setSpacing(2)
+        license_label = QLabel("License Number")
+        license_label.setStyleSheet("font-size: 18px; font-weight: bold; margin-bottom: 2px;")
+        license_field_layout.addWidget(license_label)
+        self.license_number_input = QLineEdit()
+        self.license_number_input.setMinimumHeight(40)
+        self.license_number_input.setStyleSheet(self.input_style())
+        # Load existing license number if available
+        db = Database()
+        try:
+            db.cursor.execute("SELECT license_number FROM users WHERE user_id = ?", (self.user_id,))
+            result = db.cursor.fetchone()
+            if result and result[0]:
+                self.license_number_input.setText(result[0])
+        except Exception as e:
+            print(f"Error loading license number: {e}")
+        finally:
+            db.close_connection()
+        license_field_layout.addWidget(self.license_number_input)
+        form_layout.addLayout(license_field_layout)
 
-        # Buttons container
-        buttons_container = QFrame()
-        buttons_container.setStyleSheet("""
-            QFrame {
-                background-color: white;
-                border-radius: 15px;
-                padding: 15px;
-            }
-        """)
-        buttons_layout = QHBoxLayout(buttons_container)
-        buttons_layout.setSpacing(10)
-        buttons_layout.setContentsMargins(15, 15, 15, 15)
+        # Connect role change to show/hide license number
+        self.role_combo.currentTextChanged.connect(self.on_role_changed)
+        self.on_role_changed(self.role_combo.currentText())
 
+        layout.addWidget(form_area)
+        layout.addStretch()
+
+        # Buttons
+        button_row = QHBoxLayout()
+        button_row.setContentsMargins(0, 10, 35, 10)
+        button_row.addStretch()
         cancel_btn = QPushButton("Cancel")
-        cancel_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #e0e0e0;
-                color: #333;
-                border: none;
-            }
-            QPushButton:hover {
-                background-color: #d0d0d0;
-            }
-        """)
+        cancel_btn.setFixedSize(140, 50)
+        cancel_btn.setStyleSheet(self.cancel_button_style())
         cancel_btn.clicked.connect(self.reject)
+        save_btn = QPushButton("Save")
+        save_btn.setFixedSize(140, 50)
+        save_btn.setStyleSheet(self.save_button_style())
+        save_btn.clicked.connect(self.save_changes)
+        button_row.addWidget(cancel_btn)
+        button_row.addWidget(save_btn)
+        layout.addLayout(button_row)
 
-        save_btn = QPushButton("Save Changes")
-        save_btn.setStyleSheet("""
+    def input_style(self, combo=False):
+        if combo:
+            return """
+                QComboBox {
+                    font-family: 'Lato';
+                    padding: 8px;
+                    background-color: #fff;
+                    border: 1px solid #ddd;
+                    border-radius: 10px;
+                    font-size: 16px;
+                }
+                QComboBox::drop-down {
+                    width: 30px;
+                    border: none;
+                }
+                QComboBox QAbstractItemView {
+                    font-family: 'Lato';
+                    font-size: 16px;
+                }
+            """
+        return """
+            QLineEdit {
+                font-family: 'Lato';
+                padding: 8px;
+                background-color: #fff;
+                border: 1px solid #ddd;
+                border-radius: 10px;
+                font-size: 16px;
+            }
+        """
+
+    def save_button_style(self):
+        return """
             QPushButton {
                 background-color: #012547;
+                border-radius: 25px;
+                font-size: 18px;
+                font-weight: bold;
                 color: white;
-                border: none;
+                font-family: Lato;
             }
             QPushButton:hover {
-                background-color: #023d6d;
+                background-color: #01315d;
             }
-        """)
-        save_btn.clicked.connect(self.save_changes)
+        """
 
-        buttons_layout.addStretch()
-        buttons_layout.addWidget(cancel_btn)
-        buttons_layout.addWidget(save_btn)
+    def cancel_button_style(self):
+        return """
+            QPushButton {
+                background-color: #f5f5f5;
+                border-radius: 25px;
+                font-size: 18px;
+                font-weight: bold;
+                color: #012547;
+                font-family: Lato;
+            }
+            QPushButton:hover {
+                background-color: #e0e0e0;
+            }
+        """
 
-        main_layout.addWidget(buttons_container)
+    def on_role_changed(self, role):
+        self.license_number_input.setVisible(role == 'Veterinarian')
+        if role != 'Veterinarian':
+            self.license_number_input.clear()
 
     def save_changes(self):
-        first_name = self.first_name_input.text()
-        last_name = self.last_name_input.text()
+        name = self.name_input.text()
         email = self.email_input.text()
         role = self.role_combo.currentText()
+        license_number = self.license_number_input.text() if role == 'Veterinarian' else None
 
-        if not all([first_name, last_name, email, role]):
+        if not all([name, email, role]):
             show_message(self, "Please fill in all fields", QMessageBox.Warning)
             return
 
-        # Validate email domain
         if not email.endswith("@petmedix.med"):
             show_message(self, "Email must end with @petmedix.med", QMessageBox.Warning)
             return
 
+        if role == 'Veterinarian' and not license_number:
+            show_message(self, "License number is required for veterinarians", QMessageBox.Warning)
+            return
+
         db = Database()
         try:
-            # Check if email already exists for other users
             db.cursor.execute("SELECT 1 FROM users WHERE email = ? AND user_id != ?", (email, self.user_id))
             if db.cursor.fetchone():
                 show_message(self, "Email already exists", QMessageBox.Warning)
                 return
-
-            # Update user
-            full_name = f"{first_name} {last_name}"
             db.cursor.execute("""
-                UPDATE users
-                SET name = ?, email = ?, role = ?
+                UPDATE users 
+                SET name = ?, email = ?, role = ?, license_number = ?
                 WHERE user_id = ?
-            """, (full_name, email, role, self.user_id))
+            """, (name, email, role, license_number, self.user_id))
             db.conn.commit()
-            
             show_message(self, "User updated successfully!")
             self.accept()
-
         except Exception as e:
             show_message(self, f"Error updating user: {str(e)}", QMessageBox.Critical)
         finally:
